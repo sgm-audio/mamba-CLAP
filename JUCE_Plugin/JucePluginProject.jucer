@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<JUCERPROJECT name="MambaSpectrogramEnhancer" version="0.1.0" company="Mamba Audio" companyWebsite="mambaaudio.com">
+  <MAINGROUP name="MambaSpectrogramEnhancer">
+    <GROUP name="Source">
+      <FILE id="{B0F6A8D1-2C4E-4B5A-8F9D-1E2F3A4B5C6D}" name="PluginProcessor.cpp" file="../clap-plugin/juce_gui/JucePluginProcessor.cpp"/>
+      <FILE id="{C1G7B9E2-3D5F-5C6B-9G0E-2F3G4H5I6J7K}" name="PluginProcessor.h" file="../clap-plugin/juce_gui/JucePluginProcessor.h"/>
+      <FILE id="{D2H8C0F3-4E6G-6D7C-0H1F-3G4H5I6J7K8L}" name="PluginEditor.cpp" file="../clap-plugin/juce_gui/JucePluginEditor.cpp"/>
+      <FILE id="{E3I9D1G4-5F7H-7E8D-1I2G-4H5I6J7K8L9M}" name="PluginEditor.h" file="../clap-plugin/juce_gui/JucePluginEditor.h"/>
+    </GROUP>
+    <GROUP name="CLAP Processing">
+      <FILE id="{F4J0E2H5-6G8I-8F9E-2J3H-5I6J7K8L9M0N}" name="clap-plugin.cpp" file="../clap-plugin/src/clap-plugin.cpp"/>
+      <FILE id="{G5K1F3I6-7H9J-9G0F-3K4I-6J7K8L9M0N1O}" name="clap-plugin.hpp" file="../clap-plugin/include/clap-plugin.hpp"/>
+    </GROUP>
+  </MAINGROUP>
+  <EXPORTFORMATS>
+    <!-- Xcode -->
+    <EXPORTFORMAT type="xcode_Mac" targetFolder="Builds/MacOSX"/>
+    <EXPORTFORMAT type="xcode_iOS" targetFolder="Builds/iOS"/>
+    <EXPORTFORMAT type="xcode_Win32" targetFolder="Builds/Windows"/>
+    <EXPORTFORMAT type="xcode_Android" targetFolder="Builds/Android"/>
+    <!-- Visual Studio -->
+    <EXPORTFORMAT type="vs2019" targetFolder="Builds/VisualStudio2019"/>
+    <EXPORTFORMAT type="vs2022" targetFolder="Builds/VisualStudio2022"/>
+    <!-- Linux Makefile -->
+    <EXPORTFORMAT type="linuxMakefile" targetFolder="Builds/LinuxMakefile"/>
+  </EXPORTFORMATS>
+  <MODULES>
+    <!-- JUCE modules -->
+    <MODULE id="juce_core" showAllCode="false"/>
+    <MODULE id="juce_events" showAllCode="false"/>
+    <MODULE id="juce_graphics" showAllCode="false"/>
+    <MODULE id="juce_gui_basics" showAllCode="false"/>
+    <MODULE id="juce_gui_extra" showAllCode="false"/>
+    <MODULE id="juce_audio_basics" showAllCode="false"/>
+    <MODULE id="juce_audio_devices" showAllCode="false"/>
+    <MODULE id="juce_audio_formats" showAllCode="false"/>
+    <MODULE id="juce_audio_processors" showAllCode="false"/>
+    <MODULE id="juce_audio_plugins" showAllCode="false"/>
+    <MODULE id="juce_audio_utils" showAllCode="false"/>
+    <MODULE id="juce_data_structures" showAllCode="false"/>
+    <MODULE id="juce_dsp" showAllCode="false"/>
+    <MODULE id="juce_fonts" showAllCode="false"/>
+    <MODULE id="juce_gui" showAllCode="false"/>
+    <MODULE id="juce_opengl" showAllCode="false"/>
+    <MODULE id="juce_osc" showAllCode="false"/>
+    <MODULE id="juce_video" showAllCode="false"/>
+  </MODULES>
+  <JUCEOPTIONS>
+    <!-- Plugin format -->
+    <PLUGINFORMATS>
+      <!-- VST3 -->
+      <PLUGINFORMAT type="VST3"/>
+      <!-- AU -->
+      <PLUGINFORMAT type="AU"/>
+      <!-- AAX -->
+      <PLUGINFORMAT type="AAX"/>
+      <!-- CLAP (we'll keep our existing CLAP plugin too) -->
+      <PLUGINFORMAT type="CLAP"/>
+    </PLUGINFORMATS>
+    <!-- Plugin characteristics -->
+    <PLUGINCHARACTERISTICS>
+      <PLUGINISINSTRUMENT value="0"/>
+      <PLUGINWANTSMIDIINPUT value="0"/>
+      <PLUGINPRODUCESMIDIOUTPUT value="0"/>
+      <PLUGINISMIDIEFFECT value="0"/>
+      <PLUGINEDITORREQUIRESKEYFOCUS value="0"/>
+      <PLUGINAUTOMATESPARAMETERS value="1"/>
+      <PLUGINISAUMPLUGIN value="0"/>
+      <PLUGINISAUNREADEDPLUGIN value="0"/>
+    </PLUGINCHARACTERISTICS>
+    <!-- Plugin identifiers -->
+    <PLUGINIDENTIFIERS>
+      <AUXPLUGINIDENTIFIER value="MaSe"/>
+      <AU3PLUGINIDENTIFIER value="MaSe"/>
+      <VST3PLUGINIDENTIFIER value="MaSe"/>
+      <AAXPLUGINIDENTIFIER value="MaSe"/>
+      <CLAPPLUGINIDENTIFIER value="com.mamba-audio.spectrogram-enhancer"/>
+    </PLUGINIDENTIFIERS>
+    <!-- Plugin names -->
+    <PLUGINNAMES>
+      <AUXPLUGINNAME value="Mamba Spectrogram Enhancer"/>
+      <AU3PLUGINNAME value="Mamba Spectrogram Enhancer"/>
+      <VST3PLUGINNAME value="Mamba Spectrogram Enhancer"/>
+      <AAXPLUGINNAME value="Mamba Spectrogram Enhancer"/>
+      <CLAPPLUGINNAME value="Mamba Spectrogram Enhancer"/>
+    </PLUGINNAMES>
+    <!-- Plugin manufacturers -->
+    <PLUGINMANUFACTURERS>
+      <AUXPLUGINMANUFACTURER value="Mamba Audio"/>
+      <AU3PLUGINMANUFACTURER value="Mamba Audio"/>
+      <VST3PLUGINMANUFACTURER value="Mamba Audio"/>
+      <AAXPLUGINMANUFACTURER value="Mamba Audio"/>
+      <CLAPPLUGINMANUFACTURER value="Mamba Audio"/>
+    </PLUGINMANUFACTURERS>
+    <!-- Plugin version -->
+    <PLUGINVERSION value="1.0.0"/>
+    <!-- Plugin format specific settings -->
+    <VST3SETTINGS/>
+    <AUSETTINGS/>
+    <AAXSETTINGS/>
+    <CLAPSETTINGS/>
+  </JUCEOPTIONS>
+</JUCERPROJECT>

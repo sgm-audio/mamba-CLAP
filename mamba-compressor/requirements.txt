@@ -1,0 +1,49 @@
+# Core dependencies
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.24.0
+
+# Mamba SSM
+mamba-ssm>=1.1.0
+causal-conv1d>=1.0.0
+
+# NVIDIA NeMo (optional, for distributed training)
+# nemo-toolkit[all]>=1.20.0  # Uncomment if using NeMo
+
+# Audio processing
+librosa>=0.10.0
+soundfile>=0.12.0
+scipy>=1.10.0
+
+# Data handling
+pyarrow>=11.0.0
+datasets>=2.14.0
+
+# Training utilities
+pytorch-lightning>=2.0.0
+omegaconf>=2.3.0
+hydra-core>=1.3.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Testing
+pytest>=7.3.0
+pytest-cov>=4.1.0
+
+# Development
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# Jupyter (for examples)
+jupyterlab>=4.0.0
+ipywidgets>=8.0.0
+
+# Optional: TensorRT-LLM export
+# tensorrt-llm>=0.5.0  # Uncomment if exporting to TensorRT
+
+# Optional: WebUI demo
+# gradio>=3.40.0  # Uncomment if building a demo interface

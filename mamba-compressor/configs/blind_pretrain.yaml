@@ -1,0 +1,76 @@
+# Blind Pretraining Configuration
+# Train on synthetic corruption without paired data
+
+project_name: mamba-compressor
+version: 0.1.0
+seed: 42
+
+# Audio settings
+audio:
+  sample_rate: 44100
+  n_fft: 2048
+  hop_length: 512
+  n_mels: 128
+  f_min: 0.0
+  f_max: null
+
+# Mamba architecture
+mamba:
+  d_model: 256
+  n_layers: 6
+  d_state: 32
+  d_conv: 4
+  expand: 2
+  dropout: 0.1
+
+# Compressor parameters
+compressor:
+  min_gain_db: -40.0
+  max_gain_db: 0.0
+  min_attack_ms: 0.1
+  max_attack_ms: 100.0
+  min_release_ms: 10.0
+  max_release_ms: 2000.0
+  lookahead_frames: 4
+
+# Loss weights for blind training
+loss:
+  waveform_weight: 1.0
+  spectral_weight: 1.0
+  crest_factor_weight: 0.5
+  lufs_weight: 0.3
+  target_lufs: -14.0
+  fft_sizes: [512, 1024, 2048]
+
+# Training hyperparameters
+training:
+  batch_size: 8
+  num_workers: 4
+  max_epochs: 100
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-5
+  warmup_steps: 1000
+  gradient_clip_val: 1.0
+  precision: "16-mixed"
+  accumulate_grad_batches: 1
+
+# Checkpointing
+checkpoint:
+  dirpath: checkpoints/blind
+  save_top_k: 3
+  monitor: val_loss
+  mode: min
+  every_n_epochs: 5
+
+# Data
+data:
+  audio_dir: datasets/music_corpus
+  duration_sec: 10.0
+  shuffle: true
+
+# Synthetic corruption settings (deliberately bad compression)
+corruption:
+  ratio_range: [8.0, 20.0]      # Over-compressed
+  attack_range_ms: [0.1, 2.0]   # Too fast - kills transients
+  release_range_ms: [2000.0, 5000.0]  # Too slow - pumping
+  threshold_range_db: [-30.0, -6.0]
