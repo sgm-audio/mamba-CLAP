@@ -49,6 +49,8 @@ set(CLAP_SOURCES
     clap/ClapPlugin.cpp
     clap/ClapExtensions.cpp
     clap/ClapFactory.cpp
+    # Complete skeleton: full lifecycle + smooth automation + state + validator
+    clap/MambaFXPlugin.cpp
 )
 set(MODEL_SOURCES
     model/MambaInferenceEngine.cpp
@@ -60,6 +62,8 @@ set(DSP_SOURCES
     dsp/STFTEngine.cpp
     dsp/OverlapAddSynthesizer.cpp
     dsp/EffectApplicator.cpp
+    dsp/AudioRingBuffer.cpp
+    # SmoothedValue is header-only; no .cpp needed
 )
 set(STATE_SOURCES
     state/StateSerializer.cpp
@@ -160,4 +164,54 @@ endif()
 if(MAMBA_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+# ─── Plugin installation & registration ──────────────────────────────────────
+# Standard CLAP install paths (per CLAP spec):
+#   Linux:   ~/.clap/  or  /usr/lib/clap/
+#   macOS:   ~/Library/Audio/Plug-Ins/CLAP/
+#   Windows: %COMMONPROGRAMFILES%\CLAP\
+#
+# CMake install rules — run: cmake --install build --prefix /usr
+# ─────────────────────────────────────────────────────────────────────────────
+if(UNIX AND NOT APPLE)
+    set(CLAP_INSTALL_DIR "$ENV{HOME}/.clap" CACHE PATH "CLAP plugin install directory")
+elseif(APPLE)
+    set(CLAP_INSTALL_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/CLAP" CACHE PATH "CLAP plugin install directory")
+else()
+    set(CLAP_INSTALL_DIR "$ENV{COMMONPROGRAMFILES}/CLAP" CACHE PATH "CLAP plugin install directory")
+endif()
+
+install(TARGETS MambaFX
+    LIBRARY DESTINATION "${CLAP_INSTALL_DIR}"
+    RUNTIME DESTINATION "${CLAP_INSTALL_DIR}"
+)
+
+# ─── clap-validator CI target ─────────────────────────────────────────────────
+# Requires clap-validator on PATH.  Run: cmake --build build --target validate
+# ─────────────────────────────────────────────────────────────────────────────
+find_program(CLAP_VALIDATOR clap-validator)
+if(CLAP_VALIDATOR)
+    add_custom_target(validate
+        COMMAND "${CLAP_VALIDATOR}"
+                validate
+                "$<TARGET_FILE:MambaFX>"
+                --output-format=json
+        DEPENDS MambaFX
+        COMMENT "Running clap-validator on MambaFX.clap"
+    )
+else()
+    message(STATUS "clap-validator not found on PATH; 'validate' target disabled")
+endif()
+
+# ─── Model directory installation ────────────────────────────────────────────
+# The plugin looks for model files via $MAMBA_MODEL_ROOT or beside the .clap.
+# Provide models next to the installed plugin for self-contained distribution.
+set(MAMBA_MODEL_DIR "" CACHE PATH "Directory containing mamba_fx_*.torchscript files")
+if(MAMBA_MODEL_DIR AND EXISTS "${MAMBA_MODEL_DIR}")
+    install(DIRECTORY "${MAMBA_MODEL_DIR}/"
+        DESTINATION "${CLAP_INSTALL_DIR}/MambaFX-models"
+        FILES_MATCHING PATTERN "*.torchscript"
+    )
+    message(STATUS "Model files will be installed to: ${CLAP_INSTALL_DIR}/MambaFX-models")
 endif()
