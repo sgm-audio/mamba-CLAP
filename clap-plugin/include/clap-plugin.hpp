@@ -10,7 +10,6 @@ namespace mamba_audio {
 
 class STFTProcessor;
 class MambaWrapper;
-class HiFiGANWrapper;
 
 class MambaClapPlugin {
 public:
@@ -23,6 +22,11 @@ public:
     bool start_processing();
     void stop_processing();
     void process(const clap_process_t* process);
+    
+    // Parameter callbacks
+    bool param_value(const clap_param_t* param, double value);
+    double param_value(const clap_param_t* param) const;
+    void param_change(const clap_param_t* param, double value, uint32_t flags);
 
     const clap_plugin_descriptor* get_descriptor() const { return descriptor_; }
     const clap_host_t* get_host() const { return host_; }
@@ -36,19 +40,32 @@ private:
     const clap_plugin_descriptor* descriptor_;
     const clap_host_t* host_;
 
-    double sample_rate_ = 22050.0;
+    double sample_rate_ = 44100.0;
     bool is_active_ = false;
     bool is_processing_ = false;
 
     std::unique_ptr<STFTProcessor> stft_processor_;
     std::unique_ptr<MambaWrapper> mamba_wrapper_;
-    std::unique_ptr<HiFiGANWrapper> hifigan_wrapper_;
 
     int hop_length_ = 256;
     int n_fft_ = 1024;
     int n_mels_ = 80;
 
     torch::Device device_ = torch::kCPU;
+    
+    // Plugin parameters (exposed to host)
+    float param_effect_type = 0.0f; // mapped to 0..3 (reverb, compression, saturation, EQ)
+    float param_mix = 0.5f;         // 0.0 dry, 1.0 wet
+    float param_context_length = 60.0f; // seconds of context to consider (informational)
+
+    // Helper to map effect_type float to int index
+    int getEffectTypeIndex() const {
+        // Clamp and round to nearest integer 0-3
+        float v = param_effect_type;
+        if (v < 0.0f) v = 0.0f;
+        if (v > 3.0f) v = 3.0f;
+        return static_cast<int>(std::round(v));
+    };
 };
 
 class STFTProcessor {
@@ -66,6 +83,9 @@ private:
     double sample_rate_;
 
     torch::Tensor window_func_;
+    // Mel filter bank: [n_mels, n_fft/2+1]
+    torch::Tensor mel_basis_;
+    torch::Tensor inv_mel_basis_; // pseudo-inverse for ISTFT
 };
 
 class MambaWrapper {
@@ -73,24 +93,24 @@ public:
     MambaWrapper(const std::string& model_path, int n_mels, torch::Device device);
     ~MambaWrapper();
 
-    torch::Tensor process(const torch::Tensor& mel_input);
+    // Get initial state for streaming processing
+    std::vector<torch::Tensor> getInitialState(int batch_size = 1);
+    // Process one time step: input [batch, n_mels], updates state, returns output [batch, n_mels]
+    torch::Tensor step(const torch::Tensor& input, std::vector<torch::Tensor>& state);
+    // Process effect-specific: input [batch, n_mels], current state, effect type -> effect parameters
+    torch::Tensor processEffect(const torch::Tensor& input, int effect_type, std::vector<torch::Tensor>& state);
+    void resetState(); // For clearing context when needed
 
 private:
     torch::Device device_;
-    torch::nn::Sequential model_;
+    std::shared_ptr<torch::jit::script::Module> module_;
     int n_mels_;
-};
-
-class HiFiGANWrapper {
-public:
-    HiFiGANWrapper(const std::string& model_path, torch::Device device);
-    ~HiFiGANWrapper();
-
-    torch::Tensor mel2waveform(const torch::Tensor& mel_spectrogram);
-
-private:
-    torch::Device device_;
-    torch::nn::Module* generator_ = nullptr;
+    
+    // Effect decoders (simple linear layers for now)
+    std::shared_ptr<torch::nn::Linear> reverb_decoder_;
+    std::shared_ptr<torch::nn::Linear> compression_decoder_;
+    std::shared_ptr<torch::nn::Linear> saturation_decoder_;
+    std::shared_ptr<torch::nn::Linear> eq_decoder_;
 };
 
 } // namespace mamba_audio
