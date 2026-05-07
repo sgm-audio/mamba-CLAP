@@ -3,14 +3,13 @@
 """We want triton==2.1.0 or 2.2.0 for this
 """
 
-import math
 import torch
 import torch.nn.functional as F
 
 import triton
 import triton.language as tl
 
-from einops import rearrange, repeat
+from einops import rearrange
 
 from mamba_ssm.utils.determinism import autotune_configs
 
@@ -206,7 +205,8 @@ def _state_passing_fwd(states, dA_chunk_cumsum, initial_states=None, seq_idx=Non
     out_dtype = states.dtype if out_dtype is None else out_dtype
     out = torch.empty((batch, nchunks, nheads, dim), device=states.device, dtype=out_dtype)
     final_states = torch.empty((batch, nheads, dim), device=states.device, dtype=torch.float32)
-    grid = lambda META: (triton.cdiv(dim, META['BLOCK_SIZE']), batch, nheads)
+    def grid(META):
+        return (triton.cdiv(dim, META['BLOCK_SIZE']), batch, nheads)
     with torch.cuda.device(states.device.index):
         _state_passing_fwd_kernel[grid](
             states, out, final_states, dA_chunk_cumsum, initial_states, seq_idx,
@@ -254,7 +254,8 @@ def _state_passing_bwd(
     n_blocks = (dim + BLOCK_SIZE_min - 1) // BLOCK_SIZE_min
     ddA_chunk_cumsum = torch.empty(batch, nheads, nchunks, n_blocks,
                                     dtype=torch.float32, device=dA_chunk_cumsum.device)
-    grid = lambda META: (triton.cdiv(dim, META['BLOCK_SIZE']), batch, nheads)
+    def grid(META):
+        return (triton.cdiv(dim, META['BLOCK_SIZE']), batch, nheads)
     with torch.cuda.device(dout.device.index):
         _state_passing_bwd_kernel[grid](
             dout, states, dA_chunk_cumsum, dfinal_states, seq_idx,

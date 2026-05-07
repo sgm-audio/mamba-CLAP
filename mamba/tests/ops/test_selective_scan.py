@@ -1,12 +1,9 @@
 # Copyright (C) 2023, Tri Dao.
 
-import math
 
 import torch
-import torch.nn.functional as F
 import pytest
 
-from einops import rearrange
 
 from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, selective_scan_ref
 from mamba_ssm.ops.selective_scan_interface import mamba_inner_fn, mamba_inner_ref
@@ -189,8 +186,6 @@ def test_mamba_inner_fn(is_variable_B, is_variable_C, seqlen, itype, wtype):
          if not is_variable_C else None)
     D = torch.randn(dim, device=device, dtype=torch.float32, requires_grad=True)
     delta_bias = (0.5 * torch.rand(dim, device=device, dtype=torch.float32)).requires_grad_()
-    B_proj_bias = None
-    C_proj_bias = None
     xz_ref = xz.detach().clone().requires_grad_()
     conv1d_weight_ref = conv1d_weight.detach().clone().requires_grad_()
     conv1d_bias_ref = conv1d_bias.detach().clone().requires_grad_()

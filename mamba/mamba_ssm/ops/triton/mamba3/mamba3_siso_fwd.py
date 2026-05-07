@@ -5,15 +5,12 @@ Copyright (c) 2025, Dao AI Lab, Goombalab
 """
 
 from typing import Optional, Tuple
-import math
 
 import torch
-import torch.nn.functional as F
-from einops import rearrange, repeat
 
 import triton
 import triton.language as tl
-from mamba_ssm.ops.triton.mamba3.utils import cos_approx, sin_approx, tanh_approx, silu, sigmoid_approx
+from mamba_ssm.ops.triton.mamba3.utils import cos_approx, sin_approx, silu, sigmoid_approx
 
 @triton.autotune(
     configs=[
@@ -144,7 +141,6 @@ def mamba3_siso_fwd_kernel(
 
         cu_seqlen_start = tl.load(Cu_Seqlens + pid_seq * stride_cu_seqlen).to(tl.int32)
         cu_seqlen_end = tl.load(Cu_Seqlens + (pid_seq + 1) * stride_cu_seqlen).to(tl.int32)
-        total_seqlen = seqlen
         seqlen = cu_seqlen_end - cu_seqlen_start
         seq_offset = cu_seqlen_start
         chunk_offset = pid_seq + cu_seqlen_start // CHUNK_SIZE

@@ -1,7 +1,7 @@
 # Copyright (c) 2026, Dao AI Lab, Goombalab.
 
 import math
-from einops import rearrange, repeat
+from einops import rearrange
 
 import torch
 import torch.nn as nn

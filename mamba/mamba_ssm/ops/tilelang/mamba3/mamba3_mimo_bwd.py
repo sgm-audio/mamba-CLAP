@@ -10,14 +10,8 @@ import math
 import torch
 import tilelang
 import tilelang.language as T
-from triton.testing import do_bench
-from tilelang.autotuner import autotune
 
 
-import itertools
-import argparse
-from einops import rearrange
-from typing import Optional, Tuple
 
 from mamba_ssm.ops.triton.mamba3.mamba3_mimo_utils import bwd_dadt_fused_triton, bwd_dtrap_ddt_triton
 
@@ -184,7 +178,7 @@ def mamba_mimo_bwd_fwd(
             # --- Chunk Loop ---
             for i in T.Pipelined(0, nchunks, num_stages=num_stages):
                 chunk_start = i * chunk_size
-                fused_chunk_start = chunk_start * R
+                chunk_start * R
 
                 # --- Discretization Factors (Shifted Gamma + Trap Scale) ---
                 trap_shifted_frag = T.alloc_fragment([chunk_size], T.float32)

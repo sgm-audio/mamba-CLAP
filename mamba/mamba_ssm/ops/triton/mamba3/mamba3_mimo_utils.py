@@ -49,7 +49,7 @@ import torch
 import triton
 import triton.language as tl
 import math
-from typing import Optional, Tuple
+from typing import Tuple
 
 
 
@@ -1465,8 +1465,7 @@ def test_dtrap_ddt_correctness():
 
     B, H, S = 16, 32, 2048
     chunk_size = 16
-    nchunks = S // chunk_size
-    C = chunk_size
+    S // chunk_size
 
     # Generate random inputs
     torch.manual_seed(42)
@@ -1591,7 +1590,6 @@ def test_bwd_dadt_fused_varlen_correctness():
     print("Test: bwd_dadt_fused_varlen_correctness")
     print("=" * 70)
 
-    import torch.nn.functional as F
     B, H, chunk_size = 1, 8, 16
     # Three sequences of lengths 37, 32, 28; total S = 97
     seq_lengths = [37, 32, 28]

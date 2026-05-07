@@ -180,7 +180,6 @@ class _Mamba3Function(torch.autograd.Function):
         
         D = D_save if ctx.has_D else None
         Z = Z_save if ctx.has_Z else None
-        Input_SSM_State = Input_SSM_State_save if ctx.has_input_state else None
         Input_K_State = Input_K_State_save if ctx.has_input_state else None
         Input_V_State = Input_V_State_save if ctx.has_input_state else None
         cu_seqlens = cu_seqlens_save if ctx.has_varlen else None

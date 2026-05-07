@@ -1,8 +1,6 @@
 """Audio quality metrics."""
 
 import torch
-import numpy as np
-from typing import Optional
 
 
 def compute_lufs(

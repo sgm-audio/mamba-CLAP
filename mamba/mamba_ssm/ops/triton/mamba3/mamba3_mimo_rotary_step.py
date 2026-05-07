@@ -3,7 +3,7 @@
 # idk which is the minimum version.
 
 import math
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 

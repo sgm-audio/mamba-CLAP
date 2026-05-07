@@ -3,14 +3,12 @@
 """We want triton==2.1.0 or 2.2.0 for this
 """
 
-from typing import Optional
 
 import math
 from packaging import version
 
 import torch
 import torch.nn.functional as F
-from torch import Tensor
 from mamba_ssm.utils.torch import custom_bwd, custom_fwd
 
 import triton
@@ -30,7 +28,6 @@ except ImportError:
 from mamba_ssm.ops.triton.ssd_bmm import _bmm_chunk_fwd, _bmm_chunk_bwd
 from mamba_ssm.ops.triton.ssd_chunk_state import _chunk_cumsum_fwd, _chunk_cumsum_bwd
 from mamba_ssm.ops.triton.ssd_chunk_state import _chunk_state_fwd, _chunk_state_bwd_db
-from mamba_ssm.ops.triton.ssd_chunk_state import _chunk_state_bwd_ddAcs_stable
 from mamba_ssm.ops.triton.ssd_chunk_state import chunk_state, chunk_state_ref
 from mamba_ssm.ops.triton.ssd_chunk_state import chunk_state_varlen
 from mamba_ssm.ops.triton.ssd_state_passing import _state_passing_fwd, _state_passing_bwd
@@ -39,7 +36,6 @@ from mamba_ssm.ops.triton.ssd_chunk_scan import _chunk_scan_fwd, _chunk_scan_bwd
 from mamba_ssm.ops.triton.ssd_chunk_scan import _chunk_scan_bwd_dC, _chunk_scan_bwd_dcb
 from mamba_ssm.ops.triton.ssd_chunk_scan import _chunk_scan_bwd_ddAcs_stable
 from mamba_ssm.ops.triton.ssd_chunk_scan import chunk_scan, chunk_scan_ref
-from mamba_ssm.ops.triton.ssd_chunk_scan import _chunk_scan_bwd_ddAcs_prev
 from mamba_ssm.ops.triton.layernorm_gated import rmsnorm_fn, _layer_norm_fwd, _layer_norm_bwd
 from mamba_ssm.ops.triton.k_activations import _swiglu_fwd, _swiglu_bwd
 from mamba_ssm.utils.determinism import (
@@ -303,8 +299,9 @@ def _chunk_scan_chunk_state_bwd_dx(x, dt, dA_cumsum, B, CB, dout, dstates, D=Non
         deterministic,
         zero_init=True,
     )
-    grid_dx = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(headdim, META['BLOCK_SIZE_N']),
-                        batch * nchunks, nheads)
+    def grid_dx(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(headdim, META['BLOCK_SIZE_N']),
+                            batch * nchunks, nheads)
     with torch.cuda.device(x.device.index):
         _chunk_scan_chunk_state_bwd_dx_kernel[grid_dx](
             x, CB, dout, dt, dA_cumsum, seq_idx, D, B, dstates, dx, ddt, dD,
@@ -400,7 +397,7 @@ def _mamba_chunk_scan_combined_bwd(dout, x, dt, A, B, C, out, chunk_size, D=None
     if dout.stride(-1) != 1:
         dout = dout.contiguous()
     batch, seqlen, nheads, headdim = x.shape
-    nchunks = math.ceil(seqlen / chunk_size)
+    math.ceil(seqlen / chunk_size)
     _, _, ngroups, dstate = B.shape
     assert dout.shape == (batch, seqlen, nheads, headdim)
     assert dt.shape == (batch, seqlen, nheads)

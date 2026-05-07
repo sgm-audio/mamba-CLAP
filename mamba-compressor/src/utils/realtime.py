@@ -5,7 +5,7 @@ Manages Mamba hidden state and lookahead ring buffers across process blocks.
 
 import torch
 import numpy as np
-from typing import Optional, Tuple
+from typing import Optional
 from ..models.context_compressor import ContextAwareCompressor
 
 class StreamingInference:

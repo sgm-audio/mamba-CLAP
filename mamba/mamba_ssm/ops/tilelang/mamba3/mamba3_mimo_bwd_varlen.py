@@ -34,10 +34,7 @@ Copyright (c) 2026, Dao AI Lab, Goombalab
 import torch
 import tilelang
 import tilelang.language as T
-from triton.testing import do_bench
 
-import argparse
-from typing import Optional, Tuple
 
 from mamba_ssm.ops.triton.mamba3.mamba3_mimo_utils import bwd_dadt_fused_triton_varlen, bwd_dtrap_ddt_triton_varlen
 from mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_bwd import mamba_mimo_bwd_combined
@@ -230,7 +227,7 @@ def mamba_mimo_bwd_fwd(
 
             for i in T.Pipelined(0, full_nchunks, num_stages=num_stages):
                 chunk_start = start_seq_ind + i * chunk_size
-                fused_chunk_start = chunk_start * R
+                chunk_start * R
                 global_chunk_idx = start_chunk_ind + i
                 eff_tail = T.alloc_var(T.int32)
                 eff_tail = chunk_size

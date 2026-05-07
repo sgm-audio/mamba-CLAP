@@ -8,10 +8,9 @@ import copy
 import math
 from typing import Optional, Tuple
 
-import pytest
 import torch
 import torch.nn.functional as F
-from einops import rearrange, repeat
+from einops import repeat
 
 from mamba_ssm.ops.triton.mamba3.mamba3_siso_combined import mamba3_siso_combined
 from mamba_ssm.ops.triton.mamba3.mamba3_siso_step import mamba3_siso_step
@@ -173,7 +172,7 @@ def mamba3_siso_fwd_ref(
     """
     batch, total_seqlen, nheads_qk, headdim_qk = Q.shape
     _, _, nheads, headdim_v = V.shape
-    headdim_angles = Angles.shape[-1]
+    Angles.shape[-1]
     device = Q.device
     
     is_varlen = cu_seqlens is not None
@@ -246,7 +245,7 @@ def mamba3_siso_fwd_ref(
             Z_curr = Z[seq_idx] if Z is not None else None
 
         Trap_curr = torch.sigmoid(Trap_curr)
-        seqlen_curr = Q_curr.shape[0]
+        Q_curr.shape[0]
 
         Angles_scaled = Angles_curr.float() * DT_curr.transpose(0, 1).unsqueeze(-1)
         Angles_Cumsum = torch.cumsum(Angles_scaled, dim=0)
@@ -496,7 +495,7 @@ def test_mamba3_siso_step(nheads_qk=4, has_Z=True, has_D=True):
     nheads = 32
     headdim_qk = 128
     headdim_v = 64
-    headdim_angles = headdim_qk // 4
+    headdim_qk // 4
     
     inputs = create_mamba3_siso_inputs(
         batch, seqlen, nheads, nheads_qk, headdim_qk, headdim_v,
@@ -562,7 +561,6 @@ def test_mamba3_siso_combined_batched(nheads_qk=4, has_Z=True, has_D=True, headd
     """Test Mamba-3 combined forward+backward against fwd reference.
     """
     device = 'cuda'
-    rtol = 1e-1
     dtype = torch.bfloat16
     torch.random.manual_seed(42)
     
@@ -676,7 +674,6 @@ def test_mamba3_siso_combined_varlen(nheads_qk=4, has_Z=True, has_D=True, headdi
     """Test Mamba-3 combined forward+backward with variable-length sequences against fwd reference.
     """
     device = 'cuda'
-    rtol = 1e-1
     dtype = torch.bfloat16
     torch.random.manual_seed(42)
     
@@ -843,7 +840,6 @@ def test_mamba3_siso_combined_varlen(nheads_qk=4, has_Z=True, has_D=True, headdi
 def test_mamba3_siso_step_ref_vs_fwd_ref(nheads_qk=4, has_Z=True, has_D=True):
     """Test that mamba3_siso_step_ref and mamba3_siso_fwd_ref produce identical outputs."""
     device = 'cuda'
-    rtol = 1e-4  # Both are pure Python/PyTorch, so should match very closely
     dtype = torch.float32  # Use float32 for reference-vs-reference comparison
     torch.random.manual_seed(42)
 
@@ -852,7 +848,7 @@ def test_mamba3_siso_step_ref_vs_fwd_ref(nheads_qk=4, has_Z=True, has_D=True):
     nheads = 32
     headdim_qk = 128
     headdim_v = 64
-    headdim_angles = headdim_qk // 4
+    headdim_qk // 4
 
     inputs = create_mamba3_siso_inputs(
         batch, seqlen, nheads, nheads_qk, headdim_qk, headdim_v,

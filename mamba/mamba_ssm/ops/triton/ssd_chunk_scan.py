@@ -241,7 +241,7 @@ def _chunk_scan_fwd_kernel_wip(
     C_ptrs = C_ptr + (offs_m[:, None] * stride_C_seqlen + offs_k_dstate[None, :] * stride_C_dstate)
     B_ptrs = B_ptr + (offs_m[None, :] * stride_B_seqlen + offs_k_dstate[:, None] * stride_B_dstate)
     prev_states_ptrs = prev_states_ptr + (offs_n[None, :] * stride_states_hdim + offs_k_dstate[:, None] * stride_states_dstate)
-    num_pid_n = tl.cdiv(hdim, BLOCK_SIZE_N)
+    tl.cdiv(hdim, BLOCK_SIZE_N)
     cb_ptrs = cb_ptr + (offs_m[:, None] * stride_cb_csize_m + offs_m[None, :] * stride_cb_csize_k)
     x_ptrs = x_ptr + (offs_m[:, None] * stride_x_seqlen + offs_n[None, :] * stride_x_hdim)
     dt_ptrs = dt_ptr + offs_m * stride_dt_csize
@@ -322,7 +322,7 @@ def _chunk_scan_fwd_kernel_wip(
             B = tl.load(B_ptrs, mask=(offs_m[None, :] < chunk_size_limit - start_m) & (offs_k_dstate[:, None] < dstate), other=0.0)
             dA_cs_last = tl.load(dA_cumsum_ptr + (start_m + BLOCK_SIZE_M) * stride_dA_cs_csize).to(tl.float32)
             # TODO: seq_idx
-            scale = tl.exp((dA_cs_last - dA_cs_m)) * dt_m
+            tl.exp((dA_cs_last - dA_cs_m)) * dt_m
             # B *= scale
             B = B.to(x_ptr.dtype.element_ty)
             tmp = tl.dot(B, x)
@@ -1279,8 +1279,9 @@ def _chunk_scan_fwd(cb, x, dt, dA_cumsum, C, states, D=None, z=None, seq_idx=Non
         assert out_x.stride() == out.stride()
     else:
         out_x = None
-    grid = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(headdim, META['BLOCK_SIZE_N']),
-                    batch * nchunks, nheads)
+    def grid(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(headdim, META['BLOCK_SIZE_N']),
+                        batch * nchunks, nheads)
     z_strides = ((z.stride(0), z.stride(1), z.stride(2), z.stride(3))
                   if z is not None else (0, 0, 0, 0))
     _chunk_scan_fwd_kernel[grid](
@@ -1332,7 +1333,8 @@ def _chunk_scan_fwd_wip(cb, x, dt, dA_cumsum, C, B, states, D=None, z=None, seq_
         assert out_x.stride() == out.stride()
     else:
         out_x = None
-    grid = lambda META: (triton.cdiv(headdim, META['BLOCK_SIZE_N']), batch * nchunks, nheads)
+    def grid(META):
+        return (triton.cdiv(headdim, META['BLOCK_SIZE_N']), batch * nchunks, nheads)
     z_strides = ((z.stride(0), z.stride(1), z.stride(2), z.stride(3))
                   if z is not None else (0, 0, 0, 0))
     _chunk_scan_fwd_kernel_wip[grid](
@@ -1386,7 +1388,8 @@ def _chunk_scan_bwd_dz(x, z, out, dout, chunk_size, has_ddAcs=True, D=None, dz=N
     dout_x = torch.empty_like(dout)
     dD_strides = ((dD.stride(0), dD.stride(1), dD.stride(2), dD.stride(3), dD.stride(4))
                     if D is not None else (0, 0, 0, 0, 0))
-    grid_dz = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']), batch * nchunks, nheads)
+    def grid_dz(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']), batch * nchunks, nheads)
     with torch.cuda.device(x.device.index):
         _chunk_scan_bwd_dz_kernel[grid_dz](
             dout, out, z, x, D, outz if recompute_output else None,
@@ -1431,8 +1434,9 @@ def _chunk_scan_bwd_dstates(C, dA_cumsum, dout, seq_idx=None, dtype=None):
         assert seq_idx.shape == (batch, seqlen)
     dtype = C.dtype if dtype is None else dtype
     dprev_states = torch.empty(batch, nchunks, nheads, headdim, dstate, device=C.device, dtype=dtype)
-    grid_dstates = lambda META: (triton.cdiv(headdim, META['BLOCK_SIZE_M']) * triton.cdiv(dstate, META['BLOCK_SIZE_N']),
-                            batch * nchunks, nheads)
+    def grid_dstates(META):
+        return (triton.cdiv(headdim, META['BLOCK_SIZE_M']) * triton.cdiv(dstate, META['BLOCK_SIZE_N']),
+                                batch * nchunks, nheads)
     with torch.cuda.device(C.device.index):
         _chunk_scan_bwd_dstates_kernel[grid_dstates](
             dout, C, dprev_states, dA_cumsum, seq_idx,
@@ -1486,8 +1490,9 @@ def _chunk_scan_bwd_dC(prev_states, dA_cumsum, dout, seq_idx=None, C=None, ngrou
     nheads_per_program = max(min(math.ceil(batch * nchunks * nheads / sm_count), nheads_ngroups_ratio), 1)
     nsplits = triton.cdiv(nheads_ngroups_ratio, nheads_per_program)
     dC = torch.empty(batch, seqlen, nsplits, ngroups, dstate, device=dout.device, dtype=torch.float32)
-    grid_dc = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(dstate, META['BLOCK_SIZE_N']),
-                        batch * nchunks, nsplits * ngroups)
+    def grid_dc(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(dstate, META['BLOCK_SIZE_N']),
+                            batch * nchunks, nsplits * ngroups)
     with torch.cuda.device(dout.device.index):
         _chunk_scan_bwd_dc_kernel[grid_dc](
             dout, prev_states, C, dA_cumsum, seq_idx, dC, ddA_cumsum_prev,
@@ -1535,8 +1540,9 @@ def _chunk_scan_bwd_dcb(x, dt, dA_cumsum, dout, seq_idx=None, CB=None, ngroups=1
     nheads_per_program = max(min(math.ceil(batch * nchunks * nheads / sm_count), nheads_ngroups_ratio), 1)
     nsplits = triton.cdiv(nheads_ngroups_ratio, nheads_per_program)
     dcb = torch.empty(batch, nchunks, nsplits, ngroups, chunk_size, chunk_size, device=x.device, dtype=torch.float32)
-    grid_dcb = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(chunk_size, META['BLOCK_SIZE_N']),
-                        batch * nchunks, nsplits * ngroups)
+    def grid_dcb(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(chunk_size, META['BLOCK_SIZE_N']),
+                            batch * nchunks, nsplits * ngroups)
     with torch.cuda.device(x.device.index):
         _chunk_scan_bwd_dcb_kernel[grid_dcb](
             x, dout, CB, dt, dA_cumsum, seq_idx, dcb, ddA_cumsum,
@@ -1587,8 +1593,9 @@ def _chunk_scan_bwd_dx(cb, x, dt, dA_cumsum, dout, D=None):
         deterministic,
         zero_init=True,
     )
-    grid_dx = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(headdim, META['BLOCK_SIZE_N']),
-                        batch * nchunks, nheads)
+    def grid_dx(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(headdim, META['BLOCK_SIZE_N']),
+                            batch * nchunks, nheads)
     with torch.cuda.device(x.device.index):
         _chunk_scan_bwd_dx_kernel[grid_dx](
             x, cb, dout, dt, dA_cumsum, D, dx, ddt, # dD,
@@ -1628,7 +1635,8 @@ def _chunk_scan_bwd_ddAcs_unstable(x, dt, out, dout, ddt, D=None, subtract_ddtdt
     if D is not None:
         assert D.shape == (nheads, headdim) or D.shape == (nheads,)
     ddA_cumsum = torch.empty_like(dt)
-    grid_ddtcs = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']), batch * nchunks, nheads)
+    def grid_ddtcs(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']), batch * nchunks, nheads)
     if D is not None:  # Triton gives wrong results if we write to the same location
         BLOCK_SIZE_min = 32
         dD = torch.empty(triton.cdiv(chunk_size, BLOCK_SIZE_min), batch, nchunks, nheads,
@@ -1676,7 +1684,8 @@ def _chunk_scan_bwd_ddAcs_stable_old(x, dt, dA_cumsum, dout, cb):
     BLOCK_SIZE_M_min = 16
     ddA_cumsum = torch.empty(batch, nheads, nchunks, triton.cdiv(chunk_size, BLOCK_SIZE_M_min),
                              chunk_size, device=x.device, dtype=torch.float32)
-    grid_ddtcs = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']), batch * nchunks, nheads)
+    def grid_ddtcs(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']), batch * nchunks, nheads)
     with torch.cuda.device(x.device.index):
         _chunk_scan_bwd_ddAcs_stable_kernel_old[grid_ddtcs](
             x, dout, dt, dA_cumsum, cb, ddA_cumsum,
@@ -1709,7 +1718,8 @@ def _chunk_scan_bwd_ddAcs_stable(x, dt, dA_cumsum, dout, cb):
     BLOCK_SIZE_M_min = 32
     ddA_cumsum = torch.empty(batch, nheads, nchunks, triton.cdiv(chunk_size, BLOCK_SIZE_M_min),
                              chunk_size, device=x.device, dtype=torch.float32)
-    grid_ddtcs = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']), batch * nchunks, nheads)
+    def grid_ddtcs(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']), batch * nchunks, nheads)
     with torch.cuda.device(x.device.index):
         _chunk_scan_bwd_ddAcs_stable_kernel[grid_ddtcs](
             x, dout, dt, dA_cumsum, cb, ddA_cumsum,
@@ -1742,8 +1752,9 @@ def _chunk_scan_bwd_ddAcs_prev(prev_states, C, dout, dA_cumsum, seq_idx=None):
     if seq_idx is not None:
         assert seq_idx.shape == (batch, seqlen)
     ddA_cumsum_prev = torch.empty(batch, nheads, nchunks, chunk_size, device=dout.device, dtype=torch.float32)
-    grid_ddAcs = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(dstate, META['BLOCK_SIZE_N']),
-                          batch * nchunks, nheads)
+    def grid_ddAcs(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(dstate, META['BLOCK_SIZE_N']),
+                              batch * nchunks, nheads)
     with torch.cuda.device(dout.device.index):
         _chunk_scan_bwd_ddAcs_prev_kernel[grid_ddAcs](
             dout, prev_states, C, dA_cumsum, seq_idx, ddA_cumsum_prev,

@@ -3,7 +3,7 @@
 # Modified to optionally update state in place (state_out=None) or write to separate state_out.
 
 import math
-from typing import Optional, Type, Literal, List
+from typing import Optional, Type, List
 
 import torch
 import torch.nn.functional as F
@@ -13,7 +13,7 @@ import cuda.bindings.driver as cuda
 
 import cutlass
 import cutlass.cute as cute
-from cutlass import Int32, Float32, Float16, BFloat16, Boolean, const_expr
+from cutlass import Float32, Boolean, const_expr
 
 from quack.compile_utils import make_fake_tensor
 from quack.cute_dsl_utils import torch2cute_dtype_map
@@ -258,7 +258,7 @@ class Mamba3Step():
         warp_idx = cute.arch.make_warp_uniform(cute.arch.warp_idx())
         lane_idx = cute.arch.lane_idx()
 
-        limit_d = mState.shape[2]
+        mState.shape[2]
 
         # ///////////////////////////////////////////////////////////////////////////////
         #  Slice for CTA
@@ -347,7 +347,7 @@ class Mamba3Step():
 
         # For bound checking
         cS = cute.make_identity_tensor((self.tile_D, self.dstate))
-        tScS = gmem_thr_copy_state.partition_S(cS)
+        gmem_thr_copy_state.partition_S(cS)
         cBC = cute.make_identity_tensor((self.mimo, self.dstate))
         tBCcBC = gmem_thr_copy_BC.partition_S(cBC)
         cProj = cute.make_identity_tensor((self.mimo, self.tile_D))
@@ -766,7 +766,7 @@ def selective_state_update_fused_ref_v2(
         new_state: (B, N, H, S)
     """
     Bsz, N, H, S = state.shape
-    R = B.shape[1]
+    B.shape[1]
 
     # Dtypes for numerics (match kernel's fp32 accum)
     og_dtype = state.dtype
@@ -847,26 +847,27 @@ if __name__ == "__main__":
     # =========================================================================
     print("=== Out-of-place test ===")
     state_out = torch.zeros_like(state)
-    fn_oop = lambda: mamba3_step_fn(
-        state,
-        Bstate,
-        Xstate,
-        A,
-        B,
-        C,
-        D,
-        x,
-        dt,
-        trap,
-        xproj,
-        outproj,
-        state_out,
-        out,
-        z=z,
-        zproj=zproj,
-        tile_D=64,
-        num_warps=4,
-    )
+    def fn_oop():
+        return mamba3_step_fn(
+            state,
+            Bstate,
+            Xstate,
+            A,
+            B,
+            C,
+            D,
+            x,
+            dt,
+            trap,
+            xproj,
+            outproj,
+            state_out,
+            out,
+            z=z,
+            zproj=zproj,
+            tile_D=64,
+            num_warps=4,
+        )
 
     fn_oop()
     out_ref, state_out_ref = selective_state_update_fused_ref_v2(state, A, B, C, xproj, x, zproj, z, dt, Bstate, Xstate, trap, D, outproj, compute_dtype=torch.float64)
@@ -883,26 +884,27 @@ if __name__ == "__main__":
     # Fresh state for in-place test
     state_ip = state.clone()
     out_ip = torch.zeros_like(x)
-    fn_ip = lambda: mamba3_step_fn(
-        state_ip,
-        Bstate,
-        Xstate,
-        A,
-        B,
-        C,
-        D,
-        x,
-        dt,
-        trap,
-        xproj,
-        outproj,
-        None,  # state_out=None -> in-place
-        out_ip,
-        z=z,
-        zproj=zproj,
-        tile_D=64,
-        num_warps=4,
-    )
+    def fn_ip():
+        return mamba3_step_fn(
+            state_ip,
+            Bstate,
+            Xstate,
+            A,
+            B,
+            C,
+            D,
+            x,
+            dt,
+            trap,
+            xproj,
+            outproj,
+            None,  # state_out=None -> in-place
+            out_ip,
+            z=z,
+            zproj=zproj,
+            tile_D=64,
+            num_warps=4,
+        )
 
     fn_ip()
     # state_ip was updated in place, compare against same reference

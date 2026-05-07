@@ -9,12 +9,7 @@ Copyright (c) 2026, Dao AI Lab, Goombalab
 import torch
 import tilelang
 import tilelang.language as T
-from tilelang.profiler import do_bench
-from tilelang.autotuner import autotune
 
-import itertools
-import argparse
-from typing import Optional, Tuple
 
 
 # NOTE: Uncomment the following to autotune:

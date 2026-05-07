@@ -2,7 +2,6 @@
 
 import torch
 import torch.nn as nn
-from typing import Optional
 
 from src.models.mel_encoder import MelEncoder
 from src.models.mamba_tower import MambaContextTower

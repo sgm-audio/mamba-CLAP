@@ -13,7 +13,7 @@ from src.data.blind_dataset import create_blind_dataloader, SyntheticCorruptor
 from src.losses.spectral_loss import MultiResolutionSTFTLoss
 from src.losses.crest_factor import CrestFactorLoss
 from src.losses.lufs_loss import LUFSLoss
-from src.core.config import Config, load_config
+from src.core.config import load_config
 from src.core.logging import setup_logger
 
 
@@ -156,7 +156,7 @@ def main():
     
     # Setup logging
     logger = setup_logger(__name__, log_file=f"{config.checkpoint.dirpath}/train.log")
-    logger.info(f"Starting blind pretraining...")
+    logger.info("Starting blind pretraining...")
     logger.info(f"Config: {OmegaConf.to_yaml(config)}")
     
     # Set seed

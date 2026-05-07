@@ -47,8 +47,8 @@ class ParallelLinearFunc(torch.autograd.Function):
         weight = weight.contiguous()
         if process_group is not None and sequence_parallel:
             handle_x.wait()
-        batch_shape, n = total_x.shape[:-1], total_x.shape[-1]
-        batch_dim = batch_shape.numel()
+        batch_shape, _n = total_x.shape[:-1], total_x.shape[-1]
+        batch_shape.numel()
         # https://github.com/pytorch/pytorch/blob/5b51849b48a7dbccd297286cc0110def4706f9e7/aten/src/ATen/native/cuda/Blas.cpp#L174
         output = F.linear(total_x, weight, bias)
         if ctx.compute_weight_gradient:

@@ -5,7 +5,6 @@ Copyright (c) 2025, Dao AI Lab, Goombalab
 """
 
 from typing import Optional, Tuple
-import math
 
 import torch
 

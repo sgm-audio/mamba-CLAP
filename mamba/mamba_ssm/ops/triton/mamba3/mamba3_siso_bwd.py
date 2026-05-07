@@ -5,11 +5,8 @@ Copyright (c) 2026, Dao AI Lab, Goombalab
 """
 
 from typing import Optional, Tuple
-import math
 
 import torch
-import torch.nn.functional as F
-from einops import rearrange, repeat
 
 import triton
 import triton.language as tl
@@ -877,7 +874,7 @@ def mamba3_siso_bwd_kernel_rotary_bias_angles(
     """
     pid_nchunk = tl.program_id(0)
     pid_batch = tl.program_id(1)
-    nchunks = tl.cdiv(seqlen, CHUNK_SIZE)
+    tl.cdiv(seqlen, CHUNK_SIZE)
 
     # Base offsets for inputs
     q_offset_base = pid_batch * stride_q_batch

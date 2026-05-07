@@ -17,7 +17,7 @@ from einops import rearrange
 
 def rms_norm_ref(x, weight, bias, z=None, eps=1e-6, group_size=None, norm_before_gate=True, upcast=True):
     dtype = x.dtype
-    N = x.shape[-1]
+    x.shape[-1]
     weight = weight.float()
     bias = bias.float() if bias is not None else None
     if upcast:

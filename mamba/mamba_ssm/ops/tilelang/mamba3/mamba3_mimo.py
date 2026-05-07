@@ -293,10 +293,10 @@ def mamba3_mimo(
     batch, seqlen, mimo_rank, nheads_qk, headdim_qk = Q.shape
     _, _, nheads, headdim_v = V.shape
     
-    assert chunk_size >= 8, f"chunk_size must be at least 8"
+    assert chunk_size >= 8, "chunk_size must be at least 8"
     assert nheads % nheads_qk == 0, f"nheads ({nheads}) must be divisible by nheads_qk ({nheads_qk})"
     assert headdim_qk % 2 == 0, f"headdim_qk ({headdim_qk}) must be even for rotary embeddings"
-    assert rotary_dim_divisor in [2, 4], f"currently only supports rotary embedding on entire or half of headdim_qk"
+    assert rotary_dim_divisor in [2, 4], "currently only supports rotary embedding on entire or half of headdim_qk"
     # NOTE: the following (headdim_qk, headdim_v) values currently can result in compilation errors: (16, 32), (256, 128) 
     if headdim_qk not in [16, 32, 64, 128, 256]:
         print(f"WARNING: The value headdim_qk={headdim_qk} has not been tested. " +\

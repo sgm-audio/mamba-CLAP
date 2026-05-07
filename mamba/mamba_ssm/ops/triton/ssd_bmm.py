@@ -5,12 +5,10 @@
 
 import math
 import torch
-import torch.nn.functional as F
 
 import triton
 import triton.language as tl
 
-from einops import rearrange, repeat
 
 from mamba_ssm.utils.determinism import autotune_configs
 
@@ -193,8 +191,9 @@ def _bmm_chunk_fwd(a, b, chunk_size, seq_idx=None, causal=False, output_dtype=No
                       device=a.device, dtype=out_dtype)
     dot_dtype = (tl.bfloat16 if a.dtype == torch.bfloat16 or b.dtype == torch.bfloat16 else
                  (tl.float16 if a.dtype == torch.float16 or b.dtype == torch.float16 else tl.float32))
-    grid = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(chunk_size, META['BLOCK_SIZE_N']),
-                    batch, nchunks if not has_groups else nchunks * ngroups)
+    def grid(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(chunk_size, META['BLOCK_SIZE_N']),
+                        batch, nchunks if not has_groups else nchunks * ngroups)
     with torch.cuda.device(a.device.index):
         _bmm_chunk_fwd_kernel[grid](
             a, b, out, seq_idx,
@@ -245,8 +244,9 @@ def _bmm_chunk_bwd(a, dout, residual=None, out=None):
         out = torch.empty_like(a)
     dot_dtype = (tl.bfloat16 if a.dtype == torch.bfloat16 or dout.dtype == torch.bfloat16 else
                  (tl.float16 if a.dtype == torch.float16 or dout.dtype == torch.float16 else tl.float32))
-    grid = lambda META: (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(k, META['BLOCK_SIZE_N']), batch,
-                    nchunks if not has_groups else nchunks * ngroups)
+    def grid(META):
+        return (triton.cdiv(chunk_size, META['BLOCK_SIZE_M']) * triton.cdiv(k, META['BLOCK_SIZE_N']), batch,
+                        nchunks if not has_groups else nchunks * ngroups)
     residual_strides = ((residual.stride(0), residual.stride(1), 0 if not has_groups else residual.stride(2),
                          residual.stride(-1))
                         if residual is not None else (0, 0, 0, 0))

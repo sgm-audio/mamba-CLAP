@@ -2,8 +2,8 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, List
-from omegaconf import OmegaConf, DictConfig
+from typing import Optional, Tuple
+from omegaconf import OmegaConf
 
 
 @dataclass

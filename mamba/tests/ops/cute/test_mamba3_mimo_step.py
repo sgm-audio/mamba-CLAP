@@ -12,10 +12,8 @@ python tests/ops/cute/test_mamba3_mimo_step.py  # For benchmark
 Remove the -s flag for less verbose output.
 """
 import logging
-import sys
 import warnings
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional
 
 import pytest

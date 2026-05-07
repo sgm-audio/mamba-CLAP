@@ -96,8 +96,8 @@ def test_correctness():
     A = (-torch.exp(torch.rand(nheads, dtype=torch.float32, device=device))).requires_grad_()
     B = torch.randn(batch, seqlen, ngroups, dstate, dtype=dtype, device=device)
     C = torch.randn(batch, seqlen, ngroups, dstate, dtype=dtype, device=device)
-    D = torch.randn(nheads, dtype=dtype, device=device)
+    torch.randn(nheads, dtype=dtype, device=device)
 
     # Comparing fused version and minimal version
-    y = mamba_chunk_scan_combined(x, dt, A, B, C, chunk_size, D=None)
+    mamba_chunk_scan_combined(x, dt, A, B, C, chunk_size, D=None)
     y_min, _ = ssd_minimal_discrete(x*dt.unsqueeze(-1), A*dt, B, C, chunk_size)

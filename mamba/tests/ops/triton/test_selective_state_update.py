@@ -1,12 +1,10 @@
 # Copyright (C) 2023, Tri Dao.
 
-import math
 
 import torch
-import torch.nn.functional as F
 import pytest
 
-from einops import rearrange, repeat
+from einops import repeat
 
 from mamba_ssm.ops.triton.selective_state_update import selective_state_update, selective_state_update_ref
 
@@ -92,7 +90,7 @@ def test_selective_state_update_with_heads(dim, dstate, ngroups, has_z, tie_hdim
     else:
         z = None
     state_ref = state.detach().clone()
-    state_og = state.detach().clone()
+    state.detach().clone()
     out = selective_state_update(state, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True)
     out_ref = selective_state_update_ref(state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True)
 
@@ -191,7 +189,7 @@ def test_selective_state_update_with_heads_with_batch_indices(dim, dstate, ngrou
     else:
         z = None
     state_ref = state[state_indices,:].detach().clone()
-    state_og = state[state_indices,:].detach().clone()
+    state[state_indices,:].detach().clone()
     out = selective_state_update(state, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True, state_batch_indices=state_indices)
     out_ref = selective_state_update_ref(state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True)
 

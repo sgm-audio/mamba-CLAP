@@ -79,8 +79,8 @@ class MambaLayer(nn.Module):
             # Discretize A and B (Euler method)
             dt = 1.0
             A = -torch.exp(self.A_log)  # [d_inner, d_state]
-            dA = torch.eye(self.d_state, device=x.device) + dt * A.T  # [d_state, d_state]
-            dB = dt * self.B.T  # [d_state, d_inner]
+            torch.eye(self.d_state, device=x.device) + dt * A.T  # [d_state, d_state]
+            dt * self.B.T  # [d_state, d_inner]
             
             # State update: state' = A * state + B * x
             # We'll do a simplified version

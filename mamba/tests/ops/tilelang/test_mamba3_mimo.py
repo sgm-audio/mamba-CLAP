@@ -22,8 +22,6 @@ pytest -q -s -p no:warnings tests/ops/tilelang/test_mamba3_mimo.py -k "smoke_for
 # (Remove the -s flag for less verbose output).
 """
 
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 import math
 from typing import Optional, Tuple
@@ -387,7 +385,7 @@ def mamba3_MIMO_step_ref(
     else:
         z_proj = None
 
-    TWO_PI = 2 * math.pi
+    2 * math.pi
     out_arr = []
 
     # Main SSM recurrence
@@ -1457,7 +1455,7 @@ def build_inputs_varlen(
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-    NS = len(seqlens)
+    len(seqlens)
     s_total = sum(seqlens)
     cu_seqlens = torch.tensor(
         [0] + list(

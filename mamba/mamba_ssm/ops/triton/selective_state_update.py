@@ -3,7 +3,6 @@
 """We want triton==2.1.0 or triton==2.2.0 or triton==2.3.0 for this
 """
 
-import math
 import torch
 import torch.nn.functional as F
 
@@ -187,7 +186,8 @@ def selective_state_update(state, x, dt, A, B, C, D=None, z=None, dt_bias=None, 
     if state_batch_indices is not None:
         assert state_batch_indices.shape == (batch,)
     out = torch.empty_like(x)
-    grid = lambda META: (triton.cdiv(dim, META['BLOCK_SIZE_M']), batch, nheads)
+    def grid(META):
+        return (triton.cdiv(dim, META['BLOCK_SIZE_M']), batch, nheads)
     z_strides = ((z.stride(0), z.stride(1), z.stride(2)) if z is not None else (0, 0, 0))
     # We don't want autotune since it will overwrite the state
     # We instead tune by hand.

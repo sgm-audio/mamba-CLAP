@@ -107,9 +107,9 @@ class DifferentiableDSPCompressor(nn.Module):
         Returns:
             Compressed audio tensor (B, T_samples)
         """
-        B = audio.shape[0]
+        audio.shape[0]
         T_samples = audio.shape[1]
-        T_frames = params["gain_db"].shape[1]
+        params["gain_db"].shape[1]
         
         # dB → linear gain
         gain_linear = 10.0 ** (params["gain_db"] / 20.0)  # (B, T_frames)

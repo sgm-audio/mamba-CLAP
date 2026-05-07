@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchaudio
-import numpy as np
 from typing import Tuple, Optional
 
 from mamba_ssm.modules import MambaSpectrogramPredictor
@@ -247,7 +246,7 @@ if __name__ == "__main__":
     print(f"Audio processor initialized with sample_rate={audio_processor.sample_rate}")
 
     model = MambaSpectrogramPredictor(n_mels=80, d_model=512, n_layer=4)
-    print(f"Mamba spectrogram predictor initialized")
+    print("Mamba spectrogram predictor initialized")
 
     batch_size = 2
     channels = 1
