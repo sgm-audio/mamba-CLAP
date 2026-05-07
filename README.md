@@ -27,6 +27,51 @@ Professional C++/JUCE implementation for real-time inference within Digital Audi
 - **Standard**: Fully compliant with the [CLAP (Clever Audio Plugin)](https://cleveraudio.org/) standard.
 - **Interface**: A high-fidelity "Neural HUD" UI built with OpenGL acceleration and custom LookAndFeel.
 
+### 🏛️ [MambaDAW](./MambaDAW)
+A standalone C++ project implementing a high-performance CLAP host and plugin architecture.
+- **Hybrid Architecture**: Real-time C++ host using **LibTorch** for low-latency inference, coupled with Python-based training.
+- **Build System**: Integrated CMake build system for cross-platform deployment.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Python Environment (Research & Training)
+Ideal for developers training new models or running offline audio enhancement.
+
+**Prerequisites**: Python 3.10+, NVIDIA GPU (recommended).
+
+```bash
+# Clone and enter repo
+git clone https://github.com/SGM-Studios/mamba-CLAP.git
+cd mamba-CLAP
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install Mamba-SSM (requires CUDA for GPU acceleration)
+MAMBA_FORCE_BUILD=TRUE pip install --no-cache-dir mamba-ssm --no-build-isolation
+```
+
+**Usage Example**:
+```python
+from enhanced_mamba_audio import AudioProcessor
+proc = AudioProcessor(sample_rate=44100)
+# Refer to scripts/train_blind.py for full training workflows
+```
+
+### 2. C++ Build (Real-Time Plugin)
+Ideal for music producers wanting to use Mamba in a DAW (Ableton, FL Studio, Bitwig).
+
+**Prerequisites**: CMake, [LibTorch](https://pytorch.org/get-started/locally/), [CLAP SDK](https://github.com/free-audio/clap).
+
+```bash
+cd MambaDAW
+mkdir build && cd build
+cmake .. -DCMAKE_PREFIX_PATH=/path/to/libtorch
+cmake --build . --config Release
+```
+
 ---
 
 ## ✨ Key Features
