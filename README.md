@@ -1,75 +1,61 @@
-# mamba-CLAP
+# Mamba Based
 
-**Professional Audio Processing with Selective State Space Models (SSMs)**
+**Context-Aware Audio Processing & Selective State Space Model (SSM) Research**
 
 [![GitHub license](https://img.shields.io/github/license/SGM-Studios/mamba-CLAP)](https://github.com/SGM-Studios/mamba-CLAP/blob/master/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/SGM-Studios/mamba-CLAP)](https://github.com/SGM-Studios/mamba-CLAP/stargazers)
 [![Mamba Generation](https://img.shields.io/badge/SSM-Mamba--3-brightgreen)](https://github.com/state-spaces/mamba)
 
-`mamba-CLAP` is a high-performance audio processing ecosystem that leverages **Mamba Selective State Space Models** for linear-time temporal reasoning and **Differentiable DSP** for professional-grade signal processing. It bridges the gap between state-of-the-art sequence modeling and low-latency audio applications.
+`Mamba Based` is a multi-layered ecosystem dedicated to researching and applying **Mamba State Space Models (SSMs)** to professional audio processing. It bridges the gap between state-of-the-art sequence modeling and high-performance audio engineering, enabling "musical intelligence" that can reason over long-term temporal contexts (60s+).
 
 ---
 
 ## 🏗️ Ecosystem Architecture
 
-The project is structured as a unified monorepo containing research, applications, and deployment targets:
+The workspace is organized into several distinct but interconnected components:
 
 ### 🐍 [Core Mamba Research](./mamba)
-Foundational implementation of Mamba-1, Mamba-2 (SSD), and Mamba-3. Includes high-performance CUDA kernels for selective scanning and comprehensive text/sequence generation benchmarks.
+Foundational implementation of Mamba-1, Mamba-2 (SSD), and Mamba-3. Includes high-performance CUDA kernels and comprehensive benchmarks for long-context modeling.
 
 ### 🎚️ [Mamba Compressor](./mamba-compressor)
-A context-aware dynamic processor that replaces traditional heuristic rules with "musical intelligence."
-- **Context Depth**: Linear scaling allows for 60s+ of musical context with minimal memory overhead.
-- **Interpretable Parameters**: The model predicts time-varying `gain_db`, `attack_ms`, and `release_ms` for a differentiable IIR ballistic filter.
+A specialized application focusing on **Context-Aware Dynamic Audio Processing**. It replaces heuristic compression rules with learned musical intelligence that "hears" long-term context.
 
 ### 🎹 [CLAP & JUCE Plugin](./clap-plugin)
-Professional C++/JUCE implementation for real-time inference within Digital Audio Workstations (DAWs).
-- **Standard**: Fully compliant with the [CLAP (Clever Audio Plugin)](https://cleveraudio.org/) standard.
-- **Interface**: A high-fidelity "Neural HUD" UI built with OpenGL acceleration and custom LookAndFeel.
+C++/JUCE implementation of the **CLAP (Clever Audio Plugin)** standard. Features a "Neural HUD" UI built with OpenGL acceleration for real-time inference within DAWs.
 
 ### 🏛️ [MambaDAW](./MambaDAW)
-A standalone C++ project implementing a high-performance CLAP host and plugin architecture.
-- **Hybrid Architecture**: Real-time C++ host using **LibTorch** for low-latency inference, coupled with Python-based training.
-- **Build System**: Integrated CMake build system for cross-platform deployment.
+A standalone C++ project implementing a high-performance CLAP host and plugin architecture using **LibTorch** for low-latency inference.
+
+### 🧠 [Emotion-Aware DSP](./dsp_system)
+A Ray-based system for emotion-aware audio processing. Includes LLM mediation for architectural friction resolution and Neo4j-based agent coordination mapping.
+
+### 📂 [Documentation](./docs)
+Unified repository documentation, including API references, component guides, and release processes.
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Python Environment (Research & Training)
-Ideal for developers training new models or running offline audio enhancement.
-
-**Prerequisites**: Python 3.10+, NVIDIA GPU (recommended).
+### 1. Quick Setup (Recommended)
+Use the provided automation scripts to set up your development environment:
 
 ```bash
 # Clone and enter repo
 git clone https://github.com/SGM-Studios/mamba-CLAP.git
 cd mamba-CLAP
 
-# Install dependencies
+# Run setup script (installs dependencies and configures environment)
+./scripts/setup-dev.sh
+```
+
+### 2. Manual Installation
+If you prefer manual setup:
+
+```bash
 pip install -r requirements.txt
 
 # Install Mamba-SSM (requires CUDA for GPU acceleration)
 MAMBA_FORCE_BUILD=TRUE pip install --no-cache-dir mamba-ssm --no-build-isolation
-```
-
-**Usage Example**:
-```python
-from enhanced_mamba_audio import AudioProcessor
-proc = AudioProcessor(sample_rate=44100)
-# Refer to scripts/train_blind.py for full training workflows
-```
-
-### 2. C++ Build (Real-Time Plugin)
-Ideal for music producers wanting to use Mamba in a DAW (Ableton, FL Studio, Bitwig).
-
-**Prerequisites**: CMake, [LibTorch](https://pytorch.org/get-started/locally/), [CLAP SDK](https://github.com/free-audio/clap).
-
-```bash
-cd MambaDAW
-mkdir build && cd build
-cmake .. -DCMAKE_PREFIX_PATH=/path/to/libtorch
-cmake --build . --config Release
 ```
 
 ---
@@ -79,54 +65,23 @@ cmake --build . --config Release
 - **Linear-Time Temporal Reasoning**: Unlike Transformers ($O(N^2)$), Mamba's $O(N)$ complexity enables real-time processing of long audio sequences.
 - **Neural HUD Aesthetic**: A "Silicon Serpent" visual theme prioritizing high-contrast data visualization and GPU-accelerated spectrograms.
 - **Differentiable Audio Engine**: End-to-end optimizable DSP layers that preserve phase coherence and transient integrity.
-- **Multi-Generation Support**: Native support for Mamba-3's inference-first architecture and MIMO modes.
+- **Emotionally Intelligent DSP**: Components designed for introspectability and emotional coherence, moving beyond "black box" processing.
+- **Security & Performance**: Hardened audio threads and optimized IIR ballistics with `torch.compile` and future Triton support.
 
 ---
 
-## 🚀 Quick Start
+## 🛠️ Development & Automation
 
-### Installation
+The project includes a suite of scripts in the [`scripts/`](./scripts) directory for common workflows:
 
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/SGM-Studios/mamba-CLAP.git
-    cd mamba-CLAP
-    ```
+- **Build All**: `./scripts/build-all.sh`
+- **Run Tests**: `./scripts/run-tests.sh [all|basic|mamba|dsp]`
+- **Linting**: Pre-commit hooks are configured via `.pre-commit-config.yaml`.
 
-2.  **Environment Setup**:
-    ```bash
-    pip install -r requirements.txt
-    # Install mamba-ssm with CUDA build
-    MAMBA_FORCE_BUILD=TRUE pip install --no-cache-dir mamba-ssm --no-build-isolation
-    ```
-
-### Basic Inference (Python)
-
-```python
-from enhanced_mamba_audio import AudioProcessor
-from mamba_ssm.modules.mamba3 import Mamba3
-
-# Load and preprocess audio
-proc = AudioProcessor(sample_rate=44100)
-waveform, sr = proc.load_audio("input.wav")
-
-# Run Mamba-based spectrogram enhancement
-# (See enhanced_mamba_audio.py for detailed implementation)
-```
+For detailed agent instructions and engineering standards, see [`GEMINI.md`](./GEMINI.md).
+For setup and build specifics, see [`AGENTS.md`](./AGENTS.md).
 
 ---
-
-## 🛠️ Development
-
-- **Architecture Details**: See [`clap-plugin/juce_gui/DESIGN.md`](./clap-plugin/juce_gui/DESIGN.md) for UI/UX specifications.
-- **Project Context**: See [`GEMINI.md`](./GEMINI.md) for detailed agent instructions and engineering standards.
-- **History**: Check the [`CHANGELOG.md`](./CHANGELOG.md) for version updates.
-
----
-
-## 🤝 Contributing
-
-We welcome contributions from the audio engineering and deep learning communities. Please see our contribution guidelines in individual subdirectories.
 
 ## 📄 License
 
