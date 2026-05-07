@@ -57,4 +57,4 @@
   - Setup development environment with `./scripts/setup-dev.sh`
   - Build all components with `./scripts/build-all.sh`
   - Consistent development environment available via Docker (see Dockerfile)
-  - Release process documented in `/docs/guides/release-process.md`
+  - Release process documented in `/docs/guides/release-process.md`# Test commit
