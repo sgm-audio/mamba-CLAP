@@ -153,11 +153,13 @@ void MambaClapPlugin::process(const clap_process_t* process) {
     }
 }
 
-void MambaClapPlugin::applyMelSpectrogramEnhancement(torch::Tensor& mel_spec) {
+bool MambaClapPlugin::applyMelSpectrogramEnhancement(torch::Tensor& mel_spec) {
     try {
         mel_spec = mamba_wrapper_->process(mel_spec);
+        return true;
     } catch (const std::exception& e) {
         std::cerr << "Mamba processing error: " << e.what() << std::endl;
+        return false;
     }
 }
 
@@ -337,6 +339,21 @@ static const clap_plugin_entry_t ClapEntry = {
     .clap_version = CLAP_VERSION,
     .init = [](const char* plugin_path) -> bool {
         std::cout << "Mamba Spectrogram Enhancer CLAP plugin initialized" << std::endl;
+        return true;
+    },
+    .deinit = []() {
+    },
+    .get_factory = [](const char* factory_id) -> const clap_plugin_factory_t* {
+        return nullptr;
+    }
+};
+
+CLAP_EXPORT const clap_plugin_entry_t* clap_entry() {
+    return &ClapEntry;
+}
+}ntry;
+}
+}amba Spectrogram Enhancer CLAP plugin initialized" << std::endl;
         return true;
     },
     .deinit = []() {

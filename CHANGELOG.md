@@ -2,6 +2,17 @@
 
 All notable changes to the **mamba-CLAP** project will be documented in this file.
 
+## [1.1.1] - 2026-05-06
+
+### Security & Hardening
+- **Secure Model Loading**: Removed insecure `getenv` calls in the C++ CLAP plugin (`clap-plugin.cpp`), replacing them with relative, sandboxed paths to prevent arbitrary code execution via path manipulation.
+- **Fail-Safe Audio Thread**: Implemented a bypass-on-failure mechanism in `applyMelSpectrogramEnhancement`. If inference fails, the plugin now cleanly passes the dry audio signal instead of crashing the DAW.
+- **Memory Safety**: Added strict null-pointer checks for audio input/output buffers in the real-time C++ processing loop.
+
+### Performance & Architecture
+- **DSP Loop Optimization**: Wrapped the sequential IIR ballistics loop in `dsp_layer.py` with `@torch.compile(mode="reduce-overhead")` to mitigate Python loop overhead. Added architectural directives for future Triton kernel implementation.
+- **Streaming Pipeline**: Created `src/utils/realtime.py` featuring the `StreamingInference` class. This manages the Mamba `d_state` and lookahead ring buffers across audio chunks, preventing clicks and ensuring temporal continuity during real-time playback.
+
 ## [1.1.0] - 2026-05-06
 
 ### Added

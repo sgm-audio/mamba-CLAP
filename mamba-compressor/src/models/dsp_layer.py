@@ -48,6 +48,7 @@ class DifferentiableDSPCompressor(nn.Module):
         samples = ms * self.sample_rate / 1000.0
         return torch.exp(-1.0 / (samples.clamp(min=1e-6)))
     
+    @torch.compile(mode="reduce-overhead")
     def _apply_ballistics(
         self,
         gain_linear: torch.Tensor,   # (B, T_samples)
@@ -60,8 +61,9 @@ class DifferentiableDSPCompressor(nn.Module):
         Attack when gain is falling (compression engaging).
         Release when gain is rising (compression releasing).
         
-        NOTE: This loop is the bottleneck. Replace with a CUDA scan kernel
-        for production. For training it's fine.
+        [ARCHITECTURAL TODO]: Replace this sequential loop with a Triton-based 
+        Parallel Prefix Scan (associative scan) for O(log T) parallel execution.
+        Currently using torch.compile to mitigate the O(T) Python loop overhead.
         
         Args:
             gain_linear: Linear gain envelope

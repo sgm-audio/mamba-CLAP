@@ -31,7 +31,7 @@ public:
 
 private:
     bool processAudioBlock(const float* input, float* output, int num_samples);
-    void applyMelSpectrogramEnhancement(torch::Tensor& mel_spec);
+    bool applyMelSpectrogramEnhancement(torch::Tensor& mel_spec);
 
     const clap_plugin_descriptor* descriptor_;
     const clap_host_t* host_;
