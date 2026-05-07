@@ -1,0 +1,23 @@
+# Meta AI System Requirements
+# Python 3.8+ required
+
+# No external dependencies required for core functionality
+# The system uses only Python standard library
+
+# Optional dependencies for enhanced functionality:
+
+# For data persistence (already available)
+# json (built-in)
+# pathlib (built-in)
+
+# For logging (already available)
+# logging (built-in)
+
+# For type hints (already available)
+# typing (built-in)
+
+# For datetime operations (already available)
+# datetime (built-in)
+
+# Note: This system is designed to run with zero external dependencies
+# to maximize portability and ease of deployment.

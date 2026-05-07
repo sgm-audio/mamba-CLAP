@@ -1,0 +1,24 @@
+{
+  "current_mode": "meta",
+  "mode_history": [
+    {
+      "from_mode": "meta",
+      "to_mode": "automation",
+      "timestamp": "2026-01-13T05:23:51.358607",
+      "context": null
+    },
+    {
+      "from_mode": "automation",
+      "to_mode": "gtm",
+      "timestamp": "2026-01-13T05:23:51.359902",
+      "context": null
+    },
+    {
+      "from_mode": "gtm",
+      "to_mode": "meta",
+      "timestamp": "2026-01-13T05:23:51.360500",
+      "context": null
+    }
+  ],
+  "last_updated": "2026-01-13T05:23:51.361493"
+}

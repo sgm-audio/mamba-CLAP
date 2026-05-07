@@ -1,0 +1,42 @@
+2026-01-13 05:23:22,179 - MetaAISystem - INFO - Meta AI System initialized
+2026-01-13 05:23:51,358 - MetaAISystem - INFO - Meta AI System initialized
+2026-01-13 05:23:51,358 - AgentOrchestrator - INFO - Agent Orchestrator initialized with all agents
+2026-01-13 05:23:51,358 - AgentOrchestrator - INFO - Processing command: Route: Automation
+2026-01-13 05:23:51,359 - MetaAISystem - INFO - State saved successfully
+2026-01-13 05:23:51,359 - MetaAISystem - INFO - Switched to mode: AI-Automation Architect Mode
+2026-01-13 05:23:51,359 - AgentOrchestrator - INFO - Successfully routed to automation mode
+2026-01-13 05:23:51,359 - AgentOrchestrator - INFO - Processing command: Route: GTM
+2026-01-13 05:23:51,360 - MetaAISystem - INFO - State saved successfully
+2026-01-13 05:23:51,360 - MetaAISystem - INFO - Switched to mode: Founder GTM / Monetization Mode
+2026-01-13 05:23:51,360 - AgentOrchestrator - INFO - Successfully routed to gtm mode
+2026-01-13 05:23:51,360 - AgentOrchestrator - INFO - Processing command: Route: Meta
+2026-01-13 05:23:51,360 - MetaAISystem - INFO - State saved successfully
+2026-01-13 05:23:51,360 - MetaAISystem - INFO - Switched to mode: Unified Meta-Mode
+2026-01-13 05:23:51,360 - AgentOrchestrator - INFO - Successfully routed to meta mode
+2026-01-13 05:23:51,361 - AgentOrchestrator - INFO - Executing task in mode: meta
+2026-01-13 05:23:51,361 - Agent.Meta - INFO - Processing meta query: test query
+2026-01-13 05:23:51,361 - MetaAISystem - INFO - Task added: task_20260113_052351_361166 (mode: automation, priority: 5)
+2026-01-13 05:23:51,361 - MetaAISystem - INFO - Task added: task_20260113_052351_361239 (mode: gtm, priority: 8)
+2026-01-13 05:23:51,361 - MetaAISystem - INFO - Task added: task_20260113_052351_361341 (mode: meta, priority: 5)
+2026-01-13 05:23:51,361 - AutonomousController - INFO - Scheduled task task_20260113_052351_361341 in meta mode
+2026-01-13 05:23:51,361 - AutonomousController - INFO - Cleared 1 tasks from queue
+2026-01-13 05:23:51,361 - MetaAISystem - INFO - State saved successfully
+2026-01-13 05:23:51,361 - AgentOrchestrator - INFO - Executing task in mode: automation
+2026-01-13 05:23:51,362 - Agent.Automation - INFO - Processing automation request: multi_agent
+2026-01-13 05:23:51,362 - AgentOrchestrator - INFO - Executing task in mode: creative
+2026-01-13 05:23:51,362 - Agent.Creative - INFO - Processing creative request: audio
+2026-01-13 05:23:51,362 - AgentOrchestrator - INFO - Executing task in mode: gtm
+2026-01-13 05:23:51,362 - Agent.GTM - INFO - Processing GTM request for stage: ideation
+2026-01-13 05:23:51,362 - AgentOrchestrator - INFO - Executing task in mode: brand
+2026-01-13 05:23:51,362 - Agent.Brand - INFO - Processing brand request for platforms: []
+2026-01-13 05:23:51,362 - AgentOrchestrator - INFO - Executing task in mode: fundraising
+2026-01-13 05:23:51,362 - Agent.Fundraising - INFO - Processing fundraising request for unknown round
+2026-01-13 05:44:32,340 - MetaAISystem - INFO - State loaded: Active mode is meta
+2026-01-13 05:44:32,340 - MetaAISystem - INFO - Meta AI System initialized
+2026-01-13 05:44:32,340 - AgentOrchestrator - INFO - Agent Orchestrator initialized with all agents
+2026-01-13 23:45:11,704 - MetaAISystem - INFO - State loaded: Active mode is meta
+2026-01-13 23:45:11,704 - MetaAISystem - INFO - Meta AI System initialized
+2026-01-13 23:45:11,705 - AgentOrchestrator - INFO - Agent Orchestrator initialized with all agents
+2026-01-13 23:46:06,089 - AgentOrchestrator - INFO - Processing command: capabilites
+2026-01-13 23:46:06,089 - AgentOrchestrator - INFO - Executing task in mode: meta
+2026-01-13 23:46:06,090 - Agent.Meta - INFO - Processing meta query: capabilites
