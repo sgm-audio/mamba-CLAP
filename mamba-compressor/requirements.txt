@@ -29,7 +29,7 @@ matplotlib>=3.7.0
 seaborn>=0.12.0
 
 # Testing
-pytest>=7.3.0
+pytest>=9.0.3
 pytest-cov>=4.1.0
 
 # Development
