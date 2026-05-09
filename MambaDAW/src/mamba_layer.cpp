@@ -1,136 +1,257 @@
 #include "mamba_layer.h"
-#include <cmath>
+#include <algorithm>
+#include <cstring>
+
+#if defined(__AVX__) || defined(__AVX2__)
+#include <immintrin.h>
+#endif
 
 MambaLayer::MambaLayer(int64_t d_model, int64_t d_state, int64_t d_conv, int64_t expand)
-    : d_model_(d_model), d_state_(d_state), d_conv_(d_conv), expand_(expand) {
-    d_inner_ = expand * d_model;
-    
-    // Input projection: projects to three branches (for x, z, and the gate)
-    in_proj = register_module("in_proj", torch::nn::Linear(d_model, d_inner_ * 2, false));
-    // Output projection
-    out_proj = register_module("out_proj", torch::nn::Linear(d_inner_, d_model, false));
-    
-    // Depthwise convolution
-    conv1d = register_module("conv1d", torch::nn::Conv1d(
-        torch::nn::Conv1dOptions(d_inner_, d_inner_, d_conv)
-            .groups(d_inner_)
-            .padding(d_conv - 1)
-    ));
-    
-    // SSM parameters
-    // A is initialized to be negative (stable)
-    A_log = register_parameter("A_log", torch::randn({d_inner_, d_state}));
-    B = register_parameter("B", torch::randn({d_inner_, d_state}));
-    C = register_parameter("C", torch::randn({d_state_, d_inner_}));
-    D = register_parameter("D", torch::randn({d_inner_}));
-    
-    // Initialize state
-    reset_state(1, 1); // Will be properly sized in forward
+    : d_model_(d_model), d_state_(d_state), d_conv_(d_conv), expand_(expand), conv_pos_(0) {
+
+    d_inner_ = expand_ * d_model_;
+
+    // Pre-allocate all internal memory at construction.
+    // No allocations must occur inside processSample() or processBlock().
+    // Initialize weights with small random values to avoid dead-zero state.
+    // In production, these will be overwritten by loadLayerWeights().
+    auto rand_float = []() -> float {
+        return (static_cast<float>(std::rand()) / RAND_MAX - 0.5f) * 0.02f; // [-0.01, 0.01]
+    };
+
+    weight_in_proj_.resize(d_model_ * 2 * d_inner_);
+    weight_out_proj_.resize(d_inner_);
+    weight_conv1d_.resize(d_inner_ * d_conv_);
+    dA_.resize(d_inner_ * d_state_);
+    dB_.resize(d_inner_ * d_state_);
+    C_.resize(d_inner_ * d_state_);
+    D_.resize(d_inner_);
+
+    for (auto& v : weight_in_proj_)  v = rand_float();
+    for (auto& v : weight_out_proj_) v = rand_float();
+    for (auto& v : weight_conv1d_)  v = rand_float();
+    for (auto& v : dA_)             v = rand_float();
+    for (auto& v : dB_)             v = rand_float();
+    for (auto& v : C_)              v = rand_float();
+    for (auto& v : D_)              v = rand_float();
+
+    state_h_.assign(d_inner_ * d_state_, 0.0f);
+    conv_buffer_.assign(d_inner_ * d_conv_, 0.0f);
+
+    tmp_proj_out_.resize(2 * d_inner_);
+    tmp_conv_out_.resize(d_inner_);
+    tmp_ssm_out_.resize(d_inner_);
 }
 
-void MambaLayer::reset_state(int64_t batch_size, int64_t seq_len) {
-    // State shape: [batch, d_inner, d_state]
-    state_ = torch::zeros({batch_size, d_inner_, d_state_}, torch::kFloat);
+void MambaLayer::reset_state() {
+    std::fill(state_h_.begin(),    state_h_.end(),    0.0f);
+    std::fill(conv_buffer_.begin(), conv_buffer_.end(), 0.0f);
+    conv_pos_ = 0;
 }
 
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> MambaLayer::proj_xyz(torch::Tensor x) {
-    // x: [batch, seq, d_model]
-    auto projected = in_proj->forward(x); // [batch, seq, 2 * d_inner]
-    // Split into two branches: x and z (for the gate)
-    auto xz = torch::split(projected, d_inner_, /*dim*/-1);
-    auto x_branch = xz[0]; // [batch, seq, d_inner]
-    auto z_branch = xz[1]; // [batch, seq, d_inner]
-    
-    // For simplicity, we'll use x_branch as the main branch and z_branch for gating later
-    // In a full Mamba, there's also a y branch from the convolution, but we'll combine
-    return std::make_tuple(x_branch, z_branch, torch::Tensor());
+void MambaLayer::copy_state_from(const MambaLayer& other) {
+    std::memcpy(state_h_.data(), other.state_h_.data(), state_h_.size() * sizeof(float));
+    std::memcpy(conv_buffer_.data(), other.conv_buffer_.data(), conv_buffer_.size() * sizeof(float));
+    conv_pos_ = other.conv_pos_;
 }
 
-torch::Tensor MambaLayer::discrete_state_update(torch::Tensor x_t) {
-    // x_t: [batch, d_inner]
-    // Discretize A and B using Euler method (simplified)
-    auto dt = 1.0f; // Assuming unit time step
-    auto A = -torch::exp(A_log); // [d_inner, d_state]
-    auto dA = torch::eye(d_state_, torch::kFloat) + dt * A.t(); // [d_state, d_state] (transposed for convenience)
-    auto dB = dt * B.t(); // [d_state, d_inner] -> [d_inner, d_state] after transpose?
-    
-    // Actually, we want: state' = A * state + B * x
-    // Discretized: state[k+1] = (I + dt*A) * state[k] + dt*B * x[k]
-    // We'll keep state as [batch, d_inner, d_state] and x_t as [batch, d_inner]
-    
-    // For each batch and each feature in d_inner, we have a state vector of size d_state
-    // state_: [batch, d_inner, d_state]
-    // We want: state_new = state * dA^T + x_t * dB^T
-    // But let's do a simpler step-wise update for clarity (less efficient but correct)
-    
-    // We'll do a loop over the d_inner dimension (not efficient but clear)
-    auto new_state = state_.clone();
+void MambaLayer::setQuantizationMode(QuantMode mode) {
+    quant_mode_ = mode;
+    int8_weights_ready_ = false;
+}
+
+void MambaLayer::prepareInt8Weights() const {
+    if (int8_weights_ready_) return;
+    auto quantize = [](const std::vector<float>& src, std::vector<int8_t>& dst,
+                       std::vector<float>& scale) {
+        dst.resize(src.size());
+        float min_val = *std::min_element(src.begin(), src.end());
+        float max_val = *std::max_element(src.begin(), src.end());
+        float abs_max = std::max(std::abs(min_val), std::abs(max_val));
+        if (abs_max < 1e-6f) abs_max = 1.0f;
+        float s = 127.0f / abs_max;
+        for (size_t i = 0; i < src.size(); ++i) {
+            dst[i] = static_cast<int8_t>(std::clamp(static_cast<int>(std::lround(src[i] * s)), -127, 127));
+        }
+        scale.assign(1, 1.0f / s);
+    };
+
+    quantize(weight_in_proj_,  weight_in_proj_q8_,  scale_in_proj_);
+    quantize(weight_out_proj_, weight_out_proj_q8_, scale_out_proj_);
+    quantize(weight_conv1d_,  weight_conv1d_q8_,  scale_conv1d_);
+    quantize(dA_,             dA_q8_,             scale_dA_);
+    quantize(dB_,             dB_q8_,             scale_dB_);
+    quantize(C_,              C_q8_,              scale_C_);
+
+    int8_weights_ready_ = true;
+}
+
+float MambaLayer::processSampleInt8(float sample) {
+    if (!int8_weights_ready_) prepareInt8Weights();
+
+    float* proj_out = tmp_proj_out_.data();
+    for (int64_t i = 0; i < 2 * d_inner_; ++i) {
+        proj_out[i] = static_cast<float>(weight_in_proj_q8_[i]) * scale_in_proj_[0];
+    }
+    proj_out[0] = weight_in_proj_[0] * sample;
+
+    const float* x_branch = proj_out;
+    const float* z_branch = proj_out + d_inner_;
+
+    float* conv_out = tmp_conv_out_.data();
     for (int64_t i = 0; i < d_inner_; ++i) {
-        auto state_i = state_.select(1, i); // [batch, d_state]
-        auto x_i = x_t.select(1, i);        // [batch]
-        // state_i_new = state_i * A[i,:]^T + x_i * B[i,:]^T
-        // A[i,:] is [d_state], B[i,:] is [d_state]
-        auto A_i = A.index({i, torch::indexing::Slice()}); // [d_state]
-        auto B_i = B.index({i, torch::indexing::Slice()}); // [d_state]
-        
-        // state_i_new = state_i * A_i + x_i.unsqueeze(-1) * B_i
-        new_state.select(1, i) = state_i * A_i.unsqueeze(0) + 
-                                 (x_i.unsqueeze(-1) * B_i.unsqueeze(0));
-    }
-    
-    // Compute y = C * state + D * x
-    auto y = torch::zeros_like(x_t);
-    for (int64_t i = 0; i < d_inner_; ++i) {
-        auto state_i = new_state.select(1, i); // [batch, d_state]
-        auto C_i = C.index({torch::indexing::Slice(), i}); // [d_state]
-        // y += state_i * C_i
-        y += state_i * C_i.unsqueeze(0);
-        // y += D[i] * x_t[:, i]
-        y += D.index({i}) * x_t.select(1, i);
-    }
-    
-    state_ = new_state;
-    return y;
-}
+        const int64_t base = i * d_conv_;
+        conv_buffer_[base + conv_pos_] = x_branch[i];
 
-torch::Tensor MambaLayer::forward(torch::Tensor x) {
-    // x: [batch, seq, d_model]
-    int64_t batch = x.size(0);
-    int64_t seq_len = x.size(1);
-    
-    // Initialize state if needed
-    if (state_.sizes() != torch::IntArrayRef{batch, d_inner_, d_state_}) {
-        reset_state(batch, seq_len);
+        float val = 0.0f;
+        for (int64_t k = 0; k < d_conv_; ++k) {
+            val += conv_buffer_[base + (conv_pos_ + k) % d_conv_] *
+                   (static_cast<float>(weight_conv1d_q8_[base + k]) * scale_conv1d_[0]);
+        }
+        conv_out[i] = silu(val);
     }
-    
-    // Step 1: Input projection
-    auto [x_branch, z_branch, _] = proj_xyz(x); // Each [batch, seq, d_inner]
-    
-    // Step 2: Convolution
-    // We need to transpose for Conv1d: [batch, d_inner, seq]
-    auto x_transposed = x_branch.transpose(1, 2);
-    auto conv_out = conv1d->forward(x_transposed); // [batch, d_inner, seq + d_conv - 1]
-    // Remove the extra padding from the convolution (we added d_conv-1)
-    conv_out = conv_out.narrow(2, 0, seq_len); // [batch, d_inner, seq]
-    conv_out = torch::silu(conv_out); // Activation
-    // Transpose back: [batch, seq, d_inner]
-    conv_out = conv_out.transpose(1, 2);
-    
-    // Step 3: Gating
-    auto gate = torch::silu(z_branch); // [batch, seq, d_inner]
-    auto gated_out = conv_out * gate; // [batch, seq, d_inner]
-    
-    // Step 4: SSM recurrence (step-wise for simplicity)
-    // We'll process each time step and update the state
-    auto ssm_out = torch::zeros_like(gated_out);
-    for (int64_t t = 0; t < seq_len; ++t) {
-        auto x_t = gated_out.select(1, t); // [batch, d_inner]
-        auto y_t = discrete_state_update(x_t); // [batch, d_inner]
-        ssm_out.select(1, t) = y_t;
+    conv_pos_ = (conv_pos_ + 1) % d_conv_;
+
+    float* ssm_out = tmp_ssm_out_.data();
+    for (int64_t i = 0; i < d_inner_; ++i) {
+        const int64_t base = i * d_state_;
+        const float x_t = conv_out[i];
+        float y_t = 0.0f;
+        for (int64_t j = 0; j < d_state_; ++j) {
+            int64_t idx = base + j;
+            state_h_[idx] = (static_cast<float>(dA_q8_[idx]) * scale_dA_[0] * context_scale_) * state_h_[idx]
+                          + (static_cast<float>(dB_q8_[idx]) * scale_dB_[0]) * x_t;
+            if (std::abs(state_h_[idx]) < 1e-30f) state_h_[idx] = 0.0f;
+            y_t += (static_cast<float>(C_q8_[idx]) * scale_C_[0]) * state_h_[idx];
+        }
+        ssm_out[i] = y_t + D_[i] * x_t;
     }
-    
-    // Step 5: Output projection
-    auto output = out_proj->forward(ssm_out); // [batch, seq, d_model]
-    
+
+    float output = 0.0f;
+    for (int64_t i = 0; i < d_inner_; ++i) {
+        ssm_out[i] *= silu(z_branch[i]);
+        output += weight_out_proj_[i] * ssm_out[i];
+    }
     return output;
+}
+
+float MambaLayer::processSample(float sample) {
+    if (quant_mode_ != QuantMode::FP32) return processSampleInt8(sample);
+
+    float* proj_out = tmp_proj_out_.data();
+    int64_t idx = 0;
+
+#if defined(__AVX__) || defined(__AVX2__)
+    __m256 sample_vec = _mm256_set1_ps(sample);
+    for (; idx + 7 < 2 * d_inner_; idx += 8) {
+        __m256 w = _mm256_loadu_ps(&weight_in_proj_[idx]);
+        _mm256_storeu_ps(&proj_out[idx], _mm256_mul_ps(w, sample_vec));
+    }
+#endif
+    for (; idx < 2 * d_inner_; ++idx) {
+        proj_out[idx] = weight_in_proj_[idx] * sample;
+    }
+
+    const float* x_branch = proj_out;
+    const float* z_branch = proj_out + d_inner_;
+
+    float* conv_out = tmp_conv_out_.data();
+    for (int64_t i = 0; i < d_inner_; ++i) {
+        const int64_t base = i * d_conv_;
+        conv_buffer_[base + conv_pos_] = x_branch[i];
+
+        float val = 0.0f;
+        for (int64_t k = 0; k < d_conv_; ++k)
+            val += conv_buffer_[base + (conv_pos_ + k) % d_conv_] * weight_conv1d_[base + k];
+        conv_out[i] = silu(val);
+    }
+    conv_pos_ = (conv_pos_ + 1) % d_conv_;
+
+    float* ssm_out = tmp_ssm_out_.data();
+    for (int64_t i = 0; i < d_inner_; ++i) {
+        const int64_t base = i * d_state_;
+        const float x_t = conv_out[i];
+        float y_t = 0.0f;
+        int64_t j = 0;
+
+#if defined(__AVX__) || defined(__AVX2__)
+        __m256 y_acc = _mm256_setzero_ps();
+        __m256 x_vec = _mm256_set1_ps(x_t);
+        const __m256 denormal_cutoff = _mm256_set1_ps(1e-30f);
+        const __m256 zero_vec = _mm256_setzero_ps();
+        __m256 scale_vec = _mm256_set1_ps(context_scale_);
+
+        for (; j + 7 < d_state_; j += 8) {
+            __m256 state = _mm256_loadu_ps(&state_h_[base + j]);
+            __m256 da = _mm256_mul_ps(_mm256_loadu_ps(&dA_[base + j]), scale_vec);
+            __m256 db = _mm256_loadu_ps(&dB_[base + j]);
+            __m256 c = _mm256_loadu_ps(&C_[base + j]);
+
+            __m256 new_state = _mm256_add_ps(_mm256_mul_ps(da, state), _mm256_mul_ps(db, x_vec));
+            __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
+            __m256 abs_new_state = _mm256_and_ps(new_state, abs_mask);
+            __m256 mask = _mm256_cmp_ps(abs_new_state, denormal_cutoff, _CMP_LT_OQ);
+            new_state = _mm256_blendv_ps(new_state, zero_vec, mask);
+            _mm256_storeu_ps(&state_h_[base + j], new_state);
+
+            y_acc = _mm256_add_ps(y_acc, _mm256_mul_ps(c, new_state));
+        }
+
+        alignas(32) float temp[8];
+        _mm256_store_ps(temp, y_acc);
+        for(int k=0; k<8; ++k) y_t += temp[k];
+#endif
+
+        for (; j < d_state_; ++j) {
+            state_h_[base + j] = (dA_[base + j] * context_scale_) * state_h_[base + j] + dB_[base + j] * x_t;
+            if (std::abs(state_h_[base + j]) < 1e-30f) state_h_[base + j] = 0.0f;
+            y_t += C_[base + j] * state_h_[base + j];
+        }
+        ssm_out[i] = y_t + D_[i] * x_t;
+    }
+
+    float output = 0.0f;
+    for (int64_t i = 0; i < d_inner_; ++i) {
+        ssm_out[i] *= silu(z_branch[i]);
+        output += weight_out_proj_[i] * ssm_out[i];
+    }
+
+    return output;
+}
+
+void MambaLayer::processBlock(const float* input, float* output, int64_t num_samples) {
+    for (int64_t t = 0; t < num_samples; ++t)
+        output[t] = processSample(input[t]);
+}
+
+bool MambaLayer::loadLayerWeights(const float* in_proj,  size_t in_proj_n,
+                                   const float* out_proj, size_t out_proj_n,
+                                   const float* conv1d,   size_t conv1d_n,
+                                   const float* dA,       size_t dA_n,
+                                   const float* dB,       size_t dB_n,
+                                   const float* C,        size_t C_n,
+                                   const float* D,        size_t D_n) {
+    const size_t exp_in_proj  = static_cast<size_t>(d_model_ * 2 * d_inner_);
+    const size_t exp_out_proj = static_cast<size_t>(d_inner_);
+    const size_t exp_conv1d   = static_cast<size_t>(d_inner_ * d_conv_);
+    const size_t exp_ssm      = static_cast<size_t>(d_inner_ * d_state_);
+    const size_t exp_D        = static_cast<size_t>(d_inner_);
+
+    if (in_proj_n  != exp_in_proj  || out_proj_n != exp_out_proj ||
+        conv1d_n   != exp_conv1d   ||
+        dA_n       != exp_ssm      || dB_n != exp_ssm || C_n != exp_ssm ||
+        D_n        != exp_D) {
+        return false;
+    }
+
+    std::memcpy(weight_in_proj_.data(),  in_proj,  in_proj_n  * sizeof(float));
+    std::memcpy(weight_out_proj_.data(), out_proj, out_proj_n * sizeof(float));
+    std::memcpy(weight_conv1d_.data(),   conv1d,   conv1d_n   * sizeof(float));
+    std::memcpy(dA_.data(), dA, dA_n * sizeof(float));
+    std::memcpy(dB_.data(), dB, dB_n * sizeof(float));
+    std::memcpy(C_.data(),  C,  C_n  * sizeof(float));
+    std::memcpy(D_.data(),  D,  D_n  * sizeof(float));
+
+    int8_weights_ready_ = false;
+    return true;
 }

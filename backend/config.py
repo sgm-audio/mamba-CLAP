@@ -14,6 +14,7 @@ class Config:
         'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-string'
+    MAX_CONCURRENT_JOBS = int(os.environ.get('MAX_CONCURRENT_JOBS', 5))
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     # Redis configuration for RQ
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
@@ -80,12 +81,25 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
-    # Use environment variables for sensitive data
+    # Use environment variables for sensitive data (no defaults!)
     SECRET_KEY = os.environ.get('SECRET_KEY')
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
-    # Ensure these are set in production
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     REDIS_URL = os.environ.get('REDIS_URL')
+    
+    def __init__(self):
+        super().__init__()
+        missing = []
+        if not self.SECRET_KEY:
+            missing.append('SECRET_KEY')
+        if not self.JWT_SECRET_KEY:
+            missing.append('JWT_SECRET_KEY')
+        if not self.SQLALCHEMY_DATABASE_URI:
+            missing.append('DATABASE_URL')
+        if not self.REDIS_URL:
+            missing.append('REDIS_URL')
+        if missing:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 
 
 config_dict = {

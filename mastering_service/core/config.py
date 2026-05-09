@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Mamba Mastering Service"
     
     # Security
-    SECRET_KEY: str = "CHANGEME_SUPER_SECRET_KEY" # In production, set via env
+    SECRET_KEY: str  # Required, no default - must be set via env
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 1 week
     
     # Database

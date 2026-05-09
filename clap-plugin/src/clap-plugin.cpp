@@ -6,6 +6,7 @@
 #include <numeric>
 #include <cmath>
 #include <algorithm>
+#include <fftw3.h>
 
 namespace fs = std::filesystem;
 namespace mamba_audio {
@@ -255,8 +256,9 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
         torch::NoGradGuard no_grad;
 
         // Convert input block to tensor [1, num_samples]
+        // Use clone() to ensure the tensor owns its memory and avoids lifetime issues with from_blob
         auto input_tensor = torch::from_blob(const_cast<float*>(input), {1, num_samples}, torch::kFloat32)
-                                .to(device_);
+                                .clone().to(device_);
 
         // Convert to mel-spectrogram [time_steps, n_mels]
         auto mel_spec = stft_processor_->forward(input_tensor);
@@ -275,6 +277,12 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
             
             // Process this step to get Mamba output and update state
             auto step_output = mamba_wrapper_->step(step_input, state);
+            
+            // Sanity check: if step_output contains NaN/Inf, replace with zeros to prevent propagation
+            if (!step_output.isfinite().all().item<bool>()) {
+                std::cerr << "[WARN] Mamba step output non-finite, zeroing" << std::endl;
+                step_output = torch::zeros_like(step_output);
+            }
             
             // Get effect parameters for the current effect type
             int effect_type_idx = getEffectTypeIndex();
@@ -299,7 +307,20 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
         
         // Apply mix level: dry * (1-mix) + wet * mix
         for (int i = 0; i < num_samples && i < output_flat.size(0); ++i) {
-            output[i] = (1.0f - param_mix) * output[i] + param_mix * output_ptr[i];
+            float wet_sample = output_ptr[i];
+            // Sanitize wet signal
+            if (std::isnan(wet_sample) || std::isinf(wet_sample)) {
+                wet_sample = 0.0f;
+            }
+            float dry_sample = output[i]; // Already contains dry signal
+            float mixed = (1.0f - param_mix) * dry_sample + param_mix * wet_sample;
+            // Sanitize mixed signal
+            if (std::isnan(mixed) || std::isinf(mixed)) {
+                mixed = 0.0f;
+            }
+            // Soft clipping to prevent overflow (tanh limits to [-1, 1])
+            mixed = std::tanh(mixed);
+            output[i] = mixed;
         }
     } catch (const std::exception& e) {
         std::cerr << "[ERROR] Audio processing error: " << e.what() << std::endl;
@@ -328,73 +349,220 @@ STFTProcessor::STFTProcessor(int n_fft, int hop_length, int n_mels, double sampl
               << ", hop_length=" << hop_length_ 
               << ", n_mels=" << n_mels_ 
               << ", sample_rate=" << sample_rate_ << std::endl;
-    // Create Hann window
+    
+    freq_bins_ = n_fft_ / 2 + 1;
+    pad_ = n_fft_ / 2;
+    
+    // Create Hann window (tensor and host copy)
     window_func_ = torch::hann_window(n_fft_, true);
+    window_host_ = static_cast<float*>(fftwf_malloc(n_fft_ * sizeof(float)));
+    auto window_access = window_func_.accessor<float, 1>();
+    for (int i = 0; i < n_fft_; ++i) {
+        window_host_[i] = window_access[i];
+    }
     
     // Precompute mel basis and its pseudo-inverse
     std::vector<float> mel_basis_data = mel_scale(n_mels, n_fft, sample_rate);
-    mel_basis_ = torch::from_blob(mel_basis_data.data(), {n_mels, n_fft/2+1}, torch::kFloat32).clone();
+    mel_basis_ = torch::from_blob(mel_basis_data.data(), {n_mels, freq_bins_}, torch::kFloat32).clone();
     // Compute pseudo-inverse of mel basis
     inv_mel_basis_ = pinverse(mel_basis_);
+    
+    // Allocate FFTW buffers
+    fftw_real_buffer_ = static_cast<float*>(fftwf_malloc(n_fft_ * sizeof(float)));
+    fftw_complex_buffer_ = static_cast<fftwf_complex*>(fftwf_malloc(freq_bins_ * sizeof(fftwf_complex)));
+    
+    // Create FFTW plans
+    forward_plan_ = fftwf_plan_dft_r2c_1d(n_fft_, fftw_real_buffer_, fftw_complex_buffer_, FFTW_MEASURE);
+    inverse_plan_ = fftwf_plan_dft_c2r_1d(n_fft_, fftw_complex_buffer_, fftw_real_buffer_, FFTW_MEASURE);
+    
+    // Pre-allocate padded buffer for center padding
+    // Set to a large value to cover all expected DAW block sizes (up to 32768 samples)
+    max_block_size_ = 32768;
+    padded_buffer_capacity_ = max_block_size_ + n_fft_;
+    padded_buffer_ = static_cast<float*>(fftwf_malloc(padded_buffer_capacity_ * sizeof(float)));
+    
+    // Compute sum of squared window for overlap-add compensation
+    window_energy_sum_ = 0.0f;
+    for (int i = 0; i < n_fft_; ++i) {
+        float w = window_host_[i];
+        window_energy_sum_ += w * w;
+    }
+    
+    last_input_len_ = 0;
 }
 
-STFTProcessor::~STFTProcessor() = default;
+STFTProcessor::~STFTProcessor() {
+    if (forward_plan_) {
+        fftwf_destroy_plan(forward_plan_);
+        forward_plan_ = nullptr;
+    }
+    if (inverse_plan_) {
+        fftwf_destroy_plan(inverse_plan_);
+        inverse_plan_ = nullptr;
+    }
+    if (fftw_real_buffer_) {
+        fftwf_free(fftw_real_buffer_);
+        fftw_real_buffer_ = nullptr;
+    }
+    if (fftw_complex_buffer_) {
+        fftwf_free(fftw_complex_buffer_);
+        fftw_complex_buffer_ = nullptr;
+    }
+    if (window_host_) {
+        fftwf_free(window_host_);
+        window_host_ = nullptr;
+    }
+    if (padded_buffer_) {
+        fftwf_free(padded_buffer_);
+        padded_buffer_ = nullptr;
+    }
+}
 
 torch::Tensor STFTProcessor::forward(const torch::Tensor& waveform) {
-    // Ensure we have a 1D tensor
+    // Ensure we have a 1D tensor and get pointer to data
     auto waveform_1d = waveform.squeeze();
+    if (waveform_1d.dim() != 1) {
+        throw std::runtime_error("STFTProcessor::forward expects a 1D waveform");
+    }
+    int L = waveform_1d.size(0);
+    last_input_len_ = L; // Store for inverse
     
-    // Compute STFT
-    auto spec = torch::stft(
-        waveform_1d,
-        n_fft_,
-        hop_length_,
-        n_fft_,  // win_length
-        window_func_,
-        true,    // normalized
-        true,    // onesided
-        torch::kFloat32
-    );
-
-    // Convert to magnitude spectrogram
-    auto mag = torch::abs(spec);
-
-    // Apply mel filter bank: [n_mels, n_fft/2+1] x [n_fft/2+1, time] -> [n_mels, time]
-    auto mel = torch::mm(mel_basis_, mag);
-
-    // Convert to log scale
-    auto log_mel = torch::log(torch::clamp(mel, min=1e-5));
-
-    // Transpose to [time, mel_bins] format
+    float* input_data = waveform_1d.data_ptr<float>();
+    
+    // Center padding: pad with n_fft/2 zeros on both sides
+    int pad = pad_;
+    int padded_len = L + n_fft_; // total length after padding
+    
+    // Ensure pre-allocated buffer is large enough (real-time safe)
+    if (padded_len > static_cast<int>(padded_buffer_capacity_)) {
+        throw std::runtime_error("STFTProcessor::forward: block size exceeds maximum supported size (" + 
+                                 std::to_string(padded_len) + " > " + std::to_string(padded_buffer_capacity_) + ")");
+    }
+    float* padded = padded_buffer_;
+    // Zero the padded buffer
+    std::fill(padded, padded + padded_len, 0.0f);
+    // Copy input into padded buffer starting at offset pad
+    std::memcpy(padded + pad, input_data, L * sizeof(float));
+    
+    // Number of frames: 1 + floor(L / hop_length_)
+    int num_frames = L / hop_length_ + 1;
+    if (L % hop_length_ == 0) {
+        // If L is exactly divisible by hop, we still get floor(L/hop) + 1, but torch might produce extra frame? 
+        // We'll stick to this formula.
+    }
+    // Prepare output magnitude matrix (freq_bins_ x num_frames) in a torch tensor
+    torch::Tensor mag_tensor = torch::zeros({freq_bins_, num_frames}, torch::kFloat32);
+    float* mag_data = mag_tensor.data_ptr<float>();
+    
+    // Process each frame
+    for (int t = 0; t < num_frames; ++t) {
+        int frame_offset = t * hop_length_;
+        // Copy frame data into FFTW real buffer, apply Hann window
+        for (int i = 0; i < n_fft_; ++i) {
+            float sample = padded[frame_offset + i];
+            fftw_real_buffer_[i] = sample * window_host_[i];
+        }
+        // Execute forward FFT
+        fftwf_execute(forward_plan_);
+        // Extract magnitude and apply normalized scaling (1/√n_fft)
+        float inv_sqrt_n = 1.0f / std::sqrt(static_cast<float>(n_fft_));
+        for (int i = 0; i < freq_bins_; ++i) {
+            float re = fftw_complex_buffer_[i].re;
+            float im = fftw_complex_buffer_[i].im;
+            float mag = std::sqrt(re*re + im*im) * inv_sqrt_n;
+            // Store in column t: row i, col t -> index i * num_frames + t
+            mag_data[i * num_frames + t] = mag;
+        }
+    }
+    
+    // If we allocated temporary padded buffer, free it
+    if (padded != padded_buffer_) {
+        delete[] padded;
+    }
+    
+    // Apply mel filter bank: (n_mels, freq_bins) * (freq_bins, num_frames) -> (n_mels, num_frames)
+    torch::Tensor mel = torch::mm(mel_basis_, mag_tensor);
+    
+    // Log compression
+    torch::Tensor log_mel = torch::log(torch::clamp(mel, 1e-5, 1e5));
+    
+    // Transpose to [time, n_mels]
     return log_mel.transpose(0, 1);
 }
 
 torch::Tensor STFTProcessor::inverse(const torch::Tensor& mel_spectrogram) {
-    // Input format: [time, mel_bins]
-    auto mel_spec = mel_spectrogram.transpose(0, 1); // [mel_bins, time]
-
-    // Convert from log scale
-    auto mel = torch::exp(mel_spec);
-
-    // Apply inverse mel filter bank: [n_fft/2+1, n_mels] x [n_mels, time] -> [n_fft/2+1, time]
-    auto spec = torch::mm(inv_mel_basis_, mel);
-
-    // Convert to complex spectrogram (assuming zero phase)
-    auto spec_complex = torch::complex(spec, torch::zeros_like(spec));
-
-    // Compute ISTFT
-    auto waveform = torch::istft(
-        spec_complex,
-        n_fft_,
-        hop_length_,
-        n_fft_,  // win_length
-        window_func_.to(spec.device()),
-        true,    // normalized
-        true,    // onesided
-        torch::kFloat32
-    );
-
-    return waveform;
+    // Input format: [time, mel_bins] (log-mel)
+    int T = mel_spectrogram.size(0);
+    if (T == 0) {
+        return torch::zeros({0}, torch::kFloat32);
+    }
+    
+    // Linear-scale mel: [time, mel_bins] -> [mel_bins, time]
+    auto mel_linear = torch::exp(mel_spectrogram.transpose(0, 1));
+    
+    // Inverse mel to magnitude spectrogram: [n_fft/2+1, time]
+    torch::Tensor mag = torch::mm(inv_mel_basis_, mel_linear);
+    
+    // Prepare magnitude data pointer
+    float* mag_data = mag.data_ptr<float>();
+    int mag_rows = mag.size(0); // freq_bins_
+    int mag_cols = mag.size(1); // T
+    
+    // Allocate buffer for full overlap-added signal
+    int full_len = (T - 1) * hop_length_ + n_fft_;
+    // Ensure pre-allocated buffer is large enough (real-time safe)
+    if (full_len > static_cast<int>(padded_buffer_capacity_)) {
+        throw std::runtime_error("STFTProcessor::inverse: output length exceeds maximum supported buffer size");
+    }
+    float* full_signal = padded_buffer_;
+    std::fill(full_signal, full_signal + full_len, 0.0f);
+    
+    // Process each frame: overlap-add windowed inverse FFT
+    for (int t = 0; t < T; ++t) {
+        // Set complex spectrum from magnitude (zero phase)
+        for (int i = 0; i < freq_bins_; ++i) {
+            float mag_val = mag_data[i * T + t]; // column-major: row i, col t
+            fftw_complex_buffer_[i].re = mag_val;
+            fftw_complex_buffer_[i].im = 0.0f;
+        }
+        // Execute inverse FFT
+        fftwf_execute(inverse_plan_);
+        // FFTW inverse is unscaled; apply 1/√n_fft scaling, then window, and overlap-add
+        int offset = t * hop_length_;
+        float scale = 1.0f / std::sqrt(static_cast<float>(n_fft_));
+        for (int i = 0; i < n_fft_; ++i) {
+            full_signal[offset + i] += fftw_real_buffer_[i] * scale * window_host_[i];
+        }
+    }
+    
+    // Apply overlap-add compensation: divide by sum of squared windows
+    float inv_window_energy = 1.0f / window_energy_sum_;
+    for (int i = 0; i < full_len; ++i) {
+        full_signal[i] *= inv_window_energy;
+    }
+    
+    // Determine cropping: original length is last_input_len_ (set during forward)
+    // With center padding, the original signal is located at samples [pad_ : pad_ + last_input_len_]
+    // But we must ensure full_len is at least pad_ + last_input_len_
+    size_t original_len = last_input_len_;
+    int pad = pad_;
+    // If full_len < pad + original_len, something is wrong; we'll clamp
+    int start = pad;
+    int end = std::min(static_cast<int>(full_len), start + static_cast<int>(original_len));
+    int copy_len = end - start;
+    if (copy_len < 0) copy_len = 0;
+    
+    torch::Tensor output = torch::zeros({static_cast<int64_t>(original_len)}, torch::kFloat32);
+    float* output_data = output.data_ptr<float>();
+    if (copy_len > 0) {
+        std::memcpy(output_data, full_signal + start, copy_len * sizeof(float));
+    }
+    if (original_len > copy_len) {
+        // Zero-fill remaining (should not happen)
+        std::fill(output_data + copy_len, output_data + original_len, 0.0f);
+    }
+    
+    return output;
 }
 
 MambaWrapper::MambaWrapper(const std::string& model_path, int n_mels, torch::Device device)

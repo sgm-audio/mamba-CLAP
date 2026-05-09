@@ -1,0 +1,2 @@
+Defaulting to user installation because normal site-packages is not writeable
+Could not fetch URL https://pypi.org/simple/causal-conv1d/: There was a problem confirming the ssl certificate: HTTPSConnectionPool(host='pypi.org', port=443): Max retries exceeded with url: /simple/causal-conv1d/ (Caused by SSLError(SSLCertVerificationError(1, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'pypi.org'. (_ssl.c:1081)"))) - skipping

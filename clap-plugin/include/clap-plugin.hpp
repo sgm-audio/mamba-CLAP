@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <fftw3.h>
 
 namespace mamba_audio {
 
@@ -81,11 +82,28 @@ private:
     int hop_length_;
     int n_mels_;
     double sample_rate_;
+    int freq_bins_; // n_fft/2 + 1
+    int pad_;       // n_fft_/2
 
     torch::Tensor window_func_;
     // Mel filter bank: [n_mels, n_fft/2+1]
     torch::Tensor mel_basis_;
     torch::Tensor inv_mel_basis_; // pseudo-inverse for ISTFT
+    
+    // FFTW resources
+    fftwf_plan forward_plan_;
+    fftwf_plan inverse_plan_;
+    float* fftw_real_buffer_;
+    fftwf_complex* fftw_complex_buffer_;
+    float* window_host_; // host copy of Hann window for FFTW
+    // For center padding (replicating torch.stft center=True)
+    float* padded_buffer_;
+    size_t padded_buffer_capacity_;
+    int max_block_size_;
+    
+    // State for inverse cropping
+    size_t last_input_len_ = 0; // input length from most recent forward call
+    float window_energy_sum_ = 0.0f; // sum of squared window for compensation
 };
 
 class MambaWrapper {

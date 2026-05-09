@@ -1,259 +1,338 @@
+/**
+ * @file plugin_wrapper.cpp
+ * @brief CLAP v1.2.7 plugin entry point for MambaDAW.
+ *
+ * Implements the CLAP C ABI. Bridges CLAP host calls to PluginProcessor.
+ *
+ * RT constraints enforced here:
+ *  - process() uses pre-allocated static channel pointer arrays (no new/delete).
+ *  - No logging in the audio callback path.
+ *  - reset() calls PluginProcessor::resetState() — correctly implemented.
+ */
+
 #include <clap/clap.h>
-#include <clap/clap-helpers.h>
+#include <clap/factory/plugin-factory.h>
+#include <clap/ext/params.h>
+#include <clap/ext/audio-ports.h>
 #include "plugin_processor.h"
-#include <iostream>
+#include "parameter_gate.h"
 #include <cstring>
+#include <cstdio>
+#include <algorithm>
 
-// Global processor instance (in a real plugin, this would be per-instance)
-static MambaProcessor* g_processor = nullptr;
+// =============================================================================
+// Plugin instance data — stored in clap_plugin_t::plugin_data
+// =============================================================================
 
-// CLAP plugin descriptor
-static const clap_plugin_descriptor_t CLAP_DESCRIPTOR = {
-    .clap_version = {CLAP_VERSION_MAJOR, CLAP_VERSION_MINOR},
-    .plugin_id = "com.mambabased.MambaDAW",
-    .name = "MambaDAW",
-    .vendor = "Mamba Based",
-    .url = "https://github.com/state-spaces/mamba",
-    .manual_url = "",
-    .support_url = "",
-    .version = "1.0.0",
-    .description = "High-performance AI audio processing plugin using Mamba SSM",
-    .features = (const char* const[]){
-        CLAP_PLUGIN_FEATURE_INSTRUMENT,
-        CLAP_PLUGIN_FEATURE_AI,
-        nullptr
-    }
+struct MambaPluginInstance {
+    PluginProcessor processor;
+    const clap_host_t* host = nullptr;
+
+    explicit MambaPluginInstance(double sample_rate = 44100.0)
+        : processor(static_cast<int>(sample_rate)) {}
 };
 
-// Plugin factory
-static const clap_plugin_factory_t CLAP_FACTORY = {
-    // plugin_get_count
-    [](const clap_plugin_t*) -> uint32_t {
-        return 1;
-    },
-    // plugin_get_descriptor
-    [](const clap_plugin_t*, uint32_t index) -> const clap_plugin_descriptor_t* {
-        if (index == 0)
-            return &CLAP_DESCRIPTOR;
-        return nullptr;
-    },
-    // plugin_create
-    [](const clap_plugin_t* plugin, const clap_host_t* host, const clap_plugin_descriptor_t* descriptor) -> bool {
-        // Create processor instance
-        g_processor = new MambaProcessor();
-        if (!g_processor) {
+// Helper to retrieve the instance from a CLAP plugin pointer.
+static inline MambaPluginInstance* get_instance(const clap_plugin_t* plugin) {
+    return static_cast<MambaPluginInstance*>(plugin->plugin_data);
+}
+
+// Pre-allocated channel pointer arrays — avoids heap allocation in RT callback.
+static constexpr uint32_t MAX_CHANNELS = 8u;
+static float* s_input_ptrs[MAX_CHANNELS]  = {};
+static float* s_output_ptrs[MAX_CHANNELS] = {};
+
+// =============================================================================
+// Plugin descriptor
+// =============================================================================
+
+static const char* const s_features[] = {
+    CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
+    nullptr
+};
+
+static const clap_plugin_descriptor_t s_descriptor = {
+    CLAP_VERSION_INIT,
+    /* id          */ "com.mambabased.MambaDAW",
+    /* name        */ "MambaDAW",
+    /* vendor      */ "Mamba Based",
+    /* url         */ "https://github.com/state-spaces/mamba",
+    /* manual_url  */ "",
+    /* support_url */ "",
+    /* version     */ "1.0.0",
+    /* description */ "Real-time Mamba SSM audio processing (state-centric, CPU-only)",
+    /* features    */ s_features
+};
+
+// =============================================================================
+// clap_plugin_t callbacks
+// =============================================================================
+
+static bool plugin_init(const clap_plugin_t* plugin) {
+    (void)plugin;
+    return true;
+}
+
+static void plugin_destroy(const clap_plugin_t* plugin) {
+    delete get_instance(plugin);
+}
+
+static bool plugin_activate(const clap_plugin_t* plugin,
+                            double sample_rate,
+                            uint32_t min_frames,
+                            uint32_t max_frames) {
+    get_instance(plugin)->processor.activate(sample_rate, min_frames, max_frames);
+    return true;
+}
+
+static void plugin_deactivate(const clap_plugin_t* plugin) {
+    get_instance(plugin)->processor.deactivate();
+}
+
+static bool plugin_start_processing(const clap_plugin_t* /*plugin*/) {
+    return true;
+}
+
+static void plugin_stop_processing(const clap_plugin_t* /*plugin*/) {}
+
+// Called by host to zero all DSP state (e.g. on transport loop jump).
+// [audio-thread & active]
+static void plugin_reset(const clap_plugin_t* plugin) {
+    get_instance(plugin)->processor.resetState();
+}
+
+// RT audio callback — ZERO heap allocations.
+static clap_process_status plugin_process(const clap_plugin_t* plugin,
+                                          const clap_process_t* process) {
+    if (!process || process->audio_inputs_count == 0 || process->audio_outputs_count == 0)
+        return CLAP_PROCESS_SLEEP;
+
+    const clap_audio_buffer_t* in_bus  = &process->audio_inputs[0];
+    const clap_audio_buffer_t* out_bus = &process->audio_outputs[0];
+
+    // Stack-bounded channel pointer fill — NO new[]/delete[] in RT path.
+    const uint32_t in_ch  = std::min(in_bus->channel_count,  MAX_CHANNELS);
+    const uint32_t out_ch = std::min(out_bus->channel_count, MAX_CHANNELS);
+
+    for (uint32_t c = 0; c < in_ch;  ++c) s_input_ptrs[c]  = in_bus->data32[c];
+    for (uint32_t c = 0; c < out_ch; ++c) s_output_ptrs[c] = out_bus->data32[c];
+
+    get_instance(plugin)->processor.processBlock(
+        s_input_ptrs,
+        s_output_ptrs,
+        static_cast<int32_t>(process->frames_count),
+        static_cast<int32_t>(in_ch),
+        static_cast<int32_t>(out_ch)
+    );
+
+    return CLAP_PROCESS_CONTINUE;
+}
+
+static const void* plugin_get_extension(const clap_plugin_t* /*plugin*/, const char* id);
+static void plugin_on_main_thread(const clap_plugin_t* /*plugin*/) {}
+
+// =============================================================================
+// Extension: CLAP_EXT_PARAMS
+// =============================================================================
+
+// param_id mapping:
+//   0 = Dry/Wet Mix  [0.0, 1.0]
+//   1 = Bypass       [0.0, 1.0] — stepped
+
+static uint32_t params_count(const clap_plugin_t* /*plugin*/) { return 2; }
+
+static bool params_get_info(const clap_plugin_t* /*plugin*/,
+                            uint32_t index,
+                            clap_param_info_t* info) {
+    if (!info) return false;
+    std::memset(info, 0, sizeof(*info));
+
+    switch (index) {
+        case 0:
+            info->id            = 0;
+            info->flags         = CLAP_PARAM_IS_AUTOMATABLE;
+            info->min_value     = 0.0;
+            info->max_value     = 1.0;
+            info->default_value = 0.5;
+            info->cookie        = nullptr;
+            std::snprintf(info->name,   sizeof(info->name),   "Dry/Wet Mix");
+            std::snprintf(info->module, sizeof(info->module), "Mix");
+            return true;
+
+        case 1:
+            info->id            = 2;  // maps to param_id 2 = bypass
+            info->flags         = CLAP_PARAM_IS_AUTOMATABLE |
+                                  CLAP_PARAM_IS_STEPPED |
+                                  CLAP_PARAM_IS_BYPASS;
+            info->min_value     = 0.0;
+            info->max_value     = 1.0;
+            info->default_value = 0.0;
+            info->cookie        = nullptr;
+            std::snprintf(info->name,   sizeof(info->name),   "Bypass");
+            std::snprintf(info->module, sizeof(info->module), "Mix");
+            return true;
+
+        default:
             return false;
-        }
-        
-        // Store host for logging
-        // In a more complete implementation, we'd store the host pointer
-        
-        return true;
-    },
-    // plugin_destroy
-    [](const clap_plugin_t* plugin, const clap_plugin_t* plugin_instance) {
-        if (g_processor) {
-            delete g_processor;
-            g_processor = nullptr;
+    }
+}
+
+static bool params_get_value(const clap_plugin_t* plugin,
+                             clap_id param_id, double* out_value) {
+    if (!out_value) return false;
+    *out_value = get_instance(plugin)->processor.getParamValue(param_id);
+    return true;
+}
+
+static bool params_value_to_text(const clap_plugin_t* /*plugin*/,
+                                 clap_id param_id, double value,
+                                 char* out_buf, uint32_t buf_cap) {
+    if (param_id == 2)
+        std::snprintf(out_buf, buf_cap, "%s", value >= 0.5 ? "On" : "Off");
+    else
+        std::snprintf(out_buf, buf_cap, "%.2f", value);
+    return true;
+}
+
+static bool params_text_to_value(const clap_plugin_t* /*plugin*/,
+                                 clap_id /*param_id*/,
+                                 const char* text, double* out_value) {
+    if (!text || !out_value) return false;
+    *out_value = std::atof(text);
+    return true;
+}
+
+static void params_flush(const clap_plugin_t* plugin,
+                          const clap_input_events_t* in_events,
+                          const clap_output_events_t* /*out_events*/) {
+    if (!in_events) return;
+    const uint32_t count = in_events->size(in_events);
+    std::vector<ParamSnapshot> updates;
+    updates.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        const clap_event_header_t* hdr = in_events->get(in_events, i);
+        if (hdr->type == CLAP_EVENT_PARAM_VALUE) {
+            const auto* ev = reinterpret_cast<const clap_event_param_value_t*>(hdr);
+            updates.push_back({ev->param_id, ev->value});
         }
     }
+    if (!updates.empty()) {
+        get_instance(plugin)->processor.processParamUpdates(updates);
+    }
+}
+
+static const clap_plugin_params_t s_params_ext = {
+    params_count,
+    params_get_info,
+    params_get_value,
+    params_value_to_text,
+    params_text_to_value,
+    params_flush
 };
 
-// Plugin entry point
+// =============================================================================
+// Extension: CLAP_EXT_AUDIO_PORTS
+// =============================================================================
+
+static uint32_t audio_ports_count(const clap_plugin_t* /*plugin*/, bool /*is_input*/) {
+    return 1;
+}
+
+static bool audio_ports_get(const clap_plugin_t* /*plugin*/,
+                            uint32_t index, bool /*is_input*/,
+                            clap_audio_port_info_t* info) {
+    if (index != 0 || !info) return false;
+    std::memset(info, 0, sizeof(*info));
+    info->id            = 0;
+    info->channel_count = 2;
+    info->flags         = CLAP_AUDIO_PORT_IS_MAIN;
+    info->port_type     = CLAP_PORT_STEREO;
+    info->in_place_pair = CLAP_INVALID_ID;
+    std::snprintf(info->name, sizeof(info->name), "Main");
+    return true;
+}
+
+static const clap_plugin_audio_ports_t s_audio_ports_ext = {
+    audio_ports_count,
+    audio_ports_get
+};
+
+// =============================================================================
+// get_extension dispatch
+// =============================================================================
+
+static const void* plugin_get_extension(const clap_plugin_t* /*plugin*/, const char* id) {
+    if (std::strcmp(id, CLAP_EXT_PARAMS)      == 0) return &s_params_ext;
+    if (std::strcmp(id, CLAP_EXT_AUDIO_PORTS) == 0) return &s_audio_ports_ext;
+    return nullptr;
+}
+
+// =============================================================================
+// Plugin factory
+// =============================================================================
+
+static uint32_t factory_get_plugin_count(const clap_plugin_factory_t* /*factory*/) {
+    return 1;
+}
+
+static const clap_plugin_descriptor_t* factory_get_plugin_descriptor(
+    const clap_plugin_factory_t* /*factory*/, uint32_t index) {
+    return (index == 0) ? &s_descriptor : nullptr;
+}
+
+static const clap_plugin_t* factory_create_plugin(
+    const clap_plugin_factory_t* /*factory*/,
+    const clap_host_t*            host,
+    const char*                   plugin_id) {
+
+    if (std::strcmp(plugin_id, s_descriptor.id) != 0) return nullptr;
+
+    auto* instance = new MambaPluginInstance();
+    if (host) {
+        instance->host = host;
+    }
+    auto* clap_plugin = new clap_plugin_t{};
+
+    clap_plugin->desc            = &s_descriptor;
+    clap_plugin->plugin_data     = instance;
+    clap_plugin->init            = plugin_init;
+    clap_plugin->destroy         = plugin_destroy;
+    clap_plugin->activate        = plugin_activate;
+    clap_plugin->deactivate      = plugin_deactivate;
+    clap_plugin->start_processing = plugin_start_processing;
+    clap_plugin->stop_processing  = plugin_stop_processing;
+    clap_plugin->reset           = plugin_reset;
+    clap_plugin->process         = plugin_process;
+    clap_plugin->get_extension   = plugin_get_extension;
+    clap_plugin->on_main_thread  = plugin_on_main_thread;
+
+    return clap_plugin;
+}
+
+static const clap_plugin_factory_t s_plugin_factory = {
+    factory_get_plugin_count,
+    factory_get_plugin_descriptor,
+    factory_create_plugin
+};
+
+// =============================================================================
+// CLAP entry point (DSO entry)
+// =============================================================================
+
+static bool entry_init(const char* /*plugin_path*/)  { return true; }
+static void entry_deinit(void) {}
+
+static const void* entry_get_factory(const char* factory_id) {
+    if (std::strcmp(factory_id, CLAP_PLUGIN_FACTORY_ID) == 0)
+        return &s_plugin_factory;
+    return nullptr;
+}
+
 extern "C" {
-    const clap_plugin_entry_t* clap_entry(const clap_host_t* host) {
-        static const clap_plugin_entry_t entry = {
-            .plugin_init = nullptr,
-            .plugin_deinit = nullptr,
-            .plugin_get_factory = [](const clap_plugin_t* plugin, const char* factory_id) -> const void* {
-                if (strcmp(factory_id, CLAP_PLUGIN_FACTORY_ID) == 0) {
-                    return &CLAP_FACTORY;
-                }
-                return nullptr;
-            }
-        };
-        return &entry;
-    }
+CLAP_EXPORT const clap_plugin_entry_t clap_entry = {
+    CLAP_VERSION_INIT,
+    entry_init,
+    entry_deinit,
+    entry_get_factory
 };
-
-// Helper functions for the plugin instance
-static void plugin_process(clap_plugin_t* plugin,
-                          const clap_process_t* process) {
-    if (!g_processor) return;
-    
-    // Activate if needed (simplified - in reality we'd check process flags)
-    static bool activated = false;
-    if (!activated && process->audio_inputs_count > 0 && process->audio_outputs_count > 0) {
-        g_processor->activate(44100, process->audio_inputs[0].channels_count, process->audio_outputs[0].channels_count);
-        activated = true;
-    }
-    
-    // Process audio
-    if (process->audio_inputs_count > 0 && process->audio_outputs_count > 0) {
-        const clap_audio_buffer* input = &process->audio_inputs[0];
-        const clap_audio_buffer* output = &process->audio_outputs[0];
-        
-        // Convert to format expected by our processor
-        float** input_channels = new float*[input->channels_count];
-        float** output_channels = new float*[output->channels_count];
-        
-        for (uint32_t c = 0; c < input->channels_count; ++c) {
-            input_channels[c] = input->data32[c];
-            output_channels[c] = output->data32[c];
-        }
-        
-        g_processor->processBlock(
-            input_channels,
-            output_channels,
-            process->frames_count,
-            input->channels_count,
-            output->channels_count
-        );
-        
-        delete[] input_channels;
-        delete[] output_channels;
-    }
 }
-
-// Parameter handling
-static double plugin_param_get_value(const clap_plugin_t* plugin, uint32_t param_id) {
-    if (g_processor) {
-        return g_processor->getParamValue(param_id);
-    }
-    return 0.0;
-}
-
-static void plugin_param_set_value(clap_plugin_t* plugin, uint32_t param_id, double value) {
-    if (g_processor) {
-        g_processor->setParamValue(param_id, value);
-    }
-}
-
-// State handling
-static bool plugin_state_save(const clap_plugin_t* plugin, clap_ostream* stream) {
-    // Simplified state saving - in practice we'd save more parameters
-    if (!g_processor) return false;
-    
-    float dry_wet = g_processor->getParamValue(0);
-    int model_type = static_cast<int>(g_processor->getParamValue(1));
-    bool bypass = static_cast<bool>(g_processor->getParamValue(2));
-    
-    // Write state to stream
-    if (!clap_ostream_write(stream, &dry_wet, sizeof(dry_wet))) return false;
-    if (!clap_ostream_write(stream, &model_type, sizeof(model_type))) return false;
-    if (!clap_ostream_write(stream, &bypass, sizeof(bypass))) return false;
-    
-    return true;
-}
-
-static bool plugin_state_load(const clap_plugin_t* plugin, clap_istream* stream) {
-    // Simplified state loading
-    if (!g_processor) return false;
-    
-    float dry_wet;
-    int model_type;
-    bool bypass;
-    
-    // Read state from stream
-    if (!clap_istream_read(stream, &dry_wet, sizeof(dry_wet))) return false;
-    if (!clap_istream_read(stream, &model_type, sizeof(model_type))) return false;
-    if (!clap_istream_read(stream, &bypass, sizeof(bypass))) return false;
-    
-    g_processor->setParamValue(0, dry_wet);
-    g_processor->setParamValue(1, model_type);
-    g_processor->setParamValue(2, bypass);
-    
-    return true;
-}
-
-// Activation/deactivation
-static void plugin_activate(clap_plugin_t* plugin) {
-    // Activation handled in process for simplicity
-}
-
-static void plugin_deactivate(clap_plugin_t* plugin) {
-    if (g_processor) {
-        g_processor->deactivate();
-    }
-}
-
-// Reset
-static void plugin_reset(clap_plugin_t* plugin) {
-    if (g_processor) {
-        // Reset would be implemented here
-    }
-}
-
-// Main plugin implementation
-static const clap_plugin_t CLAP_PLUGIN = {
-    .plugin_size = sizeof(clap_plugin_t),
-    .clap_version = {CLAP_VERSION_MAJOR, CLAP_VERSION_MINOR},
-    .plugin_init = nullptr,
-    .plugin_deinit = nullptr,
-    .plugin_get_descriptor = nullptr, // Handled by factory
-    .plugin_get_guid = nullptr,
-    .plugin_get_factory = nullptr,    // Handled by factory
-    .process = plugin_process,
-    .audio_ports_get_count = nullptr,
-    .audio_ports_get_info = nullptr,
-    .audio_ports_set_active = nullptr,
-    .plugin_get_param_count = [](const clap_plugin_t* plugin) -> uint32_t {
-        return 3; // Dry/Wet, Model Type, Bypass
-    },
-    .plugin_get_param_info = [](const clap_plugin_t* plugin, uint32_t index, clap_param_info* info) -> bool {
-        if (!info) return false;
-        switch (index) {
-            case 0: // Dry/Wet Mix
-                strcpy(info->id, "dry_wet");
-                strcpy(info->name, "Dry/Wet Mix");
-                info->min_value = 0.0;
-                info->default_value = 0.5;
-                info->max_value = 1.0;
-                info->is_automatable = true;
-                strcpy(info->module, "Mix");
-                strcpy(info->unit, "%");
-                info->flags = CLAP_PARAM_IS_BYPASS;
-                break;
-            case 1: // Model Type
-                strcpy(info->id, "model_type");
-                strcpy(info->name, "Model Type");
-                info->min_value = 0.0;
-                info->default_value = 0.0;
-                info->max_value = 0.0; // Only one model for now
-                info->is_automatable = false;
-                strcpy(info->module, "Model");
-                strcpy(info->unit, "");
-                info->flags = 0;
-                break;
-            case 2: // Bypass
-                strcpy(info->id, "bypass");
-                strcpy(info->name, "Bypass");
-                info->min_value = 0.0;
-                info->default_value = 0.0;
-                info->max_value = 1.0;
-                info->is_automatable = true;
-                strcpy(info->module, "Mix");
-                strcpy(info->unit, "");
-                info->flags = CLAP_PARAM_IS_BYPASS;
-                break;
-            default:
-                return false;
-        }
-        return true;
-    },
-    .plugin_get_param_value = plugin_param_get_value,
-    .plugin_set_param_value = plugin_set_param_value,
-    .plugin_get_latency = [](const clap_plugin_t* plugin) -> uint32_t {
-        return 0; // No latency reported for simplicity
-    },
-    .plugin_get_tail_size = [](const clap_plugin_t* plugin) -> uint32_t {
-        return 0; // No tail
-    },
-    .plugin_start_processing = nullptr,
-    .plugin_stop_processing = nullptr,
-    .plugin_state_save = plugin_state_save,
-    .plugin_state_load = plugin_state_load,
-    .plugin_activate = plugin_activate,
-    .plugin_deactivate = plugin_deactivate,
-    .plugin_reset = plugin_reset
-};

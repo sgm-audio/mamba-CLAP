@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/var/home/SGM/dev/Mamba Based/MambaDAW/build/_deps/clap-subbuild/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

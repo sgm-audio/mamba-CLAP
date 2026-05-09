@@ -1,51 +1,56 @@
 #include "mamba_model.h"
 
-MambaModel::MambaModel(int64_t d_model, int64_t n_layers, 
+MambaModel::MambaModel(int64_t d_model, int64_t n_layers,
                        int64_t d_state, int64_t d_conv, int64_t expand)
-    : d_model_(d_model), n_layers_(n_layers) {
-    
-    // Input normalization
-    input_norm = register_module("input_norm", torch::nn::LayerNorm(torch::nn::LayerNormOptions(d_model)));
-    
-    // Create Mamba layers
-    layers = torch::nn::ModuleList{};
-    for (int64_t i = 0; i < n_layers_; ++i) {
-        auto layer = std::make_shared<MambaLayer>(d_model, d_state, d_conv, expand);
-        layers->push_back(layer);
-    }
-    
-    // Output normalization
-    output_norm = register_module("output_norm", torch::nn::LayerNorm(torch::nn::LayerNormOptions(d_model)));
+    : d_model_(d_model), n_layers_(n_layers),
+      d_state_(d_state), d_conv_(d_conv), expand_(expand) {
+    layers_.reserve(n_layers_);
+    for (int64_t i = 0; i < n_layers_; ++i)
+        layers_.push_back(std::make_unique<MambaLayer>(d_model_, d_state, d_conv, expand));
 }
 
-void MambaModel::reset_state(int64_t batch_size, int64_t seq_len) {
-    // Reset state in all layers
-    for (auto& layer : *layers) {
-        auto mamba_layer = std::dynamic_pointer_cast<MambaLayer>(layer);
-        if (mamba_layer) {
-            mamba_layer->reset_state(batch_size, seq_len);
-        }
-    }
-}
+MambaModel::~MambaModel() = default;
 
-torch::Tensor MambaModel::forward(torch::Tensor x) {
-    // x: [batch, seq, d_model]
-    
-    // Input normalization
-    auto out = input_norm->forward(x);
-    
-    // Pass through Mamba layers with residual connections
-    for (auto& layer : *layers) {
-        auto mamba_layer = std::dynamic_pointer_cast<MambaLayer>(layer);
-        if (mamba_layer) {
-            auto residual = out;
-            out = mamba_layer->forward(out);
-            out = out + residual;  // Residual connection
-        }
-    }
-    
-    // Output normalization
-    out = output_norm->forward(out);
-    
+float MambaModel::processSample(float sample) {
+    float out = sample;
+    for (auto& layer : layers_)
+        out = layer->processSample(out);
     return out;
+}
+
+void MambaModel::processBlock(const float* input, float* output, int64_t num_samples) {
+    for (int64_t i = 0; i < num_samples; ++i)
+        output[i] = processSample(input[i]);
+}
+
+void MambaModel::resetState() {
+    for (auto& layer : layers_)
+        layer->reset_state();
+}
+
+void MambaModel::copyStateFrom(const MambaModel& other) {
+    for (size_t i = 0; i < layers_.size(); ++i) {
+        layers_[i]->copy_state_from(*other.layers_[i]);
+    }
+}
+
+void MambaModel::setContextScale(float scale) {
+    for (auto& layer : layers_) {
+        layer->setContextScale(scale);
+    }
+}
+
+bool MambaModel::loadLayerWeights(int64_t layer_idx,
+                                   const float* in_proj,  size_t in_proj_n,
+                                   const float* out_proj, size_t out_proj_n,
+                                   const float* conv1d,   size_t conv1d_n,
+                                   const float* dA,       size_t dA_n,
+                                   const float* dB,       size_t dB_n,
+                                   const float* C,        size_t C_n,
+                                   const float* D,        size_t D_n) {
+    if (layer_idx < 0 || layer_idx >= n_layers_) return false;
+    return layers_[static_cast<size_t>(layer_idx)]->loadLayerWeights(
+        in_proj, in_proj_n, out_proj, out_proj_n,
+        conv1d, conv1d_n,
+        dA, dA_n, dB, dB_n, C, C_n, D, D_n);
 }

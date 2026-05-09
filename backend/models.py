@@ -4,6 +4,7 @@ Data models for the AI-Powered Audio Mastering Service.
 from datetime import datetime
 from backend import db
 import uuid
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -24,6 +25,14 @@ class User(db.Model):
 
     def __repr__(self):
         return f'<User {self.email}>'
+    
+    def set_password(self, password):
+        """Hash and set the user's password."""
+        self.passwordHash = generate_password_hash(password, method='pbkdf2:sha256')
+    
+    def check_password(self, password):
+        """Check if the provided password matches the stored hash."""
+        return check_password_hash(self.passwordHash, password)
 
 class Job(db.Model):
     __tablename__ = 'jobs'
@@ -41,6 +50,7 @@ class Job(db.Model):
     status = db.Column(db.String(20), nullable=False, default='pending', index=True)
     inputFileUri = db.Column(db.Text, nullable=False)
     outputFileUri = db.Column(db.Text, nullable=True)
+    processing_worker_id = db.Column(db.String(100), nullable=True)
     creditsUsed = db.Column(db.Integer, nullable=True)
     errorMessage = db.Column(db.Text, nullable=True)
     createdAt = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)

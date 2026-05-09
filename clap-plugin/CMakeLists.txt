@@ -5,27 +5,22 @@ project(MambaClapPlugin LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Check for required environment variables
-if(NOT DEFINED ENV{CLAP_PATH})
-    message(FATAL_ERROR "Environment variable CLAP_PATH must be set to the CLAP installation directory")
+# Fetch and build CLAP from source
+include(FetchContent)
+FetchContent_Declare(
+  clap
+  GIT_REPOSITORY https://github.com/free-audio/clap.git
+  GIT_TAG v1.2.7
+)
+FetchContent_GetProperties(clap)
+if(NOT clap_POPULATED)
+  FetchContent_Populate(clap)
+  add_subdirectory(${clap_SOURCE_DIR} ${clap_BINARY_DIR})
 endif()
-if(NOT DEFINED ENV{TORCH_INSTALL_PATH})
-    message(FATAL_ERROR "Environment variable TORCH_INSTALL_PATH must be set to the LibTorch installation directory")
-endif()
 
-# Set paths from environment variables
-set(CLAP_PATH "$ENV{CLAP_PATH}")
-set(TORCH_INSTALL_PATH "$ENV{TORCH_INSTALL_PATH}")
-
-# Set CLAP include and library directories
-set(CLAP_INCLUDE_DIRS "${CLAP_PATH}/include")
-set(CLAP_LIBRARIES "${CLAP_PATH}/lib/libclap.so")
-
-# Set Torch include and library directories
-set(TORCH_INCLUDE_DIRS "${TORCH_INSTALL_PATH}/include"
-                       "${TORCH_INSTALL_PATH}/include/torch/csrc/api/include")
-set(TORCH_LIBRARIES "${TORCH_INSTALL_PATH}/lib/libtorch_cpu.so"
-                    "${TORCH_INSTALL_PATH}/lib/libtorch.so")
+# Find Torch
+find_package(Torch REQUIRED)
+find_package(FFTW3 REQUIRED COMPONENTS fftw3f)
 
 # Source files
 set(SOURCES
@@ -43,16 +38,17 @@ add_library(${PROJECT_NAME} MODULE ${SOURCES} ${HEADERS})
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CLAP_INCLUDE_DIRS}
     ${TORCH_INCLUDE_DIRS}
+    ${FFTW3_INCLUDE_DIRS}
 )
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    ${CLAP_LIBRARIES}
     ${TORCH_LIBRARIES}
+    clap  # The target from the CLAP subdirectory
     dl
     pthread
+    FFTW3::fftw3f
 )
 
 # Set properties for plugin

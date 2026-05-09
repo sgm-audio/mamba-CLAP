@@ -14,7 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from backend import db, create_app
 from backend.models import Job
-from backend.utils import validate_audio_file, get_file_extension, setup_logging
+from backend.utils import validate_audio_file, get_file_extension, setup_logging, validate_s3_uri, retry_s3_operation
 
 # Set up logging
 logger = setup_logging()
@@ -84,28 +84,25 @@ def process_mastering_job(job_id: str):
     # We need to have an application context to access the database and configuration.
     app = get_app()
     with app.app_context():
+        job = None
         try:
             # Convert the job_id string to a UUID object for the database query.
-            # Note: We are storing the job ID as a UUID in the database.
             job_uuid = uuid.UUID(job_id)
         except ValueError:
             logger.error(f"Invalid job ID format: {job_id}")
             return
 
-        # Get the job from the database.
-        job = Job.query.get(job_uuid)
+        import socket
+        # Get the job from the database using SELECT FOR UPDATE to lock it
+        job = Job.query.filter_by(id=job_uuid, status='pending').with_for_update().first()
         if not job:
-            logger.error(f"Job not found: {job_id}")
-            return
-
-        # Check if the job is already in a terminal state.
-        if job.status in ['completed', 'failed', 'cancelled']:
-            logger.warning(f"Job {job_id} is already in a terminal state: {job.status}")
+            logger.warning(f"Job {job_id} already processing or completed, or does not exist")
             return
 
         # Update the job status to processing.
         job.status = 'processing'
         job.startedAt = datetime.utcnow()
+        job.processing_worker_id = f"{socket.gethostname()}:{os.getpid()}"
         try:
             db.session.commit()
         except SQLAlchemyError as e:
@@ -127,16 +124,18 @@ def process_mastering_job(job_id: str):
                     aws_secret_access_key=app.config['AWS_SECRET_ACCESS_KEY'],
                     region_name=app.config['AWS_S3_REGION_NAME']
                 )
-                # Extract the bucket and key from the inputFileUri.
-                # Expected format: s3://bucket/key
-                if job.inputFileUri.startswith('s3://'):
-                    s3_uri = job.inputFileUri[5:]  # Remove 's3://'
-                    bucket, key = s3_uri.split('/', 1)
-                else:
-                    raise ValueError(f"Unexpected inputFileUri format: {job.inputFileUri}")
+                # Validate and parse S3 URI
+                try:
+                    bucket, key = validate_s3_uri(job.inputFileUri)
+                except ValueError as e:
+                    raise ValueError(f"Invalid input file URI: {e}")
 
-                # Download the file.
-                s3_client.download_file(bucket, key, input_file_path)
+                # Download the file with retry
+                retry_s3_operation(
+                    lambda: s3_client.download_file(bucket, key, input_file_path),
+                    max_attempts=3,
+                    initial_backoff=0.2
+                )
                 logger.info(f"Downloaded input file for job {job_id} from s3://{bucket}/{key}")
             except Exception as e:
                 logger.error(f"Failed to download input file for job {job_id}: {e}")
@@ -188,15 +187,19 @@ def process_mastering_job(job_id: str):
             try:
                 # Generate a unique key for the output file.
                 output_key = f"mastering-service-outputs/{job.userId}/{job.id}/{uuid.uuid4().hex}{get_file_extension(job.contentType)}"
-                # Upload the file.
-                s3_client.upload_file(
-                    output_file_path,
-                    app.config['AWS_STORAGE_BUCKET_NAME'],
-                    output_key,
-                    ExtraArgs={
-                        'ContentType': job.contentType,
-                        'ContentDisposition': 'attachment'
-                    }
+                # Upload the file with retry
+                retry_s3_operation(
+                    lambda: s3_client.upload_file(
+                        output_file_path,
+                        app.config['AWS_STORAGE_BUCKET_NAME'],
+                        output_key,
+                        ExtraArgs={
+                            'ContentType': job.contentType,
+                            'ContentDisposition': 'attachment'
+                        }
+                    ),
+                    max_attempts=3,
+                    initial_backoff=0.2
                 )
                 # Construct the output file URI.
                 output_file_uri = f"s3://{app.config['AWS_STORAGE_BUCKET_NAME']}/{output_key}"
@@ -225,18 +228,32 @@ def process_mastering_job(job_id: str):
             except SQLAlchemyError as e:
                 logger.error(f"Failed to update job {job_id} as completed: {e}")
                 db.session.rollback()
-                # We don't update the job status here because the commit failed.
-                # The job will remain in the processing state, which is not ideal.
-                # In a production system, we might want to retry or alert.
+                # Job remains in processing state; but we'll try to mark failed below in outer catch? Actually this is inner.
+                # We'll treat commit failure as an unexpected error and let outer except handle? No, outer except will not catch.
+                # So we need to attempt to mark as failed if this final commit fails.
+                try:
+                    job.status = 'failed'
+                    job.errorMessage = f"Database commit failed: {str(e)}"
+                    db.session.commit()
+                except SQLAlchemyError:
+                    db.session.rollback()
                 return
 
         except Exception as e:
             # Catch any unexpected errors.
             logger.error(f"Unexpected error processing job {job_id}: {e}")
-            job.status = 'failed'
-            job.errorMessage = f"Unexpected error: {str(e)}"
-            job.completedAt = datetime.utcnow()
-            try:
-                db.session.commit()
-            except SQLAlchemyError:
-                db.session.rollback()
+            if job is not None:
+                job.status = 'failed'
+                job.errorMessage = f"Unexpected error: {str(e)}"
+                job.completedAt = datetime.utcnow()
+                # Try to commit; if it fails, we have limited recourse
+                try:
+                    db.session.commit()
+                    logger.info(f"Job {job_id} marked as failed")
+                except SQLAlchemyError as commit_err:
+                    db.session.rollback()
+                    logger.critical(f"Failed to mark job {job_id} as failed: {commit_err}. Job may remain in processing state.")
+                    # In a production system, consider alerting or manual reconciliation.
+        finally:
+            # Ensure the database session is cleaned up
+            db.session.remove()

@@ -4,6 +4,7 @@ API v1 routes for the AI-Powered Audio Mastering Service.
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
+from functools import wraps
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -15,6 +16,37 @@ from backend.utils import validate_audio_file, get_file_extension, get_content_t
 
 # Create blueprint
 api_bp = Blueprint('api', __name__)
+
+
+def rate_limit(max_per_minute):
+    """Simple rate limiting decorator using Redis."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Skip rate limiting in development/testing if desired
+            if current_app.config.get('DEBUG', False):
+                return func(*args, **kwargs)
+            
+            ip = request.remote_addr
+            endpoint = request.endpoint or 'unknown'
+            key = f"rate_limit:{endpoint}:{ip}"
+            
+            try:
+                current = current_app.redis.incr(key)
+                if current == 1:
+                    current_app.redis.expire(key, 60)
+                if current > max_per_minute:
+                    return jsonify({
+                        'error': 'RATE_LIMIT_EXCEEDED',
+                        'message': f'Maximum {max_per_minute} requests per minute allowed'
+                    }), 429
+            except Exception as e:
+                # If Redis is down, log but allow the request to proceed (fail open)
+                current_app.logger.error(f"Rate limiting failed: {e}")
+            
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 # Helper function to get presigned URL for upload
 def get_presigned_upload_url(file_name, content_type, user_id, job_id):
@@ -87,6 +119,7 @@ def get_presigned_download_url(object_key, expires_in=None):
 
 # Authentication routes
 @api_bp.route('/auth/register', methods=['POST'])
+@rate_limit(5)  # 5 registrations per minute per IP
 def register():
     """
     Register a new user.
@@ -391,6 +424,7 @@ def list_jobs():
 
 @api_bp.route('/jobs', methods=['POST'])
 @jwt_required()
+@rate_limit(10)  # 10 job creations per minute per IP
 def create_job():
     """
     Create a new mastering job.
@@ -511,6 +545,17 @@ def create_job():
     user = User.query.get(current_user_id)
     if user.credits < 1:
         return jsonify({'error': 'INSUFFICIENT_CREDITS', 'message': 'Insufficient credits to process this job'}), 402
+    
+    # Check concurrent job limit
+    max_concurrent = current_app.config.get('MAX_CONCURRENT_JOBS', 5)
+    active_jobs = Job.query.filter_by(userId=current_user_id).filter(
+        Job.status.in_(['pending', 'processing'])
+    ).count()
+    if active_jobs >= max_concurrent:
+        return jsonify({
+            'error': 'TOO_MANY_JOBS',
+            'message': f'Maximum {max_concurrent} concurrent jobs allowed. Please wait for current jobs to complete.'
+        }), 429
     
     # Generate job ID
     job_id = uuid.uuid4()
