@@ -57,10 +57,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = "/home/SGM/dev/Mamba Based/MambaDAW"
+CMAKE_SOURCE_DIR = "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW"
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = "/home/SGM/dev/Mamba Based/MambaDAW/build"
+CMAKE_BINARY_DIR = "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build"
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -132,9 +132,9 @@ install/strip/fast: preinstall/fast
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" "/home/SGM/dev/Mamba Based/MambaDAW/build//CMakeFiles/progress.marks"
+	$(CMAKE_COMMAND) -E cmake_progress_start "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build//CMakeFiles/progress.marks"
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" 0
+	$(CMAKE_COMMAND) -E cmake_progress_start "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" 0
 .PHONY : all
 
 # The main clean target
@@ -162,17 +162,17 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named MambaDAW
+# Target rules for targets named MambaClapPlugin
 
 # Build rule for target.
-MambaDAW: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 MambaDAW
-.PHONY : MambaDAW
+MambaClapPlugin: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 MambaClapPlugin
+.PHONY : MambaClapPlugin
 
 # fast build rule for target.
-MambaDAW/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/build
-.PHONY : MambaDAW/fast
+MambaClapPlugin/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/build
+.PHONY : MambaClapPlugin/fast
 
 #=============================================================================
 # Target rules for targets named clap-tests
@@ -184,39 +184,15 @@ clap-tests: cmake_check_build_system
 
 # fast build rule for target.
 clap-tests/fast:
-	$(MAKE) $(MAKESILENT) -f _deps/clap-build/CMakeFiles/clap-tests.dir/build.make _deps/clap-build/CMakeFiles/clap-tests.dir/build
+	$(MAKE) $(MAKESILENT) -f "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/build.make" "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/build"
 .PHONY : clap-tests/fast
-
-src/main.o: src/main.cpp.o
-.PHONY : src/main.o
-
-# target to build an object file
-src/main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/main.cpp.o
-.PHONY : src/main.cpp.o
-
-src/main.i: src/main.cpp.i
-.PHONY : src/main.i
-
-# target to preprocess a source file
-src/main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/main.cpp.i
-.PHONY : src/main.cpp.i
-
-src/main.s: src/main.cpp.s
-.PHONY : src/main.s
-
-# target to generate assembly for a file
-src/main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/main.cpp.s
-.PHONY : src/main.cpp.s
 
 src/mamba_layer.o: src/mamba_layer.cpp.o
 .PHONY : src/mamba_layer.o
 
 # target to build an object file
 src/mamba_layer.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/mamba_layer.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/mamba_layer.cpp.o
 .PHONY : src/mamba_layer.cpp.o
 
 src/mamba_layer.i: src/mamba_layer.cpp.i
@@ -224,7 +200,7 @@ src/mamba_layer.i: src/mamba_layer.cpp.i
 
 # target to preprocess a source file
 src/mamba_layer.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/mamba_layer.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/mamba_layer.cpp.i
 .PHONY : src/mamba_layer.cpp.i
 
 src/mamba_layer.s: src/mamba_layer.cpp.s
@@ -232,7 +208,7 @@ src/mamba_layer.s: src/mamba_layer.cpp.s
 
 # target to generate assembly for a file
 src/mamba_layer.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/mamba_layer.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/mamba_layer.cpp.s
 .PHONY : src/mamba_layer.cpp.s
 
 src/mamba_model.o: src/mamba_model.cpp.o
@@ -240,7 +216,7 @@ src/mamba_model.o: src/mamba_model.cpp.o
 
 # target to build an object file
 src/mamba_model.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/mamba_model.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/mamba_model.cpp.o
 .PHONY : src/mamba_model.cpp.o
 
 src/mamba_model.i: src/mamba_model.cpp.i
@@ -248,7 +224,7 @@ src/mamba_model.i: src/mamba_model.cpp.i
 
 # target to preprocess a source file
 src/mamba_model.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/mamba_model.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/mamba_model.cpp.i
 .PHONY : src/mamba_model.cpp.i
 
 src/mamba_model.s: src/mamba_model.cpp.s
@@ -256,7 +232,7 @@ src/mamba_model.s: src/mamba_model.cpp.s
 
 # target to generate assembly for a file
 src/mamba_model.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/mamba_model.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/mamba_model.cpp.s
 .PHONY : src/mamba_model.cpp.s
 
 src/mamba_weight_loader.o: src/mamba_weight_loader.cpp.o
@@ -264,7 +240,7 @@ src/mamba_weight_loader.o: src/mamba_weight_loader.cpp.o
 
 # target to build an object file
 src/mamba_weight_loader.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/mamba_weight_loader.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/mamba_weight_loader.cpp.o
 .PHONY : src/mamba_weight_loader.cpp.o
 
 src/mamba_weight_loader.i: src/mamba_weight_loader.cpp.i
@@ -272,7 +248,7 @@ src/mamba_weight_loader.i: src/mamba_weight_loader.cpp.i
 
 # target to preprocess a source file
 src/mamba_weight_loader.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/mamba_weight_loader.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/mamba_weight_loader.cpp.i
 .PHONY : src/mamba_weight_loader.cpp.i
 
 src/mamba_weight_loader.s: src/mamba_weight_loader.cpp.s
@@ -280,7 +256,7 @@ src/mamba_weight_loader.s: src/mamba_weight_loader.cpp.s
 
 # target to generate assembly for a file
 src/mamba_weight_loader.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/mamba_weight_loader.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/mamba_weight_loader.cpp.s
 .PHONY : src/mamba_weight_loader.cpp.s
 
 src/plugin_processor.o: src/plugin_processor.cpp.o
@@ -288,7 +264,7 @@ src/plugin_processor.o: src/plugin_processor.cpp.o
 
 # target to build an object file
 src/plugin_processor.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/plugin_processor.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/plugin_processor.cpp.o
 .PHONY : src/plugin_processor.cpp.o
 
 src/plugin_processor.i: src/plugin_processor.cpp.i
@@ -296,7 +272,7 @@ src/plugin_processor.i: src/plugin_processor.cpp.i
 
 # target to preprocess a source file
 src/plugin_processor.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/plugin_processor.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/plugin_processor.cpp.i
 .PHONY : src/plugin_processor.cpp.i
 
 src/plugin_processor.s: src/plugin_processor.cpp.s
@@ -304,7 +280,7 @@ src/plugin_processor.s: src/plugin_processor.cpp.s
 
 # target to generate assembly for a file
 src/plugin_processor.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/plugin_processor.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/plugin_processor.cpp.s
 .PHONY : src/plugin_processor.cpp.s
 
 src/plugin_wrapper.o: src/plugin_wrapper.cpp.o
@@ -312,7 +288,7 @@ src/plugin_wrapper.o: src/plugin_wrapper.cpp.o
 
 # target to build an object file
 src/plugin_wrapper.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/plugin_wrapper.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/plugin_wrapper.cpp.o
 .PHONY : src/plugin_wrapper.cpp.o
 
 src/plugin_wrapper.i: src/plugin_wrapper.cpp.i
@@ -320,7 +296,7 @@ src/plugin_wrapper.i: src/plugin_wrapper.cpp.i
 
 # target to preprocess a source file
 src/plugin_wrapper.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/plugin_wrapper.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/plugin_wrapper.cpp.i
 .PHONY : src/plugin_wrapper.cpp.i
 
 src/plugin_wrapper.s: src/plugin_wrapper.cpp.s
@@ -328,7 +304,7 @@ src/plugin_wrapper.s: src/plugin_wrapper.cpp.s
 
 # target to generate assembly for a file
 src/plugin_wrapper.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/src/plugin_wrapper.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/src/plugin_wrapper.cpp.s
 .PHONY : src/plugin_wrapper.cpp.s
 
 # Help Target
@@ -344,10 +320,7 @@ help:
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
 	@echo "... clap-tests"
-	@echo "... MambaDAW"
-	@echo "... src/main.o"
-	@echo "... src/main.i"
-	@echo "... src/main.s"
+	@echo "... MambaClapPlugin"
 	@echo "... src/mamba_layer.o"
 	@echo "... src/mamba_layer.i"
 	@echo "... src/mamba_layer.s"

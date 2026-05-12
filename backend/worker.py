@@ -92,152 +92,153 @@ def process_mastering_job(job_id: str):
             logger.error(f"Invalid job ID format: {job_id}")
             return
 
-        import socket
-        # Get the job from the database using SELECT FOR UPDATE to lock it
-        job = Job.query.filter_by(id=job_uuid, status='pending').with_for_update().first()
-        if not job:
-            logger.warning(f"Job {job_id} already processing or completed, or does not exist")
-            return
-
-        # Update the job status to processing.
-        job.status = 'processing'
-        job.startedAt = datetime.utcnow()
-        job.processing_worker_id = f"{socket.gethostname()}:{os.getpid()}"
         try:
-            db.session.commit()
-        except SQLAlchemyError as e:
-            logger.error(f"Failed to update job status to processing: {e}")
-            db.session.rollback()
-            return
-
-        # We'll use a temporary directory for the input and output files.
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Define the paths for the input and output files.
-            input_file_path = os.path.join(temp_dir, 'input' + get_file_extension(job.contentType))
-            output_file_path = os.path.join(temp_dir, 'output' + get_file_extension(job.contentType))
-
-            # Download the input file from S3.
-            try:
-                s3_client = boto3.client(
-                    's3',
-                    aws_access_key_id=app.config['AWS_ACCESS_KEY_ID'],
-                    aws_secret_access_key=app.config['AWS_SECRET_ACCESS_KEY'],
-                    region_name=app.config['AWS_S3_REGION_NAME']
-                )
-                # Validate and parse S3 URI
-                try:
-                    bucket, key = validate_s3_uri(job.inputFileUri)
-                except ValueError as e:
-                    raise ValueError(f"Invalid input file URI: {e}")
-
-                # Download the file with retry
-                retry_s3_operation(
-                    lambda: s3_client.download_file(bucket, key, input_file_path),
-                    max_attempts=3,
-                    initial_backoff=0.2
-                )
-                logger.info(f"Downloaded input file for job {job_id} from s3://{bucket}/{key}")
-            except Exception as e:
-                logger.error(f"Failed to download input file for job {job_id}: {e}")
-                job.status = 'failed'
-                job.errorMessage = f"Failed to download input file: {str(e)}"
-                job.completedAt = datetime.utcnow()
-                try:
-                    db.session.commit()
-                except SQLAlchemyError:
-                    db.session.rollback()
+            import socket
+            # Get the job from the database using SELECT FOR UPDATE to lock it
+            job = Job.query.filter_by(id=job_uuid, status='pending').with_for_update().first()
+            if not job:
+                logger.warning(f"Job {job_id} already processing or completed, or does not exist")
                 return
 
-            # Validate the input file.
-            is_valid, error_msg = validate_audio_file(input_file_path, job.contentType)
-            if not is_valid:
-                logger.error(f"Input file validation failed for job {job_id}: {error_msg}")
-                job.status = 'failed'
-                job.errorMessage = f"Input file validation failed: {error_msg}"
-                job.completedAt = datetime.utcnow()
-                try:
-                    db.session.commit()
-                except SQLAlchemyError:
-                    db.session.rollback()
-                return
-
-            # Process the file (run the mastering model).
-            try:
-                loudness_metrics = master_audio(
-                    input_file_path=input_file_path,
-                    output_file_path=output_file_path,
-                    preset_id=job.presetId,
-                    intensity=job.intensity,
-                    loudness_target=job.loudnessTarget,
-                    stereo_width=job.stereoWidth,
-                    enable_true_peak_limiting=job.enableTruePeakLimiting
-                )
-            except Exception as e:
-                logger.error(f"Failed to process audio for job {job_id}: {e}")
-                job.status = 'failed'
-                job.errorMessage = f"Audio processing failed: {str(e)}"
-                job.completedAt = datetime.utcnow()
-                try:
-                    db.session.commit()
-                except SQLAlchemyError:
-                    db.session.rollback()
-                return
-
-            # Upload the output file to S3.
-            try:
-                # Generate a unique key for the output file.
-                output_key = f"mastering-service-outputs/{job.userId}/{job.id}/{uuid.uuid4().hex}{get_file_extension(job.contentType)}"
-                # Upload the file with retry
-                retry_s3_operation(
-                    lambda: s3_client.upload_file(
-                        output_file_path,
-                        app.config['AWS_STORAGE_BUCKET_NAME'],
-                        output_key,
-                        ExtraArgs={
-                            'ContentType': job.contentType,
-                            'ContentDisposition': 'attachment'
-                        }
-                    ),
-                    max_attempts=3,
-                    initial_backoff=0.2
-                )
-                # Construct the output file URI.
-                output_file_uri = f"s3://{app.config['AWS_STORAGE_BUCKET_NAME']}/{output_key}"
-                logger.info(f"Uploaded output file for job {job_id} to s3://{app.config['AWS_STORAGE_BUCKET_NAME']}/{output_key}")
-            except Exception as e:
-                logger.error(f"Failed to upload output file for job {job_id}: {e}")
-                job.status = 'failed'
-                job.errorMessage = f"Failed to upload output file: {str(e)}"
-                job.completedAt = datetime.utcnow()
-                try:
-                    db.session.commit()
-                except SQLAlchemyError:
-                    db.session.rollback()
-                return
-
-            # Update the job with the output file URI and loudness metrics.
-            job.status = 'completed'
-            job.completedAt = datetime.utcnow()
-            job.outputFileUri = output_file_uri
-            job.loudnessMetrics = loudness_metrics
-            # Note: We already deducted the credit when the job was created.
-            # We do not need to deduct it again.
+            # Update the job status to processing.
+            job.status = 'processing'
+            job.startedAt = datetime.utcnow()
+            job.processing_worker_id = f"{socket.gethostname()}:{os.getpid()}"
             try:
                 db.session.commit()
-                logger.info(f"Job {job_id} completed successfully")
             except SQLAlchemyError as e:
-                logger.error(f"Failed to update job {job_id} as completed: {e}")
+                logger.error(f"Failed to update job status to processing: {e}")
                 db.session.rollback()
-                # Job remains in processing state; but we'll try to mark failed below in outer catch? Actually this is inner.
-                # We'll treat commit failure as an unexpected error and let outer except handle? No, outer except will not catch.
-                # So we need to attempt to mark as failed if this final commit fails.
-                try:
-                    job.status = 'failed'
-                    job.errorMessage = f"Database commit failed: {str(e)}"
-                    db.session.commit()
-                except SQLAlchemyError:
-                    db.session.rollback()
                 return
+
+            # We'll use a temporary directory for the input and output files.
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Define the paths for the input and output files.
+                input_file_path = os.path.join(temp_dir, 'input' + get_file_extension(job.contentType))
+                output_file_path = os.path.join(temp_dir, 'output' + get_file_extension(job.contentType))
+
+                # Download the input file from S3.
+                try:
+                    s3_client = boto3.client(
+                        's3',
+                        aws_access_key_id=app.config['AWS_ACCESS_KEY_ID'],
+                        aws_secret_access_key=app.config['AWS_SECRET_ACCESS_KEY'],
+                        region_name=app.config['AWS_S3_REGION_NAME']
+                    )
+                    # Validate and parse S3 URI
+                    try:
+                        bucket, key = validate_s3_uri(job.inputFileUri)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid input file URI: {e}")
+
+                    # Download the file with retry
+                    retry_s3_operation(
+                        lambda: s3_client.download_file(bucket, key, input_file_path),
+                        max_attempts=3,
+                        initial_backoff=0.2
+                    )
+                    logger.info(f"Downloaded input file for job {job_id} from s3://{bucket}/{key}")
+                except Exception as e:
+                    logger.error(f"Failed to download input file for job {job_id}: {e}")
+                    job.status = 'failed'
+                    job.errorMessage = f"Failed to download input file: {str(e)}"
+                    job.completedAt = datetime.utcnow()
+                    try:
+                        db.session.commit()
+                    except SQLAlchemyError:
+                        db.session.rollback()
+                    return
+
+                # Validate the input file.
+                is_valid, error_msg = validate_audio_file(input_file_path, job.contentType)
+                if not is_valid:
+                    logger.error(f"Input file validation failed for job {job_id}: {error_msg}")
+                    job.status = 'failed'
+                    job.errorMessage = f"Input file validation failed: {error_msg}"
+                    job.completedAt = datetime.utcnow()
+                    try:
+                        db.session.commit()
+                    except SQLAlchemyError:
+                        db.session.rollback()
+                    return
+
+                # Process the file (run the mastering model).
+                try:
+                    loudness_metrics = master_audio(
+                        input_file_path=input_file_path,
+                        output_file_path=output_file_path,
+                        preset_id=job.presetId,
+                        intensity=job.intensity,
+                        loudness_target=job.loudnessTarget,
+                        stereo_width=job.stereoWidth,
+                        enable_true_peak_limiting=job.enableTruePeakLimiting
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to process audio for job {job_id}: {e}")
+                    job.status = 'failed'
+                    job.errorMessage = f"Audio processing failed: {str(e)}"
+                    job.completedAt = datetime.utcnow()
+                    try:
+                        db.session.commit()
+                    except SQLAlchemyError:
+                        db.session.rollback()
+                    return
+
+                # Upload the output file to S3.
+                try:
+                    # Generate a unique key for the output file.
+                    output_key = f"mastering-service-outputs/{job.userId}/{job.id}/{uuid.uuid4().hex}{get_file_extension(job.contentType)}"
+                    # Upload the file with retry
+                    retry_s3_operation(
+                        lambda: s3_client.upload_file(
+                            output_file_path,
+                            app.config['AWS_STORAGE_BUCKET_NAME'],
+                            output_key,
+                            ExtraArgs={
+                                'ContentType': job.contentType,
+                                'ContentDisposition': 'attachment'
+                            }
+                        ),
+                        max_attempts=3,
+                        initial_backoff=0.2
+                    )
+                    # Construct the output file URI.
+                    output_file_uri = f"s3://{app.config['AWS_STORAGE_BUCKET_NAME']}/{output_key}"
+                    logger.info(f"Uploaded output file for job {job_id} to s3://{app.config['AWS_STORAGE_BUCKET_NAME']}/{output_key}")
+                except Exception as e:
+                    logger.error(f"Failed to upload output file for job {job_id}: {e}")
+                    job.status = 'failed'
+                    job.errorMessage = f"Failed to upload output file: {str(e)}"
+                    job.completedAt = datetime.utcnow()
+                    try:
+                        db.session.commit()
+                    except SQLAlchemyError:
+                        db.session.rollback()
+                    return
+
+                # Update the job with the output file URI and loudness metrics.
+                job.status = 'completed'
+                job.completedAt = datetime.utcnow()
+                job.outputFileUri = output_file_uri
+                job.loudnessMetrics = loudness_metrics
+                # Note: We already deducted the credit when the job was created.
+                # We do not need to deduct it again.
+                try:
+                    db.session.commit()
+                    logger.info(f"Job {job_id} completed successfully")
+                except SQLAlchemyError as e:
+                    logger.error(f"Failed to update job {job_id} as completed: {e}")
+                    db.session.rollback()
+                    # Job remains in processing state; but we'll try to mark failed below in outer catch? Actually this is inner.
+                    # We'll treat commit failure as an unexpected error and let outer except handle? No, outer except will not catch.
+                    # So we need to attempt to mark as failed if this final commit fails.
+                    try:
+                        job.status = 'failed'
+                        job.errorMessage = f"Database commit failed: {str(e)}"
+                        db.session.commit()
+                    except SQLAlchemyError:
+                        db.session.rollback()
+                    return
 
         except Exception as e:
             # Catch any unexpected errors.

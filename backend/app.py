@@ -36,11 +36,21 @@ def create_app(config_name=None):
     ma.init_app(app)
     jwt.init_app(app)
     cors.init_app(app)
-    
+
     # Initialize Redis connection for RQ
     app.redis = Redis.from_url(app.config['REDIS_URL'])
     app.task_queue = Queue('mastering-tasks', connection=app.redis)
-    
+
+    # Set up JWT token blacklist checking
+    if app.config.get('JWT_TOKEN_BLACKLIST_ENABLED', False):
+        @jwt.token_in_blocklist_loader
+        def check_if_token_in_blocklist(decoded_token):
+            jti = decoded_token.get('jti')
+            if not jti:
+                return True  # Invalid token if no JTI
+            blocklisted = app.redis.get(f'jwt_blocklist:{jti}')
+            return blocklisted is not None
+
     # Register blueprints
     from backend.api.v1 import api_bp
     app.register_blueprint(api_bp, url_prefix='/api/v1')

@@ -16,6 +16,7 @@ class Config:
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-string'
     MAX_CONCURRENT_JOBS = int(os.environ.get('MAX_CONCURRENT_JOBS', 5))
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    JWT_TOKEN_BLACKLIST_ENABLED = True
     # Redis configuration for RQ
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
     # Object storage (S3) configuration
@@ -79,25 +80,33 @@ class TestingConfig(Config):
 
 
 class ProductionConfig(Config):
-    """Production configuration."""
+    """Production configuration - fails fast if secrets are missing."""
     DEBUG = False
-    # Use environment variables for sensitive data (no defaults!)
+    # Override ALL secrets to ensure they're fetched from env and validated
     SECRET_KEY = os.environ.get('SECRET_KEY')
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     REDIS_URL = os.environ.get('REDIS_URL')
-    
+    # AWS credentials also required in production
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+
     def __init__(self):
-        super().__init__()
         missing = []
-        if not self.SECRET_KEY:
-            missing.append('SECRET_KEY')
-        if not self.JWT_SECRET_KEY:
-            missing.append('JWT_SECRET_KEY')
-        if not self.SQLALCHEMY_DATABASE_URI:
-            missing.append('DATABASE_URL')
-        if not self.REDIS_URL:
-            missing.append('REDIS_URL')
+        required_secrets = [
+            ('SECRET_KEY', self.SECRET_KEY),
+            ('JWT_SECRET_KEY', self.JWT_SECRET_KEY),
+            ('DATABASE_URL', self.SQLALCHEMY_DATABASE_URI),
+            ('REDIS_URL', self.REDIS_URL),
+            ('AWS_ACCESS_KEY_ID', self.AWS_ACCESS_KEY_ID),
+            ('AWS_SECRET_ACCESS_KEY', self.AWS_SECRET_ACCESS_KEY),
+            ('AWS_STORAGE_BUCKET_NAME', self.AWS_STORAGE_BUCKET_NAME),
+        ]
+        for name, value in required_secrets:
+            if not value:
+                missing.append(name)
         if missing:
             raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 

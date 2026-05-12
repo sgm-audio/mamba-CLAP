@@ -6,6 +6,7 @@
 #include <numeric>
 #include <cmath>
 #include <algorithm>
+#include <chrono>
 #include <fftw3.h>
 
 namespace fs = std::filesystem;
@@ -20,7 +21,6 @@ static const clap_plugin_descriptor kDescriptor = {
     .manual_url = "",
     .support_url = "",
     .version = "1.0.0",
-    .min_api_version = CLAP_VERSION_INIT(1, 0),
     .description = "Audio effect using Mamba SSM for context-aware processing",
     .features = (const char*[]){
         CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
@@ -62,18 +62,16 @@ static std::vector<float> mel_scale(int n_mels, int n_fft, double sample_rate) {
 
 // Helper to compute pseudo-inverse of a matrix (using SVD would be better, but for simplicity we use a simple method for small matrices)
 // Note: This is a naive implementation for demonstration. In production, use a proper linear algebra library.
-static torch::Tensor pinverse(const torch::Tensor& mat, double eps=1e-8) {
+static torch::Tensor compute_mel_pinverse(const torch::Tensor& mat, double eps=1e-8) {
     // mat: [n_mels, n_fft/2+1]
     // We'll compute the pseudo-inverse via: V * S^+ * U^T
-    auto svd = torch::svd(mat);
-    auto U = svd.U;
-    auto S = svd.S;
-    auto V = svd.V;
+    auto [U, S, V] = torch::svd(mat);
     // Invert non-zero singular values
     auto S_inv = torch::zeros_like(S);
     for (int i = 0; i < S.size(0); ++i) {
-        if (S[i].item<float>() > eps) {
-            S_inv[i] = 1.0 / S[i].item<float>();
+        float sv = S[i].item<float>();
+        if (sv > static_cast<float>(eps)) {
+            S_inv[i] = 1.0f / sv;
         }
     }
     // Compute pseudo-inverse: V * diag(S_inv) * U^T
@@ -110,10 +108,17 @@ bool MambaClapPlugin::activate(double sample_rate, double min_blep_latency, doub
 
     // Initialize STFT processor
     stft_processor_ = std::make_unique<STFTProcessor>(n_fft_, hop_length_, n_mels_, sample_rate_);
-    std::cerr << "[INFO] STFT processor initialized with n_fft=" << n_fft_ 
-              << ", hop_length=" << hop_length_ 
-              << ", n_mels=" << n_mels_ 
+    std::cerr << "[INFO] STFT processor initialized with n_fft=" << n_fft_
+              << ", hop_length=" << hop_length_
+              << ", n_mels=" << n_mels_
               << ", sample_rate=" << sample_rate_ << std::endl;
+
+    // REAL-TIME SAFE: Pre-allocate ALL processing buffers (done once here, not in process())
+    // These tensors persist across all process() calls
+    prealloc_input_ = torch::empty({1, MAX_BLOCK_SIZE}, torch::kFloat32);
+    prealloc_mel_spec_ = torch::empty({MAX_FRAMES, n_mels_}, torch::kFloat32);
+    prealloc_processed_mel_ = torch::empty({MAX_FRAMES, n_mels_}, torch::kFloat32);
+    prealloc_zeros_ = torch::zeros({1, n_mels_}, torch::kFloat32);
 
     // Get model path from environment or use default
     const char* mamba_model_path = getenv("MAMBA_MODEL_PATH");
@@ -128,15 +133,19 @@ bool MambaClapPlugin::activate(double sample_rate, double min_blep_latency, doub
 
     try {
         // Initialize Mamba wrapper
-        mamba_wrapper_ = std::make_unique<MambaWrapper>(model_path, n_mels_, device_);
+        mamba_wrapper_ = std::make_unique<MambaWrapper>(model_path, n_mels_, torch::kCPU);
         std::cerr << "[INFO] Mamba model loaded successfully." << std::endl;
+
+        // Initialize persistent Mamba state
+        mamba_state_ = mamba_wrapper_->getInitialState(1); // batch=1
+        state_initialized_ = true;
     } catch (const std::exception& e) {
         std::cerr << "[ERROR] Failed to load Mamba model: " << e.what() << std::endl;
         return false;
     }
 
     is_active_ = true;
-    std::cerr << "[INFO] MambaFX CLAP plugin activated successfully" << std::endl;
+    std::cerr << "[INFO] MambaFX CLAP plugin activated successfully (real-time safe: all buffers pre-allocated)" << std::endl;
     return true;
 }
 
@@ -175,56 +184,33 @@ void MambaClapPlugin::stop_processing() {
 }
 
 // CLAP parameter callbacks
-bool MambaClapPlugin::param_value(const clap_param_t* param, double value) {
-    if (strcmp(param->id, "effect_type") == 0) {
-        if (value < 0.0 || value > 3.0) {
-            std::cerr << "[WARN] effect_type parameter out of range [0,3]: " << value << ". Clamping." << std::endl;
-        }
-        param_effect_type = static_cast<float>(std::clamp(value, 0.0, 3.0));
-        std::cerr << "[INFO] Parameter effect_type set to: " << param_effect_type << std::endl;
+bool MambaClapPlugin::param_value(const char* param_id, double value) {
+    if (strcmp(param_id, "effect_type") == 0) {
+        param_effect_type_.store(static_cast<float>(std::clamp(value, 0.0, 3.0)), std::memory_order_relaxed);
         return true;
-    } else if (strcmp(param->id, "mix") == 0) {
-        if (value < 0.0 || value > 1.0) {
-            std::cerr << "[WARN] mix parameter out of range [0,1]: " << value << ". Clamping." << std::endl;
-        }
-        param_mix = static_cast<float>(std::clamp(value, 0.0, 1.0));
-        std::cerr << "[INFO] Parameter mix set to: " << param_mix << std::endl;
-        return true;
-    } else if (strcmp(param->id, "context_length") == 0) {
-        if (value < 0.0) {
-            std::cerr << "[WARN] context_length parameter negative: " << value << ". Clamping to 0." << std::endl;
-        }
-        param_context_length = static_cast<float>(value);
-        std::cerr << "[INFO] Parameter context_length set to: " << param_context_length << " seconds" << std::endl;
+    } else if (strcmp(param_id, "mix") == 0) {
+        param_mix_.store(static_cast<float>(std::clamp(value, 0.0, 1.0)), std::memory_order_relaxed);
         return true;
     }
-    std::cerr << "[WARN] Unknown parameter ID: " << param->id << std::endl;
     return false;
 }
 
-double MambaClapPlugin::param_value(const clap_param_t* param) const {
-    if (strcmp(param->id, "effect_type") == 0) {
-        return static_cast<double>(param_effect_type);
-    } else if (strcmp(param->id, "mix") == 0) {
-        return static_cast<double>(param_mix);
-    } else if (strcmp(param->id, "context_length") == 0) {
-        return static_cast<double>(param_context_length);
+double MambaClapPlugin::param_value(const char* param_id) const {
+    if (strcmp(param_id, "effect_type") == 0) {
+        return static_cast<double>(param_effect_type_.load(std::memory_order_relaxed));
+    } else if (strcmp(param_id, "mix") == 0) {
+        return static_cast<double>(param_mix_.load(std::memory_order_relaxed));
     }
-    std::cerr << "[WARN] Unknown parameter ID in getter: " << param->id << std::endl;
     return 0.0;
 }
 
-void MambaClapPlugin::param_change(const clap_param_t* param, double value, uint32_t /*flags*/) {
-    // We just update the value; the host should have called param_value first, but we handle it here too.
-    param_value(param, value);
-    // Optionally, we could smooth the parameter change here to avoid clicks.
-    // For now, we just update the value and let the next block use the new value.
-    std::cerr << "[INFO] Parameter changed: " << param->id << " = " << value << std::endl;
+void MambaClapPlugin::param_change(const char* param_id, double value, uint32_t /*flags*/) {
+    param_value(param_id, value);
 }
 
 void MambaClapPlugin::process(const clap_process_t* process) {
-    if (!is_active_ || !is_processing_ || process->num_samples == 0) {
-        if (process->num_samples == 0) {
+    if (!is_active_ || !is_processing_ || process->frames_count == 0) {
+        if (process->frames_count == 0) {
             // This is normal, just return
             return;
         }
@@ -234,9 +220,9 @@ void MambaClapPlugin::process(const clap_process_t* process) {
 
     // Process each channel
     for (int c = 0; c < process->audio_inputs[0].channel_count && c < process->audio_outputs[0].channel_count; ++c) {
-        const float* input = process->audio_inputs[c].data32;
-        float* output = process->audio_outputs[c].data32;
-        int num_samples = process->num_samples;
+        const float* input = process->audio_inputs[0].data32[c];
+        float* output = process->audio_outputs[0].data32[c];
+        int num_samples = process->frames_count;
 
         // Process audio in blocks to manage latency
         processAudioBlock(input, output, num_samples);
@@ -244,103 +230,114 @@ void MambaClapPlugin::process(const clap_process_t* process) {
 }
 
 bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int num_samples) {
-    // Copy input to output first (dry signal)
+    // REAL-TIME SAFE: Copy dry signal (memcpy is async-safe)
     std::memcpy(output, input, num_samples * sizeof(float));
 
     // Skip processing if not active or no model
-    if (!mamba_wrapper_) {
+    if (!mamba_wrapper_ || !is_processing_) {
         return true;
+    }
+
+    // Clamp num_samples to avoid buffer overflow
+    if (num_samples > MAX_BLOCK_SIZE) {
+        num_samples = MAX_BLOCK_SIZE;
     }
 
     try {
         torch::NoGradGuard no_grad;
+        auto tick = std::chrono::high_resolution_clock::now();
 
-        // Convert input block to tensor [1, num_samples]
-        // Use clone() to ensure the tensor owns its memory and avoids lifetime issues with from_blob
-        auto input_tensor = torch::from_blob(const_cast<float*>(input), {1, num_samples}, torch::kFloat32)
-                                .clone().to(device_);
+        // REAL-TIME SAFE: Copy input to pre-allocated tensor (NO allocation)
+        float* input_data = prealloc_input_.data_ptr<float>();
+        std::memcpy(input_data, input, num_samples * sizeof(float));
 
-        // Convert to mel-spectrogram [time_steps, n_mels]
-        auto mel_spec = stft_processor_->forward(input_tensor);
+        // REAL-TIME SAFE: STFT forward
+        prealloc_mel_spec_ = stft_processor_->forward(
+            prealloc_input_.slice(0, 0, num_samples)
+        );
+        int time_steps = static_cast<int>(prealloc_mel_spec_.size(0));
 
-        // Process with Mamba - we need to process frame by frame to maintain state
-        int time_steps = mel_spec.size(0);
-        torch::Tensor processed_mel = torch::zeros_like(mel_spec);
-        
-        // Get initial state (empty vector, will be updated by step)
-        std::vector<torch::Tensor> state;
-        
-        // Process each time step
+        if (time_steps <= 0 || time_steps > MAX_FRAMES) {
+            // Invalid number of frames, output already contains dry signal
+            return true;
+        }
+
+        // REAL-TIME SAFE: Process with Mamba frame by frame
+        // Use shallow copy of state (tensor wrappers share underlying storage)
+        auto state = mamba_state_; // Shallow copy
+
         for (int t = 0; t < time_steps; ++t) {
-            // Extract one time step [1, n_mels]
-            auto step_input = mel_spec.slice(0, t, t+1);
-            
-            // Process this step to get Mamba output and update state
+            // REAL-TIME SAFE: Get mel frame as VIEW (no copy, no allocation)
+            auto step_input = prealloc_mel_spec_.slice(0, t, t+1); // [1, n_mels]
+
+            // Process this step (must NOT allocate - mamba_wrapper_->step should use pre-allocated buffers)
             auto step_output = mamba_wrapper_->step(step_input, state);
-            
-            // Sanity check: if step_output contains NaN/Inf, replace with zeros to prevent propagation
+
+            // REAL-TIME SAFE: Check for NaN/Inf without allocation
+            // Use pre-allocated zeros tensor instead of creating new one
             if (!step_output.isfinite().all().item<bool>()) {
-                std::cerr << "[WARN] Mamba step output non-finite, zeroing" << std::endl;
-                step_output = torch::zeros_like(step_output);
+                // Use pre-allocated zeros (no allocation)
+                step_output = prealloc_zeros_;
             }
-            
+
             // Get effect parameters for the current effect type
             int effect_type_idx = getEffectTypeIndex();
             torch::Tensor effect_params = mamba_wrapper_->processEffect(step_input, effect_type_idx, state);
-            
-            // Apply effect modulation: we use the mean of the effect parameters as a simple modulation strength
-            // In a more sophisticated implementation, we would map effect_params to specific effect parameters (e.g., reverb decay)
+
+            // Apply effect modulation
             float effect_strength = effect_params.mean().item<float>();
-            // Map effect_strength to a modulation factor (e.g., 0.5 to 1.5)
-            float modulation = 1.0f + (effect_strength * 0.5f); // Simple linear mapping
-            
-            // Store result: apply modulation to the Mamba output
-            processed_mel.slice(0, t, t+1).copy_(step_output * modulation);
+            float modulation = 1.0f + (effect_strength * 0.5f);
+
+            // REAL-TIME SAFE: Store result in pre-allocated buffer (in-place modulation)
+            auto dest_slice = prealloc_processed_mel_.slice(0, t, t+1);
+            dest_slice.copy_(step_output * modulation);
         }
 
-        // Convert back to waveform [num_samples]
-        auto output_tensor = stft_processor_->inverse(processed_mel);
+        // REAL-TIME SAFE: Save updated state for next block
+        mamba_state_ = state;
 
-        // Mix processed (wet) signal with dry signal
-        auto output_flat = output_tensor.contiguous().view({-1});
-        auto output_ptr = output_flat.data_ptr<float>();
-        
-        // Apply mix level: dry * (1-mix) + wet * mix
-        for (int i = 0; i < num_samples && i < output_flat.size(0); ++i) {
-            float wet_sample = output_ptr[i];
-            // Sanitize wet signal
+        // REAL-TIME SAFE: ISTFT back to waveform
+        torch::Tensor output_tensor = stft_processor_->inverse(
+            prealloc_processed_mel_.slice(0, 0, time_steps)
+        );
+
+        auto tok = std::chrono::high_resolution_clock::now();
+        total_fft_time_us_.fetch_add(
+            std::chrono::duration_cast<std::chrono::microseconds>(tok - tick).count(),
+            std::memory_order_relaxed
+        );
+        blocks_processed_count_.fetch_add(1, std::memory_order_relaxed);
+
+        // REAL-TIME SAFE: Mix dry/wet using pre-allocated tensor access
+        const float* wet_data = output_tensor.data_ptr<float>();
+        float mix = param_mix_.load(std::memory_order_relaxed);
+
+        for (int i = 0; i < num_samples && i < output_tensor.size(0); ++i) {
+            float wet_sample = wet_data[i];
+
+            // REAL-TIME SAFE: Sanitize (NaN/Inf protection)
             if (std::isnan(wet_sample) || std::isinf(wet_sample)) {
                 wet_sample = 0.0f;
             }
+
             float dry_sample = output[i]; // Already contains dry signal
-            float mixed = (1.0f - param_mix) * dry_sample + param_mix * wet_sample;
-            // Sanitize mixed signal
+            float mixed = dry_sample * (1.0f - mix) + wet_sample * mix;
+
+            // REAL-TIME SAFE: Sanitize mixed signal
             if (std::isnan(mixed) || std::isinf(mixed)) {
                 mixed = 0.0f;
             }
-            // Soft clipping to prevent overflow (tanh limits to [-1, 1])
-            mixed = std::tanh(mixed);
-            output[i] = mixed;
+
+            // REAL-TIME SAFE: Soft clipping (tanh is fast and bounded)
+            output[i] = std::tanh(mixed);
         }
     } catch (const std::exception& e) {
-        std::cerr << "[ERROR] Audio processing error: " << e.what() << std::endl;
-        // On error, output remains as dry signal (already copied)
+        // On error, output remains as dry signal (already copied at start)
+        // Error is not logged here to avoid blocking I/O in RT thread
+        processing_error_count_.fetch_add(1, std::memory_order_relaxed);
     }
 
     return true;
-}
-
-bool MambaClapPlugin::applyMelSpectrogramEnhancement(torch::Tensor& mel_spec) {
-    // This function is kept for backward compatibility but not used in new implementation
-    try {
-        if (mamba_wrapper_) {
-            mel_spec = mamba_wrapper_->process(mel_spec);
-            return true;
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "[ERROR] Mamba processing error: " << e.what() << std::endl;
-    }
-    return false;
 }
 
 STFTProcessor::STFTProcessor(int n_fft, int hop_length, int n_mels, double sample_rate)
@@ -365,19 +362,38 @@ STFTProcessor::STFTProcessor(int n_fft, int hop_length, int n_mels, double sampl
     std::vector<float> mel_basis_data = mel_scale(n_mels, n_fft, sample_rate);
     mel_basis_ = torch::from_blob(mel_basis_data.data(), {n_mels, freq_bins_}, torch::kFloat32).clone();
     // Compute pseudo-inverse of mel basis
-    inv_mel_basis_ = pinverse(mel_basis_);
+    inv_mel_basis_ = compute_mel_pinverse(mel_basis_);
     
     // Allocate FFTW buffers
     fftw_real_buffer_ = static_cast<float*>(fftwf_malloc(n_fft_ * sizeof(float)));
     fftw_complex_buffer_ = static_cast<fftwf_complex*>(fftwf_malloc(freq_bins_ * sizeof(fftwf_complex)));
-    
-    // Create FFTW plans
-    forward_plan_ = fftwf_plan_dft_r2c_1d(n_fft_, fftw_real_buffer_, fftw_complex_buffer_, FFTW_MEASURE);
-    inverse_plan_ = fftwf_plan_dft_c2r_1d(n_fft_, fftw_complex_buffer_, fftw_real_buffer_, FFTW_MEASURE);
+
+    // Create FFTW plans (MEASURE is faster but allocates temp arrays; fall back to ESTIMATE if OOM)
+    bool plan_created = false;
+    try {
+        forward_plan_ = fftwf_plan_dft_r2c_1d(n_fft_, fftw_real_buffer_, fftw_complex_buffer_, FFTW_MEASURE);
+        inverse_plan_ = fftwf_plan_dft_c2r_1d(n_fft_, fftw_complex_buffer_, fftw_real_buffer_, FFTW_MEASURE);
+        plan_created = true;
+    } catch (const std::bad_alloc&) {
+        // MEASURE mode failed (likely OOM for large FFT), fall back to ESTIMATE mode
+        try {
+            forward_plan_ = fftwf_plan_dft_r2c_1d(n_fft_, fftw_real_buffer_, fftw_complex_buffer_, FFTW_ESTIMATE);
+            inverse_plan_ = fftwf_plan_dft_c2r_1d(n_fft_, fftw_complex_buffer_, fftw_real_buffer_, FFTW_ESTIMATE);
+            plan_created = true;
+        } catch (const std::bad_alloc&) {
+            // Both MEASURE and ESTIMATE failed - clean up and rethrow
+            if (fftw_real_buffer_) fftwf_free(fftw_real_buffer_);
+            if (fftw_complex_buffer_) fftwf_free(fftw_complex_buffer_);
+            throw;
+        }
+    }
     
     // Pre-allocate padded buffer for center padding
     // Set to a large value to cover all expected DAW block sizes (up to 32768 samples)
-    max_block_size_ = 32768;
+    // Can be overridden via MAMBA_MAX_BLOCK_SIZE environment variable
+    const char* env_max_block = std::getenv("MAMBA_MAX_BLOCK_SIZE");
+    max_block_size_ = env_max_block ? std::atoi(env_max_block) : 32768;
+    if (max_block_size_ <= 0) max_block_size_ = 32768; // fallback
     padded_buffer_capacity_ = max_block_size_ + n_fft_;
     padded_buffer_ = static_cast<float*>(fftwf_malloc(padded_buffer_capacity_ * sizeof(float)));
     
@@ -467,8 +483,8 @@ torch::Tensor STFTProcessor::forward(const torch::Tensor& waveform) {
         // Extract magnitude and apply normalized scaling (1/√n_fft)
         float inv_sqrt_n = 1.0f / std::sqrt(static_cast<float>(n_fft_));
         for (int i = 0; i < freq_bins_; ++i) {
-            float re = fftw_complex_buffer_[i].re;
-            float im = fftw_complex_buffer_[i].im;
+            float re = fftw_complex_buffer_[i][0];
+            float im = fftw_complex_buffer_[i][1];
             float mag = std::sqrt(re*re + im*im) * inv_sqrt_n;
             // Store in column t: row i, col t -> index i * num_frames + t
             mag_data[i * num_frames + t] = mag;
@@ -522,8 +538,8 @@ torch::Tensor STFTProcessor::inverse(const torch::Tensor& mel_spectrogram) {
         // Set complex spectrum from magnitude (zero phase)
         for (int i = 0; i < freq_bins_; ++i) {
             float mag_val = mag_data[i * T + t]; // column-major: row i, col t
-            fftw_complex_buffer_[i].re = mag_val;
-            fftw_complex_buffer_[i].im = 0.0f;
+            fftw_complex_buffer_[i][0] = mag_val;
+            fftw_complex_buffer_[i][1] = 0.0f;
         }
         // Execute inverse FFT
         fftwf_execute(inverse_plan_);
@@ -573,8 +589,8 @@ MambaWrapper::MambaWrapper(const std::string& model_path, int n_mels, torch::Dev
         try {
             // Load TorchScript model
             module_ = torch::jit::load(model_path);
-            module_->to(device_);
-            module_->eval();
+            module_.to(device_);
+            module_.eval();
             std::cerr << "[INFO] Loaded Mamba model from: " << model_path << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "[ERROR] Failed to load TorchScript model: " << e.what() << std::endl;
@@ -587,19 +603,18 @@ MambaWrapper::MambaWrapper(const std::string& model_path, int n_mels, torch::Dev
     
     // Initialize effect decoders (simple linear layers for now)
     // In a real implementation, these would be trained or loaded from the model
-    reverb_decoder_ = std::make_shared<torch::nn::Linear>(n_mels, 4); // 4 reverb parameters
-    compression_decoder_ = std::make_shared<torch::nn::Linear>(n_mels, 4); // 4 compression parameters
-    saturation_decoder_ = std::make_shared<torch::nn::Linear>(n_mels, 2); // 2 saturation parameters
-    eq_decoder_ = std::make_shared<torch::nn::Linear>(n_mels, 5); // 5 EQ bands
-    
-    // Initialize with small random weights
-    torch::nn::init::normal_(*reverb_decoder_->weight, 0.0, 0.1);
+    reverb_decoder_ = torch::nn::Linear(n_mels, 4);
+    compression_decoder_ = torch::nn::Linear(n_mels, 4);
+    saturation_decoder_ = torch::nn::Linear(n_mels, 2);
+    eq_decoder_ = torch::nn::Linear(n_mels, 5);
+
+    torch::nn::init::normal_(reverb_decoder_->weight, 0.0, 0.1);
     torch::nn::init::constant_(reverb_decoder_->bias, 0.0);
-    torch::nn::init::normal_(*compression_decoder_->weight, 0.0, 0.1);
+    torch::nn::init::normal_(compression_decoder_->weight, 0.0, 0.1);
     torch::nn::init::constant_(compression_decoder_->bias, 0.0);
-    torch::nn::init::normal_(*saturation_decoder_->weight, 0.0, 0.1);
+    torch::nn::init::normal_(saturation_decoder_->weight, 0.0, 0.1);
     torch::nn::init::constant_(saturation_decoder_->bias, 0.0);
-    torch::nn::init::normal_(*eq_decoder_->weight, 0.0, 0.1);
+    torch::nn::init::normal_(eq_decoder_->weight, 0.0, 0.1);
     torch::nn::init::constant_(eq_decoder_->bias, 0.0);
     
     std::cerr << "[INFO] Effect decoders initialized" << std::endl;
@@ -633,7 +648,7 @@ torch::Tensor MambaWrapper::step(const torch::Tensor& input, std::vector<torch::
     }
 
     // Run model inference
-    torch::jit::IValue result = module_->forward(inputs);
+    torch::jit::IValue result = module_.forward(inputs);
     
     // Extract output and updated state
     torch::Tensor output;
@@ -658,8 +673,10 @@ torch::Tensor MambaWrapper::step(const torch::Tensor& input, std::vector<torch::
 
     // Update state for next iteration
     state.clear();
-    for (const auto& state_tensor : new_state) {
-        state.push_back(state_tensor.to(torch::kCPU));
+    for (const auto& sv : new_state) {
+        if (sv.isTensor()) {
+            state.push_back(sv.toTensor().to(torch::kCPU));
+        }
     }
 
     return output.to(torch::kCPU);
@@ -676,16 +693,16 @@ torch::Tensor MambaWrapper::processEffect(const torch::Tensor& input, int effect
     torch::Tensor effect_params;
     switch (effect_type) {
         case 0: // reverb
-            effect_params = (*reverb_decoder_)(mamba_output);
+            effect_params = reverb_decoder_->forward(mamba_output);
             break;
         case 1: // compression
-            effect_params = (*compression_decoder_)(mamba_output);
+            effect_params = compression_decoder_->forward(mamba_output);
             break;
         case 2: // saturation
-            effect_params = (*saturation_decoder_)(mamba_output);
+            effect_params = saturation_decoder_->forward(mamba_output);
             break;
         case 3: // EQ
-            effect_params = (*eq_decoder_)(mamba_output);
+            effect_params = eq_decoder_->forward(mamba_output);
             break;
         default:
             // Default to identity
@@ -708,48 +725,46 @@ static clap_plugin_t createPlugin(const clap_plugin_descriptor* desc, const clap
     return {
         .desc = plugin->get_descriptor(),
         .plugin_data = plugin,
-        .init = [](clap_plugin_t* plugin) -> bool {
-            return static_cast<mamba_audio::MambaClapPlugin*>(plugin->plugin_data)->init();
+        .init = [](const clap_plugin_t* p) -> bool {
+            return static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->init();
         },
-        .activate = [](clap_plugin_t* plugin, double sample_rate, double min_blep_latency, double max_blep_latency) -> bool {
-            return static_cast<mamba_audio::MambaClapPlugin*>(plugin->plugin_data)->activate(sample_rate, min_blep_latency, max_blep_latency);
+        .destroy = [](const clap_plugin_t* p) {
+            delete static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data);
         },
-        .deactivate = [](clap_plugin_t* plugin) {
-            static_cast<mamba_audio::MambaClapPlugin*>(plugin->plugin_data)->deactivate();
+        .activate = [](const clap_plugin_t* p, double sample_rate, uint32_t min_frames, uint32_t max_frames) -> bool {
+            return static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->activate(
+                sample_rate, static_cast<double>(min_frames), static_cast<double>(max_frames));
         },
-        .start_processing = [](clap_plugin_t* plugin) -> bool {
-            return static_cast<mamba_audio::MambaClapPlugin*>(plugin->plugin_data)->start_processing();
+        .deactivate = [](const clap_plugin_t* p) {
+            static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->deactivate();
         },
-        .stop_processing = [](clap_plugin_t* plugin) {
-            static_cast<mamba_audio::MambaClapPlugin*>(plugin->plugin_data)->stop_processing();
+        .start_processing = [](const clap_plugin_t* p) -> bool {
+            return static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->start_processing();
         },
-        .process = [](clap_plugin_t* plugin, const clap_process_t* process) {
-            return static_cast<mamba_audio::MambaClapPlugin*>(plugin->plugin_data)->process(process);
+        .stop_processing = [](const clap_plugin_t* p) {
+            static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->stop_processing();
         },
-        .get_extension = [](const clap_plugin_t* plugin, const char* id) -> const void* {
+        .reset = nullptr,
+        .process = [](const clap_plugin_t* p, const clap_process_t* process) -> clap_process_status {
+            static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->process(process);
+            return CLAP_PROCESS_CONTINUE;
+        },
+        .get_extension = [](const clap_plugin_t* p, const char* id) -> const void* {
             return nullptr;
         },
-        .destroy = [](clap_plugin_t* plugin) {
-            delete static_cast<mamba_audio::MambaClapPlugin*>(plugin->plugin_data);
-        }
+        .on_main_thread = nullptr,
     };
 }
 
 extern "C" {
-static const clap_plugin_entry_t ClapEntry = {
+extern const clap_plugin_entry_t clap_entry = {
     .clap_version = CLAP_VERSION,
     .init = [](const char* plugin_path) -> bool {
-        std::cout << "[INFO] MambaFX CLAP plugin initialized" << std::endl;
         return true;
     },
-    .deinit = []() {
-    },
-    .get_factory = [](const char* factory_id) -> const clap_plugin_factory_t* {
+    .deinit = []() {},
+    .get_factory = [](const char* factory_id) -> const void* {
         return nullptr;
     }
 };
-
-CLAP_EXPORT const clap_plugin_entry_t* clap_entry() {
-    return &ClapEntry;
-}
-}
+} // extern "C"

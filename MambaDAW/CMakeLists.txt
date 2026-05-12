@@ -1,137 +1,91 @@
-cmake_minimum_required(VERSION 3.16)
-project(MambaDAW LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.14)
+project(MambaClapPlugin LANGUAGES CXX)
 
-# =============================================================================
-# Build options
-# =============================================================================
-option(USE_CUDA "Enable CUDA/LibTorch backend (GPU path, off by default)" OFF)
-
-# =============================================================================
-# C++ standard
-# =============================================================================
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
-# =============================================================================
-# CLAP SDK (header-only) — auto-fetched if not found locally
-# =============================================================================
+# Fetch and build CLAP from source
 include(FetchContent)
-
-find_path(CLAP_INCLUDE_DIR clap/clap.h
-    HINTS
-        /usr/local/include
-        /usr/include
-        /opt/homebrew/include
-        ${CMAKE_SOURCE_DIR}/../clap-sdk/include
-        $ENV{CLAP_SDK_PATH}/include
+FetchContent_Declare(
+  clap
+  GIT_REPOSITORY https://github.com/free-audio/clap.git
+  GIT_TAG main
 )
-
-if(NOT CLAP_INCLUDE_DIR)
-    message(STATUS "CLAP SDK not found locally — fetching from GitHub...")
-    FetchContent_Declare(
-        clap
-        GIT_REPOSITORY https://github.com/free-audio/clap.git
-        GIT_TAG        main
-        GIT_SHALLOW    TRUE
-    )
-    FetchContent_MakeAvailable(clap)
-    set(CLAP_INCLUDE_DIR ${clap_SOURCE_DIR}/include)
-    message(STATUS "CLAP SDK fetched to: ${CLAP_INCLUDE_DIR}")
+FetchContent_GetProperties(clap)
+if(NOT clap_POPULATED)
+  FetchContent_MakeAvailable(clap)  # modern approach
 endif()
 
-# =============================================================================
-# FFTW3 single-precision (optional: only needed for AudioFrontend STFT path)
-# AudioFrontend is NOT in the RT build path after the state-centric refactor.
-# =============================================================================
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(FFTW3F fftw3f)  # Not REQUIRED — warn, don't fail
-if(NOT FFTW3F_FOUND)
-    message(WARNING
-        "libfftw3f not found — AudioFrontend STFT path will be disabled.\n"
-        "Install if you need the offline STFT preprocessing path:\n"
-        "  Ubuntu/Debian: sudo apt-get install libfftw3-dev\n"
-        "  Fedora/RHEL:   sudo dnf install fftw-devel\n"
-        "  macOS:         brew install fftw")
+# Find Torch (optional — CPU-only path doesn't need it)
+find_package(Torch QUIET)
+if(Torch_FOUND)
+  message(STATUS "Torch found: ${TORCH_INCLUDE_DIRS}")
 endif()
 
-# =============================================================================
-# Optional: LibTorch for GPU/TorchScript path
-# =============================================================================
-if(USE_CUDA)
-    find_package(Torch REQUIRED)
-    add_compile_definitions(USE_TORCH_BACKEND)
-    # Older GCC/Clang need pre-CXX11 ABI to match LibTorch
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
-    endif()
-endif()
+# MambaDAW is pure CPU Mamba SSM; does not require FFTW.
+# (FFTW is only needed by the legacy clap-plugin's STFT path)
 
-# =============================================================================
-# Source files — ALL compilation units included
-# =============================================================================
+# Source files
 set(SOURCES
-    src/main.cpp
     src/plugin_wrapper.cpp
     src/plugin_processor.cpp
-    src/mamba_model.cpp
     src/mamba_layer.cpp
+    src/mamba_model.cpp
     src/mamba_weight_loader.cpp
 )
 
-# =============================================================================
-# CLAP plugin target
-# =============================================================================
-add_library(MambaDAW MODULE ${SOURCES})
-
-set_target_properties(MambaDAW PROPERTIES
-    PREFIX  ""
-    SUFFIX  ".clap"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/release"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/release"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/release"
+# Header files
+set(HEADERS
+    src/plugin_processor.h
+    src/mamba_layer.h
+    src/mamba_model.h
+    src/mamba_weight_loader.h
+    src/context_assembler.h
+    src/parameter_gate.h
+    src/feature_extractor_rt.h
 )
 
-target_include_directories(MambaDAW PRIVATE
-    ${CLAP_INCLUDE_DIR}
-    ${FFTW3F_INCLUDE_DIRS}
+# Create library
+add_library(${PROJECT_NAME} MODULE ${SOURCES} ${HEADERS})
+
+# Include directories
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# Aggressive optimisation — mandatory for real-time SSM performance
-target_compile_options(MambaDAW PRIVATE
-    -O3
-    -march=native       # Enable AVX2/AVX-512 on target CPU
-    -ffast-math         # Allows SIMD FP reassociation — safe for audio DSP
-    -fno-exceptions     # RT code must not throw
-    -Wall
-    -Wextra
-    -Wno-unused-parameter
+if(Torch_FOUND)
+  target_include_directories(${PROJECT_NAME} PRIVATE ${TORCH_INCLUDE_DIRS})
+endif()
+
+# Link libraries
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    clap  # The target from the CLAP subdirectory
+    dl
+    pthread
 )
 
-if(FFTW3F_FOUND)
-    target_link_libraries(MambaDAW PRIVATE ${FFTW3F_LIBRARIES})
-    target_compile_definitions(MambaDAW PRIVATE HAVE_FFTW3)
+if(Torch_FOUND)
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${TORCH_LIBRARIES})
 endif()
 
-if(USE_CUDA)
-    target_link_libraries(MambaDAW PRIVATE ${TORCH_LIBRARIES})
+# Set properties for plugin
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    PREFIX ""
+    SUFFIX ".clap"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Release"
+)
+
+# Add compiler definitions
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    "-D_GLIBCXX_USE_CXX11_ABI=1"
+)
+
+# Optional: enable more warnings
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# =============================================================================
-# Install
-# =============================================================================
-include(GNUInstallDirs)
-install(TARGETS MambaDAW
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/clap")
-
-# =============================================================================
-# Build summary
-# =============================================================================
-message(STATUS "=== MambaDAW Build Configuration ===")
-message(STATUS "  C++ standard : ${CMAKE_CXX_STANDARD}")
-message(STATUS "  Build type   : ${CMAKE_BUILD_TYPE}")
-message(STATUS "  CUDA backend : ${USE_CUDA}")
-message(STATUS "  CLAP headers : ${CLAP_INCLUDE_DIR}")
-message(STATUS "  FFTW3f libs  : ${FFTW3F_LIBRARIES}")
-message(STATUS "=====================================")
+# For production builds, you may want to disable logging entirely:
+# target_compile_definitions(${PROJECT_NAME} PRIVATE NDEBUG)

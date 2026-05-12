@@ -21,7 +21,7 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 # Install mamba-ssm with CUDA support
 echo "Installing mamba-ssm..."
-MAMBA_FORCE_BUILD=TRUE pip install --no-cache-dir mamba-ssm --no-build-isolation
+MAMBA_FORCE_BUILD=TRUE MAMBA_SKIP_CUDA_BUILD=TRUE pip install --no-cache-dir mamba-ssm --no-build-isolation
 
 # Install development dependencies
 echo "Installing development dependencies..."

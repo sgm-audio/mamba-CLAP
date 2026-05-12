@@ -1,0 +1,16 @@
+/var/home/SGM/dev/Mamba Based/target/debug/deps/assert_cmd-b03998063f81d4c4.d: /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/lib.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/macros.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/assert.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/cargo.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/cmd.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/output.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/color.rs /var/home/SGM/dev/Mamba\ Based/target/debug/build/assert_cmd-f47a2fcbc47f3b17/out/current_target.txt
+
+/var/home/SGM/dev/Mamba Based/target/debug/deps/libassert_cmd-b03998063f81d4c4.rlib: /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/lib.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/macros.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/assert.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/cargo.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/cmd.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/output.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/color.rs /var/home/SGM/dev/Mamba\ Based/target/debug/build/assert_cmd-f47a2fcbc47f3b17/out/current_target.txt
+
+/var/home/SGM/dev/Mamba Based/target/debug/deps/libassert_cmd-b03998063f81d4c4.rmeta: /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/lib.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/macros.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/assert.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/cargo.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/cmd.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/output.rs /home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/color.rs /var/home/SGM/dev/Mamba\ Based/target/debug/build/assert_cmd-f47a2fcbc47f3b17/out/current_target.txt
+
+/home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/lib.rs:
+/home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/macros.rs:
+/home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/assert.rs:
+/home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/cargo.rs:
+/home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/cmd.rs:
+/home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/output.rs:
+/home/SGM/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/assert_cmd-2.2.1/src/color.rs:
+/var/home/SGM/dev/Mamba\ Based/target/debug/build/assert_cmd-f47a2fcbc47f3b17/out/current_target.txt:
+
+# env-dep:OUT_DIR=/var/home/SGM/dev/Mamba Based/target/debug/build/assert_cmd-f47a2fcbc47f3b17/out

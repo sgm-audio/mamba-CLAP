@@ -7,12 +7,8 @@ set(CMAKE_DEPENDS_GENERATOR "Unix Makefiles")
 # The top level Makefile was generated from the following files:
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
-  "/home/SGM/dev/Mamba Based/MambaDAW/CMakeLists.txt"
-  "CMakeFiles/4.3.0/CMakeCCompiler.cmake"
-  "CMakeFiles/4.3.0/CMakeCXXCompiler.cmake"
-  "CMakeFiles/4.3.0/CMakeSystem.cmake"
-  "_deps/clap-src/CMakeLists.txt"
-  "_deps/clap-src/clap.pc.in"
+  "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-src/CMakeLists.txt"
+  "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-src/clap.pc.in"
   "/usr/share/cmake/Modules/BasicConfigVersion-AnyNewerVersion.cmake.in"
   "/usr/share/cmake/Modules/CMakeCInformation.cmake"
   "/usr/share/cmake/Modules/CMakeCXXInformation.cmake"
@@ -33,7 +29,6 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/usr/share/cmake/Modules/FindGit.cmake"
   "/usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
   "/usr/share/cmake/Modules/FindPackageMessage.cmake"
-  "/usr/share/cmake/Modules/FindPkgConfig.cmake"
   "/usr/share/cmake/Modules/GNUInstallDirs.cmake"
   "/usr/share/cmake/Modules/Internal/CMakeCLinkerInformation.cmake"
   "/usr/share/cmake/Modules/Internal/CMakeCXXLinkerInformation.cmake"
@@ -52,6 +47,10 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/usr/share/cmake/Modules/Platform/Linux.cmake"
   "/usr/share/cmake/Modules/Platform/UnixPaths.cmake"
   "/usr/share/cmake/Modules/WriteBasicConfigVersionFile.cmake"
+  "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/CMakeLists.txt"
+  "CMakeFiles/4.3.0/CMakeCCompiler.cmake"
+  "CMakeFiles/4.3.0/CMakeCXXCompiler.cmake"
+  "CMakeFiles/4.3.0/CMakeSystem.cmake"
   )
 
 # The corresponding makefile is:
@@ -62,15 +61,15 @@ set(CMAKE_MAKEFILE_OUTPUTS
 
 # Byproducts of CMake generate step:
 set(CMAKE_MAKEFILE_PRODUCTS
-  "_deps/clap-subbuild/CMakeLists.txt"
+  "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-subbuild/CMakeLists.txt"
   "CMakeFiles/CMakeDirectoryInformation.cmake"
-  "_deps/clap-build/clap-config-version.cmake"
-  "_deps/clap-build/clap.pc"
-  "_deps/clap-build/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/clap-config-version.cmake"
+  "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/clap.pc"
+  "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/MambaDAW.dir/DependInfo.cmake"
-  "_deps/clap-build/CMakeFiles/clap-tests.dir/DependInfo.cmake"
+  "CMakeFiles/MambaClapPlugin.dir/DependInfo.cmake"
+  "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/DependInfo.cmake"
   )

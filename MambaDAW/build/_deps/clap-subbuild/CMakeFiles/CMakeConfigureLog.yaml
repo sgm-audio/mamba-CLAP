@@ -20,6 +20,8 @@ events:
     names:
       - "uname"
     candidate_directories:
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -29,7 +31,11 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     searched_directories:
+      - "/home/SGM/.opencode/bin/uname"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/uname"
       - "/var/home/SGM/google-cloud-sdk/bin/uname"
       - "/home/SGM/.local/bin/uname"
       - "/home/SGM/bin/uname"
@@ -37,6 +43,9 @@ events:
     found: "/usr/bin/uname"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -46,6 +55,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "message-v1"

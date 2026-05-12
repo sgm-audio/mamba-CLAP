@@ -20,6 +20,8 @@ events:
     names:
       - "uname"
     candidate_directories:
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -29,7 +31,11 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     searched_directories:
+      - "/home/SGM/.opencode/bin/uname"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/uname"
       - "/var/home/SGM/google-cloud-sdk/bin/uname"
       - "/home/SGM/.local/bin/uname"
       - "/home/SGM/bin/uname"
@@ -37,6 +43,9 @@ events:
     found: "/usr/bin/uname"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -46,6 +55,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "message-v1"
@@ -75,6 +87,8 @@ events:
       - "make"
       - "smake"
     candidate_directories:
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -84,7 +98,11 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     searched_directories:
+      - "/home/SGM/.opencode/bin/gmake"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gmake"
       - "/var/home/SGM/google-cloud-sdk/bin/gmake"
       - "/home/SGM/.local/bin/gmake"
       - "/home/SGM/bin/gmake"
@@ -92,6 +110,9 @@ events:
     found: "/usr/bin/gmake"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -101,6 +122,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -131,6 +155,8 @@ events:
       - "icx"
       - "clang++"
     candidate_directories:
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -140,7 +166,11 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     searched_directories:
+      - "/home/SGM/.opencode/bin/c++"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/c++"
       - "/var/home/SGM/google-cloud-sdk/bin/c++"
       - "/home/SGM/.local/bin/c++"
       - "/home/SGM/bin/c++"
@@ -148,6 +178,9 @@ events:
     found: "/usr/bin/c++"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -157,6 +190,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -185,6 +221,9 @@ events:
     found: "/usr/share/cmake/Modules/CMakeCXXCompilerId.cpp.in"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -194,6 +233,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "message-v1"
@@ -215,7 +257,7 @@ events:
       Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
       
       The CXX compiler identification is GNU, found in:
-        /home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/4.3.0/CompilerIdCXX/a.out
+        /home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/4.3.0/CompilerIdCXX/a.out
       
   -
     kind: "find-v1"
@@ -238,6 +280,8 @@ events:
       - "ar"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -246,9 +290,14 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     found: "/usr/bin/ar"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -258,6 +307,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -280,6 +332,8 @@ events:
       - "ranlib"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -288,9 +342,14 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     found: "/usr/bin/ranlib"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -300,6 +359,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -322,6 +384,8 @@ events:
       - "strip"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -330,9 +394,14 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     found: "/usr/bin/strip"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -342,6 +411,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -364,6 +436,8 @@ events:
       - "ld"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -372,9 +446,14 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     found: "/usr/bin/ld"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -384,6 +463,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -406,6 +488,8 @@ events:
       - "nm"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -414,9 +498,14 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     found: "/usr/bin/nm"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -426,6 +515,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -448,6 +540,8 @@ events:
       - "objdump"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -456,9 +550,14 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     found: "/usr/bin/objdump"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -468,6 +567,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -490,6 +592,8 @@ events:
       - "objcopy"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -498,9 +602,14 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     found: "/usr/bin/objcopy"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -510,6 +619,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -532,6 +644,8 @@ events:
       - "readelf"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -540,9 +654,14 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     found: "/usr/bin/readelf"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -552,6 +671,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -574,6 +696,8 @@ events:
       - "dlltool"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -582,8 +706,12 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     searched_directories:
       - "/usr/bin/dlltool"
+      - "/home/SGM/.opencode/bin/dlltool"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/dlltool"
       - "/var/home/SGM/google-cloud-sdk/bin/dlltool"
       - "/home/SGM/.local/bin/dlltool"
       - "/home/SGM/bin/dlltool"
@@ -592,9 +720,14 @@ events:
       - "/usr/local/sbin/dlltool"
       - "/var/home/SGM/.lmstudio/bin/dlltool"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/dlltool"
+      - "/home/linuxbrew/.linuxbrew/bin/dlltool"
+      - "/home/linuxbrew/.linuxbrew/sbin/dlltool"
     found: false
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -604,6 +737,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -626,6 +762,8 @@ events:
       - "addr2line"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -634,9 +772,14 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     found: "/usr/bin/addr2line"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -646,6 +789,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -668,6 +814,8 @@ events:
       - "tapi"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -676,8 +824,12 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     searched_directories:
       - "/usr/bin/tapi"
+      - "/home/SGM/.opencode/bin/tapi"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/tapi"
       - "/var/home/SGM/google-cloud-sdk/bin/tapi"
       - "/home/SGM/.local/bin/tapi"
       - "/home/SGM/bin/tapi"
@@ -686,9 +838,14 @@ events:
       - "/usr/local/sbin/tapi"
       - "/var/home/SGM/.lmstudio/bin/tapi"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/tapi"
+      - "/home/linuxbrew/.linuxbrew/bin/tapi"
+      - "/home/linuxbrew/.linuxbrew/sbin/tapi"
     found: false
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -698,6 +855,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -723,6 +883,8 @@ events:
       - "gcc-ar"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -731,8 +893,12 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     searched_directories:
       - "/usr/bin/gcc-ar-16.1"
+      - "/home/SGM/.opencode/bin/gcc-ar-16.1"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ar-16.1"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ar-16.1"
       - "/home/SGM/.local/bin/gcc-ar-16.1"
       - "/home/SGM/bin/gcc-ar-16.1"
@@ -741,7 +907,11 @@ events:
       - "/usr/local/sbin/gcc-ar-16.1"
       - "/var/home/SGM/.lmstudio/bin/gcc-ar-16.1"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ar-16.1"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ar-16.1"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ar-16.1"
       - "/usr/bin/gcc-ar-16"
+      - "/home/SGM/.opencode/bin/gcc-ar-16"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ar-16"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ar-16"
       - "/home/SGM/.local/bin/gcc-ar-16"
       - "/home/SGM/bin/gcc-ar-16"
@@ -750,7 +920,11 @@ events:
       - "/usr/local/sbin/gcc-ar-16"
       - "/var/home/SGM/.lmstudio/bin/gcc-ar-16"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ar-16"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ar-16"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ar-16"
       - "/usr/bin/gcc-ar16"
+      - "/home/SGM/.opencode/bin/gcc-ar16"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ar16"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ar16"
       - "/home/SGM/.local/bin/gcc-ar16"
       - "/home/SGM/bin/gcc-ar16"
@@ -759,9 +933,14 @@ events:
       - "/usr/local/sbin/gcc-ar16"
       - "/var/home/SGM/.lmstudio/bin/gcc-ar16"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ar16"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ar16"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ar16"
     found: "/usr/bin/gcc-ar"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -771,6 +950,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "find-v1"
@@ -796,6 +978,8 @@ events:
       - "gcc-ranlib"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -804,8 +988,12 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
     searched_directories:
       - "/usr/bin/gcc-ranlib-16.1"
+      - "/home/SGM/.opencode/bin/gcc-ranlib-16.1"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ranlib-16.1"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ranlib-16.1"
       - "/home/SGM/.local/bin/gcc-ranlib-16.1"
       - "/home/SGM/bin/gcc-ranlib-16.1"
@@ -814,7 +1002,11 @@ events:
       - "/usr/local/sbin/gcc-ranlib-16.1"
       - "/var/home/SGM/.lmstudio/bin/gcc-ranlib-16.1"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ranlib-16.1"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ranlib-16.1"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ranlib-16.1"
       - "/usr/bin/gcc-ranlib-16"
+      - "/home/SGM/.opencode/bin/gcc-ranlib-16"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ranlib-16"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ranlib-16"
       - "/home/SGM/.local/bin/gcc-ranlib-16"
       - "/home/SGM/bin/gcc-ranlib-16"
@@ -823,7 +1015,11 @@ events:
       - "/usr/local/sbin/gcc-ranlib-16"
       - "/var/home/SGM/.lmstudio/bin/gcc-ranlib-16"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ranlib-16"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ranlib-16"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ranlib-16"
       - "/usr/bin/gcc-ranlib16"
+      - "/home/SGM/.opencode/bin/gcc-ranlib16"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ranlib16"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ranlib16"
       - "/home/SGM/.local/bin/gcc-ranlib16"
       - "/home/SGM/bin/gcc-ranlib16"
@@ -832,9 +1028,14 @@ events:
       - "/usr/local/sbin/gcc-ranlib16"
       - "/var/home/SGM/.lmstudio/bin/gcc-ranlib16"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ranlib16"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ranlib16"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ranlib16"
     found: "/usr/bin/gcc-ranlib"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -845,6 +1046,9 @@ events:
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
         - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
+        - "/var/home/SGM/.lmstudio/bin"
   -
     kind: "try_compile-v1"
     backtrace:
@@ -854,8 +1058,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-2AtuDb"
-      binary: "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-2AtuDb"
+      source: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-s26OIc"
+      binary: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-s26OIc"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -866,13 +1070,13 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-2AtuDb'
+        Change Dir: '/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-s26OIc'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_45687/fast
-        /usr/bin/gmake  -f CMakeFiles/cmTC_45687.dir/build.make CMakeFiles/cmTC_45687.dir/build
-        gmake[1]: Entering directory '/var/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-2AtuDb'
-        Building CXX object CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o
-        /usr/bin/c++   -v -o CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_2f2ca/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_2f2ca.dir/build.make CMakeFiles/cmTC_2f2ca.dir/build
+        gmake[1]: Entering directory '/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-s26OIc'
+        Building CXX object CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o
+        /usr/bin/c++   -v -o CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp
         Using built-in specs.
         COLLECT_GCC=/usr/bin/c++
         OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
@@ -882,8 +1086,8 @@ events:
         Thread model: posix
         Supported LTO compression algorithms: zlib zstd
         gcc version 16.1.1 20260501 (Red Hat 16.1.1-1) (GCC) 
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_45687.dir/'
-         /usr/libexec/gcc/x86_64-redhat-linux/16/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_45687.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/ccANXrS3.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_2f2ca.dir/'
+         /usr/libexec/gcc/x86_64-redhat-linux/16/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_2f2ca.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/cc9wCEFZ.s
         GNU C++20 (GCC) version 16.1.1 20260501 (Red Hat 16.1.1-1) (x86_64-redhat-linux)
         	compiled by GNU C version 16.1.1 20260501 (Red Hat 16.1.1-1), GMP version 6.3.0, MPFR version 4.2.2, MPC version 1.4.1, isl version isl-0.24-GMP
         
@@ -900,14 +1104,14 @@ events:
          /usr/include
         End of search list.
         Compiler executable checksum: e9c585eac4e856898ce035818c58d516
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_45687.dir/'
-         as -v --64 -o CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccANXrS3.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_2f2ca.dir/'
+         as -v --64 -o CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o /tmp/cc9wCEFZ.s
         GNU assembler version 2.46 (x86_64-redhat-linux) using BFD version version 2.46-1.fc44
         COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/
         LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.'
-        Linking CXX executable cmTC_45687
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_45687.dir/link.txt --verbose=1
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.'
+        Linking CXX executable cmTC_2f2ca
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2f2ca.dir/link.txt --verbose=1
         Using built-in specs.
         COLLECT_GCC=/usr/bin/c++
         COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper
@@ -920,14 +1124,14 @@ events:
         gcc version 16.1.1 20260501 (Red Hat 16.1.1-1) (GCC) 
         COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/
         LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_45687' '-foffload-options=-l_GCC_stdc++' '-foffload-options=-l_GCC_m' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_45687.'
-         /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUQOcrU.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_45687 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_2f2ca' '-foffload-options=-l_GCC_stdc++' '-foffload-options=-l_GCC_m' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_2f2ca.'
+         /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUxuZRJ.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_2f2ca /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
         collect2 version 16.1.1 20260501 (Red Hat 16.1.1-1)
-        /usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUQOcrU.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_45687 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
+        /usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUxuZRJ.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_2f2ca /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
         GNU ld version 2.46-1.fc44
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_45687' '-foffload-options=-l_GCC_stdc++' '-foffload-options=-l_GCC_m' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_45687.'
-        /usr/bin/c++  -v -Wl,-v CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_45687
-        gmake[1]: Leaving directory '/var/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-2AtuDb'
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_2f2ca' '-foffload-options=-l_GCC_stdc++' '-foffload-options=-l_GCC_m' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_2f2ca.'
+        /usr/bin/c++  -v -Wl,-v CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_2f2ca
+        gmake[1]: Leaving directory '/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-s26OIc'
         
       exitCode: 0
   -
@@ -966,13 +1170,13 @@ events:
       Parsed CXX implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
-        ignore line: [Change Dir: '/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-2AtuDb']
+        ignore line: [Change Dir: '/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-s26OIc']
         ignore line: []
-        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_45687/fast]
-        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_45687.dir/build.make CMakeFiles/cmTC_45687.dir/build]
-        ignore line: [gmake[1]: Entering directory '/var/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-2AtuDb']
-        ignore line: [Building CXX object CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o]
-        ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_2f2ca/fast]
+        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_2f2ca.dir/build.make CMakeFiles/cmTC_2f2ca.dir/build]
+        ignore line: [gmake[1]: Entering directory '/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-s26OIc']
+        ignore line: [Building CXX object CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/c++]
         ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
@@ -982,8 +1186,8 @@ events:
         ignore line: [Thread model: posix]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 16.1.1 20260501 (Red Hat 16.1.1-1) (GCC) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_45687.dir/']
-        ignore line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_45687.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/ccANXrS3.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_2f2ca.dir/']
+        ignore line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_2f2ca.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/cc9wCEFZ.s]
         ignore line: [GNU C++20 (GCC) version 16.1.1 20260501 (Red Hat 16.1.1-1) (x86_64-redhat-linux)]
         ignore line: [	compiled by GNU C version 16.1.1 20260501 (Red Hat 16.1.1-1)  GMP version 6.3.0  MPFR version 4.2.2  MPC version 1.4.1  isl version isl-0.24-GMP]
         ignore line: []
@@ -1000,14 +1204,14 @@ events:
         ignore line: [ /usr/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: e9c585eac4e856898ce035818c58d516]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_45687.dir/']
-        ignore line: [ as -v --64 -o CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccANXrS3.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_2f2ca.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o /tmp/cc9wCEFZ.s]
         ignore line: [GNU assembler version 2.46 (x86_64-redhat-linux) using BFD version version 2.46-1.fc44]
         ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/]
         ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.']
-        ignore line: [Linking CXX executable cmTC_45687]
-        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_45687.dir/link.txt --verbose=1]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.']
+        ignore line: [Linking CXX executable cmTC_2f2ca]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2f2ca.dir/link.txt --verbose=1]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/c++]
         ignore line: [COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper]
@@ -1020,13 +1224,13 @@ events:
         ignore line: [gcc version 16.1.1 20260501 (Red Hat 16.1.1-1) (GCC) ]
         ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/]
         ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_45687' '-foffload-options=-l_GCC_stdc++' '-foffload-options=-l_GCC_m' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_45687.']
-        link line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUQOcrU.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_45687 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_2f2ca' '-foffload-options=-l_GCC_stdc++' '-foffload-options=-l_GCC_m' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_2f2ca.']
+        link line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUxuZRJ.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_2f2ca /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
           arg [/usr/libexec/gcc/x86_64-redhat-linux/16/collect2] ==> ignore
           arg [-plugin] ==> ignore
           arg [/usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so] ==> ignore
           arg [-plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper] ==> ignore
-          arg [-plugin-opt=-fresolution=/tmp/ccUQOcrU.res] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccUxuZRJ.res] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
           arg [-plugin-opt=-pass-through=-latomic_asneeded] ==> ignore
@@ -1042,7 +1246,7 @@ events:
           arg [-dynamic-linker] ==> ignore
           arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_45687] ==> ignore
+          arg [cmTC_2f2ca] ==> ignore
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o]
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o]
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o]
@@ -1054,7 +1258,7 @@ events:
           arg [-L/lib] ==> dir [/lib]
           arg [-L/usr/lib] ==> dir [/usr/lib]
           arg [-v] ==> ignore
-          arg [CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
           arg [-lstdc++] ==> lib [stdc++]
           arg [-lm] ==> lib [m]
           arg [-lgcc_s] ==> lib [gcc_s]
@@ -1066,7 +1270,7 @@ events:
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o]
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
         ignore line: [collect2 version 16.1.1 20260501 (Red Hat 16.1.1-1)]
-        ignore line: [/usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUQOcrU.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_45687 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_45687.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+        ignore line: [/usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccUxuZRJ.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_2f2ca /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_2f2ca.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
         linker tool for 'CXX': /usr/bin/ld
         collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o] ==> [/usr/lib64/crt1.o]
         collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o] ==> [/usr/lib64/crti.o]
@@ -1097,109 +1301,13 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "CMakeLists.txt:21 (find_path)"
-    mode: "path"
-    variable: "CLAP_INCLUDE_DIR"
-    description: "Path to a file."
-    settings:
-      SearchFramework: "NEVER"
-      SearchAppBundle: "NEVER"
-      CMAKE_FIND_USE_CMAKE_PATH: true
-      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
-      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
-      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
-      CMAKE_FIND_USE_INSTALL_PREFIX: true
-    names:
-      - "clap/clap.h"
-    candidate_directories:
-      - "/usr/local/include/"
-      - "/usr/include/"
-      - "/opt/homebrew/include/"
-      - "/home/SGM/dev/Mamba Based/clap-sdk/include/"
-      - "/include/"
-      - "/var/home/SGM/google-cloud-sdk/bin/"
-      - "/home/SGM/.local/bin/"
-      - "/home/SGM/bin/"
-      - "/usr/local/bin/"
-      - "/usr/bin/"
-      - "/bin/"
-      - "/usr/local/sbin/"
-      - "/var/home/SGM/.lmstudio/bin/"
-      - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
-      - "/usr/local/include/"
-      - "/usr/local/"
-      - "/usr/include/"
-      - "/usr/"
-      - "/include/"
-      - "/usr/X11R6/include/"
-      - "/usr/X11R6/"
-      - "/usr/pkg/include/"
-      - "/usr/pkg/"
-      - "/opt/include/"
-      - "/opt/"
-      - "/usr/include/X11/"
-    searched_directories:
-      - "/usr/local/include/clap/clap.h"
-      - "/usr/include/clap/clap.h"
-      - "/opt/homebrew/include/clap/clap.h"
-      - "/home/SGM/dev/Mamba Based/clap-sdk/include/clap/clap.h"
-      - "/include/clap/clap.h"
-      - "/var/home/SGM/google-cloud-sdk/bin/clap/clap.h"
-      - "/home/SGM/.local/bin/clap/clap.h"
-      - "/home/SGM/bin/clap/clap.h"
-      - "/usr/local/bin/clap/clap.h"
-      - "/usr/bin/clap/clap.h"
-      - "/bin/clap/clap.h"
-      - "/usr/local/sbin/clap/clap.h"
-      - "/var/home/SGM/.lmstudio/bin/clap/clap.h"
-      - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/clap/clap.h"
-      - "/usr/local/include/clap/clap.h"
-      - "/usr/local/clap/clap.h"
-      - "/usr/include/clap/clap.h"
-      - "/usr/clap/clap.h"
-      - "/include/clap/clap.h"
-      - "/usr/X11R6/include/clap/clap.h"
-      - "/usr/X11R6/clap/clap.h"
-      - "/usr/pkg/include/clap/clap.h"
-      - "/usr/pkg/clap/clap.h"
-      - "/opt/include/clap/clap.h"
-      - "/opt/clap/clap.h"
-      - "/usr/include/X11/clap/clap.h"
-    found: false
-    search_context:
-      ENV{PATH}:
-        - "/var/home/SGM/google-cloud-sdk/bin"
-        - "/home/SGM/.local/bin"
-        - "/home/SGM/bin"
-        - "/usr/local/bin"
-        - "/usr/bin"
-        - "/bin"
-        - "/usr/local/sbin"
-        - "/var/home/SGM/.lmstudio/bin"
-        - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
-        - "/var/home/SGM/.lmstudio/bin"
-      CMAKE_INSTALL_PREFIX: "/usr/local"
-      CMAKE_SYSTEM_PREFIX_PATH:
-        - "/usr/local"
-        - "/usr"
-        - "/"
-        - "/usr"
-        - "/usr/local"
-        - "/usr/X11R6"
-        - "/usr/pkg"
-        - "/opt"
-      CMAKE_SYSTEM_INCLUDE_PATH:
-        - "/usr/include/X11"
-  -
-    kind: "find-v1"
-    backtrace:
       - "/usr/share/cmake/Modules/FindGit.cmake:111 (find_program)"
       - "/usr/share/cmake/Modules/FetchContent.cmake:1887 (find_package)"
       - "/usr/share/cmake/Modules/FetchContent.cmake:1622 (__FetchContent_populateSubbuild)"
       - "/usr/share/cmake/Modules/FetchContent.cmake:2158:EVAL:2 (__FetchContent_doPopulation)"
       - "/usr/share/cmake/Modules/FetchContent.cmake:2158 (cmake_language)"
       - "/usr/share/cmake/Modules/FetchContent.cmake:2399 (__FetchContent_Populate)"
-      - "CMakeLists.txt:38 (FetchContent_MakeAvailable)"
+      - "CMakeLists.txt:17 (FetchContent_MakeAvailable)"
     mode: "program"
     variable: "GIT_EXECUTABLE"
     description: "Git command line client"
@@ -1214,6 +1322,8 @@ events:
     names:
       - "git"
     candidate_directories:
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -1223,6 +1333,8 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
       - "/usr/local/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/"
@@ -1241,6 +1353,8 @@ events:
       - "/opt/sbin/"
       - "/opt/"
     searched_directories:
+      - "/home/SGM/.opencode/bin/git"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/git"
       - "/var/home/SGM/google-cloud-sdk/bin/git"
       - "/home/SGM/.local/bin/git"
       - "/home/SGM/bin/git"
@@ -1248,6 +1362,9 @@ events:
     found: "/usr/bin/git"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -1257,6 +1374,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -1298,6 +1418,9 @@ events:
     found: "/usr/bin/cc"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -1307,6 +1430,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -1345,6 +1471,9 @@ events:
     found: "/usr/share/cmake/Modules/CMakeCCompilerId.c.in"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -1354,6 +1483,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -1387,7 +1519,7 @@ events:
       Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
       
       The C compiler identification is GNU, found in:
-        /home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/4.3.0/CompilerIdC/a.out
+        /home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/4.3.0/CompilerIdC/a.out
       
   -
     kind: "find-v1"
@@ -1413,6 +1545,8 @@ events:
       - "gcc-ar"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -1421,6 +1555,8 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
       - "/usr/local/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/"
@@ -1440,6 +1576,8 @@ events:
       - "/opt/"
     searched_directories:
       - "/usr/bin/gcc-ar-16.1"
+      - "/home/SGM/.opencode/bin/gcc-ar-16.1"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ar-16.1"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ar-16.1"
       - "/home/SGM/.local/bin/gcc-ar-16.1"
       - "/home/SGM/bin/gcc-ar-16.1"
@@ -1448,6 +1586,8 @@ events:
       - "/usr/local/sbin/gcc-ar-16.1"
       - "/var/home/SGM/.lmstudio/bin/gcc-ar-16.1"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ar-16.1"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ar-16.1"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ar-16.1"
       - "/usr/local/bin/gcc-ar-16.1"
       - "/usr/local/sbin/gcc-ar-16.1"
       - "/usr/local/gcc-ar-16.1"
@@ -1466,6 +1606,8 @@ events:
       - "/opt/sbin/gcc-ar-16.1"
       - "/opt/gcc-ar-16.1"
       - "/usr/bin/gcc-ar-16"
+      - "/home/SGM/.opencode/bin/gcc-ar-16"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ar-16"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ar-16"
       - "/home/SGM/.local/bin/gcc-ar-16"
       - "/home/SGM/bin/gcc-ar-16"
@@ -1474,6 +1616,8 @@ events:
       - "/usr/local/sbin/gcc-ar-16"
       - "/var/home/SGM/.lmstudio/bin/gcc-ar-16"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ar-16"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ar-16"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ar-16"
       - "/usr/local/bin/gcc-ar-16"
       - "/usr/local/sbin/gcc-ar-16"
       - "/usr/local/gcc-ar-16"
@@ -1492,6 +1636,8 @@ events:
       - "/opt/sbin/gcc-ar-16"
       - "/opt/gcc-ar-16"
       - "/usr/bin/gcc-ar16"
+      - "/home/SGM/.opencode/bin/gcc-ar16"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ar16"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ar16"
       - "/home/SGM/.local/bin/gcc-ar16"
       - "/home/SGM/bin/gcc-ar16"
@@ -1500,6 +1646,8 @@ events:
       - "/usr/local/sbin/gcc-ar16"
       - "/var/home/SGM/.lmstudio/bin/gcc-ar16"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ar16"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ar16"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ar16"
       - "/usr/local/bin/gcc-ar16"
       - "/usr/local/sbin/gcc-ar16"
       - "/usr/local/gcc-ar16"
@@ -1520,6 +1668,9 @@ events:
     found: "/usr/bin/gcc-ar"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -1529,6 +1680,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -1564,6 +1718,8 @@ events:
       - "gcc-ranlib"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/SGM/.opencode/bin/"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/"
       - "/var/home/SGM/google-cloud-sdk/bin/"
       - "/home/SGM/.local/bin/"
       - "/home/SGM/bin/"
@@ -1572,6 +1728,8 @@ events:
       - "/usr/local/sbin/"
       - "/var/home/SGM/.lmstudio/bin/"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
+      - "/home/linuxbrew/.linuxbrew/bin/"
+      - "/home/linuxbrew/.linuxbrew/sbin/"
       - "/usr/local/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/"
@@ -1591,6 +1749,8 @@ events:
       - "/opt/"
     searched_directories:
       - "/usr/bin/gcc-ranlib-16.1"
+      - "/home/SGM/.opencode/bin/gcc-ranlib-16.1"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ranlib-16.1"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ranlib-16.1"
       - "/home/SGM/.local/bin/gcc-ranlib-16.1"
       - "/home/SGM/bin/gcc-ranlib-16.1"
@@ -1599,6 +1759,8 @@ events:
       - "/usr/local/sbin/gcc-ranlib-16.1"
       - "/var/home/SGM/.lmstudio/bin/gcc-ranlib-16.1"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ranlib-16.1"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ranlib-16.1"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ranlib-16.1"
       - "/usr/local/bin/gcc-ranlib-16.1"
       - "/usr/local/sbin/gcc-ranlib-16.1"
       - "/usr/local/gcc-ranlib-16.1"
@@ -1617,6 +1779,8 @@ events:
       - "/opt/sbin/gcc-ranlib-16.1"
       - "/opt/gcc-ranlib-16.1"
       - "/usr/bin/gcc-ranlib-16"
+      - "/home/SGM/.opencode/bin/gcc-ranlib-16"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ranlib-16"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ranlib-16"
       - "/home/SGM/.local/bin/gcc-ranlib-16"
       - "/home/SGM/bin/gcc-ranlib-16"
@@ -1625,6 +1789,8 @@ events:
       - "/usr/local/sbin/gcc-ranlib-16"
       - "/var/home/SGM/.lmstudio/bin/gcc-ranlib-16"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ranlib-16"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ranlib-16"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ranlib-16"
       - "/usr/local/bin/gcc-ranlib-16"
       - "/usr/local/sbin/gcc-ranlib-16"
       - "/usr/local/gcc-ranlib-16"
@@ -1643,6 +1809,8 @@ events:
       - "/opt/sbin/gcc-ranlib-16"
       - "/opt/gcc-ranlib-16"
       - "/usr/bin/gcc-ranlib16"
+      - "/home/SGM/.opencode/bin/gcc-ranlib16"
+      - "/home/SGM/.nvm/versions/node/v24.15.0/bin/gcc-ranlib16"
       - "/var/home/SGM/google-cloud-sdk/bin/gcc-ranlib16"
       - "/home/SGM/.local/bin/gcc-ranlib16"
       - "/home/SGM/bin/gcc-ranlib16"
@@ -1651,6 +1819,8 @@ events:
       - "/usr/local/sbin/gcc-ranlib16"
       - "/var/home/SGM/.lmstudio/bin/gcc-ranlib16"
       - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/gcc-ranlib16"
+      - "/home/linuxbrew/.linuxbrew/bin/gcc-ranlib16"
+      - "/home/linuxbrew/.linuxbrew/sbin/gcc-ranlib16"
       - "/usr/local/bin/gcc-ranlib16"
       - "/usr/local/sbin/gcc-ranlib16"
       - "/usr/local/gcc-ranlib16"
@@ -1671,6 +1841,9 @@ events:
     found: "/usr/bin/gcc-ranlib"
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -1680,6 +1853,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
@@ -1700,8 +1876,8 @@ events:
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-BikFst"
-      binary: "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-BikFst"
+      source: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-dW57Ti"
+      binary: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-dW57Ti"
     cmakeVariables:
       CMAKE_CXX_STDLIB_MODULES_JSON: ""
       CMAKE_C_FLAGS: ""
@@ -1711,13 +1887,13 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-BikFst'
+        Change Dir: '/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-dW57Ti'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_03dd0/fast
-        /usr/bin/gmake  -f CMakeFiles/cmTC_03dd0.dir/build.make CMakeFiles/cmTC_03dd0.dir/build
-        gmake[1]: Entering directory '/var/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-BikFst'
-        Building C object CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o
-        /usr/bin/cc   -v -o CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_52d92/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_52d92.dir/build.make CMakeFiles/cmTC_52d92.dir/build
+        gmake[1]: Entering directory '/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-dW57Ti'
+        Building C object CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o
+        /usr/bin/cc   -v -o CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c
         Using built-in specs.
         COLLECT_GCC=/usr/bin/cc
         OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
@@ -1727,8 +1903,8 @@ events:
         Thread model: posix
         Supported LTO compression algorithms: zlib zstd
         gcc version 16.1.1 20260501 (Red Hat 16.1.1-1) (GCC) 
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_03dd0.dir/'
-         /usr/libexec/gcc/x86_64-redhat-linux/16/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_03dd0.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/cc8tBXRm.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_52d92.dir/'
+         /usr/libexec/gcc/x86_64-redhat-linux/16/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_52d92.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/cctsnV0D.s
         GNU C23 (GCC) version 16.1.1 20260501 (Red Hat 16.1.1-1) (x86_64-redhat-linux)
         	compiled by GNU C version 16.1.1 20260501 (Red Hat 16.1.1-1), GMP version 6.3.0, MPFR version 4.2.2, MPC version 1.4.1, isl version isl-0.24-GMP
         
@@ -1742,14 +1918,14 @@ events:
          /usr/include
         End of search list.
         Compiler executable checksum: 22d46a7944dda6b9310ab0cb59c0bc64
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_03dd0.dir/'
-         as -v --64 -o CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o /tmp/cc8tBXRm.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_52d92.dir/'
+         as -v --64 -o CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o /tmp/cctsnV0D.s
         GNU assembler version 2.46 (x86_64-redhat-linux) using BFD version version 2.46-1.fc44
         COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/
         LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.'
-        Linking C executable cmTC_03dd0
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_03dd0.dir/link.txt --verbose=1
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.'
+        Linking C executable cmTC_52d92
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_52d92.dir/link.txt --verbose=1
         Using built-in specs.
         COLLECT_GCC=/usr/bin/cc
         COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper
@@ -1762,14 +1938,14 @@ events:
         gcc version 16.1.1 20260501 (Red Hat 16.1.1-1) (GCC) 
         COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/
         LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_03dd0' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_03dd0.'
-         /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccREX6EW.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_03dd0 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_52d92' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_52d92.'
+         /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccPybjmV.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_52d92 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
         collect2 version 16.1.1 20260501 (Red Hat 16.1.1-1)
-        /usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccREX6EW.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_03dd0 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
+        /usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccPybjmV.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_52d92 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
         GNU ld version 2.46-1.fc44
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_03dd0' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_03dd0.'
-        /usr/bin/cc  -v -Wl,-v CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o -o cmTC_03dd0
-        gmake[1]: Leaving directory '/var/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-BikFst'
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_52d92' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_52d92.'
+        /usr/bin/cc  -v -Wl,-v CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o -o cmTC_52d92
+        gmake[1]: Leaving directory '/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-dW57Ti'
         
       exitCode: 0
   -
@@ -1802,13 +1978,13 @@ events:
       Parsed C implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
-        ignore line: [Change Dir: '/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-BikFst']
+        ignore line: [Change Dir: '/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-dW57Ti']
         ignore line: []
-        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_03dd0/fast]
-        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_03dd0.dir/build.make CMakeFiles/cmTC_03dd0.dir/build]
-        ignore line: [gmake[1]: Entering directory '/var/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-BikFst']
-        ignore line: [Building C object CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o]
-        ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c]
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_52d92/fast]
+        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_52d92.dir/build.make CMakeFiles/cmTC_52d92.dir/build]
+        ignore line: [gmake[1]: Entering directory '/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/CMakeScratch/TryCompile-dW57Ti']
+        ignore line: [Building C object CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/cc]
         ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
@@ -1818,8 +1994,8 @@ events:
         ignore line: [Thread model: posix]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 16.1.1 20260501 (Red Hat 16.1.1-1) (GCC) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_03dd0.dir/']
-        ignore line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_03dd0.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/cc8tBXRm.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_52d92.dir/']
+        ignore line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_52d92.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/cctsnV0D.s]
         ignore line: [GNU C23 (GCC) version 16.1.1 20260501 (Red Hat 16.1.1-1) (x86_64-redhat-linux)]
         ignore line: [	compiled by GNU C version 16.1.1 20260501 (Red Hat 16.1.1-1)  GMP version 6.3.0  MPFR version 4.2.2  MPC version 1.4.1  isl version isl-0.24-GMP]
         ignore line: []
@@ -1833,14 +2009,14 @@ events:
         ignore line: [ /usr/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: 22d46a7944dda6b9310ab0cb59c0bc64]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_03dd0.dir/']
-        ignore line: [ as -v --64 -o CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o /tmp/cc8tBXRm.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_52d92.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o /tmp/cctsnV0D.s]
         ignore line: [GNU assembler version 2.46 (x86_64-redhat-linux) using BFD version version 2.46-1.fc44]
         ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/]
         ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.']
-        ignore line: [Linking C executable cmTC_03dd0]
-        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_03dd0.dir/link.txt --verbose=1]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.']
+        ignore line: [Linking C executable cmTC_52d92]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_52d92.dir/link.txt --verbose=1]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/cc]
         ignore line: [COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper]
@@ -1853,13 +2029,13 @@ events:
         ignore line: [gcc version 16.1.1 20260501 (Red Hat 16.1.1-1) (GCC) ]
         ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/]
         ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_03dd0' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_03dd0.']
-        link line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccREX6EW.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_03dd0 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_52d92' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_52d92.']
+        link line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccPybjmV.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_52d92 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
           arg [/usr/libexec/gcc/x86_64-redhat-linux/16/collect2] ==> ignore
           arg [-plugin] ==> ignore
           arg [/usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so] ==> ignore
           arg [-plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper] ==> ignore
-          arg [-plugin-opt=-fresolution=/tmp/ccREX6EW.res] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccPybjmV.res] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc_s_asneeded] ==> ignore
           arg [-plugin-opt=-pass-through=-latomic_asneeded] ==> ignore
@@ -1875,7 +2051,7 @@ events:
           arg [-dynamic-linker] ==> ignore
           arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_03dd0] ==> ignore
+          arg [cmTC_52d92] ==> ignore
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o]
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o]
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o]
@@ -1887,7 +2063,7 @@ events:
           arg [-L/lib] ==> dir [/lib]
           arg [-L/usr/lib] ==> dir [/usr/lib]
           arg [-v] ==> ignore
-          arg [CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o] ==> ignore
           arg [-lgcc] ==> lib [gcc]
           arg [-lgcc_s_asneeded] ==> lib [gcc_s_asneeded]
           arg [-latomic_asneeded] ==> lib [atomic_asneeded]
@@ -1897,7 +2073,7 @@ events:
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o]
           arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
         ignore line: [collect2 version 16.1.1 20260501 (Red Hat 16.1.1-1)]
-        ignore line: [/usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccREX6EW.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_03dd0 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_03dd0.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+        ignore line: [/usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccPybjmV.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_52d92 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_52d92.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
         linker tool for 'C': /usr/bin/ld
         collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o] ==> [/usr/lib64/crt1.o]
         collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o] ==> [/usr/lib64/crti.o]
@@ -1926,63 +2102,468 @@ events:
       Running the C compiler's linker: "/usr/bin/ld" "-v"
       GNU ld version 2.46-1.fc44
   -
-    kind: "find-v1"
+    kind: "find_package-v1"
     backtrace:
-      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:517 (find_program)"
-      - "CMakeLists.txt:46 (find_package)"
-    mode: "program"
-    variable: "PKG_CONFIG_EXECUTABLE"
-    description: "pkg-config executable"
+      - "CMakeLists.txt:21 (find_package)"
+    name: "Torch"
+    configs:
+      -
+        filename: "Torch.cps"
+        kind: "cps"
+      -
+        filename: "torch.cps"
+        kind: "cps"
+      -
+        filename: "TorchConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "torch-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
     settings:
-      SearchFramework: "NEVER"
-      SearchAppBundle: "NEVER"
-      CMAKE_FIND_USE_CMAKE_PATH: true
-      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
-      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
-      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
-      CMAKE_FIND_USE_INSTALL_PREFIX: true
-    names:
-      - "pkg-config"
-      - "pkgconf"
-    candidate_directories:
-      - "/var/home/SGM/google-cloud-sdk/bin/"
-      - "/home/SGM/.local/bin/"
-      - "/home/SGM/bin/"
-      - "/usr/local/bin/"
-      - "/usr/bin/"
-      - "/bin/"
-      - "/usr/local/sbin/"
-      - "/var/home/SGM/.lmstudio/bin/"
-      - "/home/SGM/.local/share/JetBrains/Toolbox/scripts/"
-      - "/usr/local/bin/"
-      - "/usr/local/sbin/"
-      - "/usr/local/"
-      - "/usr/bin/"
-      - "/usr/sbin/"
-      - "/usr/"
-      - "/bin/"
-      - "/sbin/"
-      - "/usr/X11R6/bin/"
-      - "/usr/X11R6/sbin/"
-      - "/usr/X11R6/"
-      - "/usr/pkg/bin/"
-      - "/usr/pkg/sbin/"
-      - "/usr/pkg/"
-      - "/opt/bin/"
-      - "/opt/sbin/"
-      - "/opt/"
-    searched_directories:
-      - "/var/home/SGM/google-cloud-sdk/bin/pkg-config"
-      - "/var/home/SGM/google-cloud-sdk/bin/pkgconf"
-      - "/home/SGM/.local/bin/pkg-config"
-      - "/home/SGM/.local/bin/pkgconf"
-      - "/home/SGM/bin/pkg-config"
-      - "/home/SGM/bin/pkgconf"
-      - "/usr/local/bin/pkg-config"
-      - "/usr/local/bin/pkgconf"
-    found: "/usr/bin/pkg-config"
+      required: "optional"
+      quiet: true
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "Torch"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/pkgRedirects/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/pkgRedirects/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/pkgRedirects/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/pkgRedirects/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/pkgRedirects/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/pkgRedirects/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/pkgRedirects/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles/pkgRedirects/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.opencode/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.opencode/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.opencode/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.opencode/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.opencode/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.opencode/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.opencode/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.opencode/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.nvm/versions/node/v24.15.0/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.nvm/versions/node/v24.15.0/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.nvm/versions/node/v24.15.0/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.nvm/versions/node/v24.15.0/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.nvm/versions/node/v24.15.0/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.nvm/versions/node/v24.15.0/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.nvm/versions/node/v24.15.0/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.nvm/versions/node/v24.15.0/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/google-cloud-sdk/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/google-cloud-sdk/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/google-cloud-sdk/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/google-cloud-sdk/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/google-cloud-sdk/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/google-cloud-sdk/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/google-cloud-sdk/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/google-cloud-sdk/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/local/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/usr/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/usr/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/.lmstudio/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/.lmstudio/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/.lmstudio/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/.lmstudio/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/.lmstudio/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/.lmstudio/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/.lmstudio/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/var/home/SGM/.lmstudio/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/JetBrains/Toolbox/scripts/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/JetBrains/Toolbox/scripts/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/JetBrains/Toolbox/scripts/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/JetBrains/Toolbox/scripts/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/JetBrains/Toolbox/scripts/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/JetBrains/Toolbox/scripts/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/JetBrains/Toolbox/scripts/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/SGM/.local/share/JetBrains/Toolbox/scripts/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/linuxbrew/.linuxbrew/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/linuxbrew/.linuxbrew/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/linuxbrew/.linuxbrew/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/linuxbrew/.linuxbrew/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/linuxbrew/.linuxbrew/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/linuxbrew/.linuxbrew/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/linuxbrew/.linuxbrew/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/home/linuxbrew/.linuxbrew/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/TorchConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/torch-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/opt/lib64/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/lib64/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/lib/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/lib/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/share/cps/Torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "/opt/share/cps/torch.cps"
+        mode: "cps"
+        reason: "no_exist"
+    found: null
     search_context:
       ENV{PATH}:
+        - "/home/SGM/.opencode/bin"
+        - "/home/SGM/.nvm/versions/node/v24.15.0/bin"
+        - "/home/SGM/.opencode/bin"
         - "/var/home/SGM/google-cloud-sdk/bin"
         - "/home/SGM/.local/bin"
         - "/home/SGM/bin"
@@ -1992,6 +2573,9 @@ events:
         - "/usr/local/sbin"
         - "/var/home/SGM/.lmstudio/bin"
         - "/home/SGM/.local/share/JetBrains/Toolbox/scripts"
+        - "/var/home/SGM/.lmstudio/bin"
+        - "/home/linuxbrew/.linuxbrew/bin"
+        - "/home/linuxbrew/.linuxbrew/sbin"
         - "/var/home/SGM/.lmstudio/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:

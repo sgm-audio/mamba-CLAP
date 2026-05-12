@@ -59,7 +59,7 @@ void PluginProcessor::processBlock(float** inputs, float** outputs,
     const bool flush_now = flush_pending_.exchange(false, std::memory_order_acq_rel);
 
     // Apply context scale dynamically
-    const float ctx_scale = context_scale_.load(std::memory_order_relaxed);
+    const float ctx_scale = base_context_scale_.load(std::memory_order_relaxed);
     mamba_model_->setContextScale(ctx_scale);
     snapshot_model_->setContextScale(ctx_scale);
 
@@ -159,7 +159,7 @@ void PluginProcessor::setParamValue(uint32_t param_id, double value) {
         case 0: dry_wet_mix_.store(static_cast<float>(value),       std::memory_order_relaxed); break;
         case 1: model_type_.store(static_cast<int>(value),           std::memory_order_relaxed); break;
         case 2: bypass_.store(static_cast<double>(value) >= 0.5,    std::memory_order_relaxed); break;
-        case 3: context_scale_.store(static_cast<float>(value),     std::memory_order_relaxed); break;
+        case 3: base_context_scale_.store(static_cast<float>(value),     std::memory_order_relaxed); break;
         default: break;
     }
 }
@@ -169,7 +169,7 @@ double PluginProcessor::getParamValue(uint32_t param_id) const {
         case 0: return static_cast<double>(dry_wet_mix_.load(std::memory_order_relaxed));
         case 1: return static_cast<double>(model_type_.load(std::memory_order_relaxed));
         case 2: return bypass_.load(std::memory_order_relaxed) ? 1.0 : 0.0;
-        case 3: return static_cast<double>(context_scale_.load(std::memory_order_relaxed));
+        case 3: return static_cast<double>(base_context_scale_.load(std::memory_order_relaxed));
         default: return 0.0;
     }
 }
@@ -198,7 +198,7 @@ void PluginProcessor::processParamUpdates(const std::vector<ParamSnapshot>& upda
                 bypass_.store(upd.value >= 0.5, std::memory_order_relaxed);
                 break;
             case 3:
-                context_scale_.store(static_cast<float>(upd.value), std::memory_order_relaxed);
+                base_context_scale_.store(static_cast<float>(upd.value), std::memory_order_relaxed);
                 break;
             default:
                 break;

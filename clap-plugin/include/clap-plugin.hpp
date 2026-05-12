@@ -2,9 +2,12 @@
 
 #include <clap/clap.h>
 #include <torch/torch.h>
+#include <torch/script.h>
 #include <memory>
 #include <vector>
 #include <string>
+#include <atomic>
+#include <cstdint>
 #include <fftw3.h>
 
 namespace mamba_audio {
@@ -23,11 +26,11 @@ public:
     bool start_processing();
     void stop_processing();
     void process(const clap_process_t* process);
-    
+
     // Parameter callbacks
-    bool param_value(const clap_param_t* param, double value);
-    double param_value(const clap_param_t* param) const;
-    void param_change(const clap_param_t* param, double value, uint32_t flags);
+    bool param_value(const char* param_id, double value);
+    double param_value(const char* param_id) const;
+    void param_change(const char* param_id, double value, uint32_t flags);
 
     const clap_plugin_descriptor* get_descriptor() const { return descriptor_; }
     const clap_host_t* get_host() const { return host_; }
@@ -52,17 +55,50 @@ private:
     int n_fft_ = 1024;
     int n_mels_ = 80;
 
-    torch::Device device_ = torch::kCPU;
-    
-    // Plugin parameters (exposed to host)
-    float param_effect_type = 0.0f; // mapped to 0..3 (reverb, compression, saturation, EQ)
-    float param_mix = 0.5f;         // 0.0 dry, 1.0 wet
-    float param_context_length = 60.0f; // seconds of context to consider (informational)
+    // Maximum supported block size for pre-allocation
+    static constexpr int MAX_BLOCK_SIZE = 32768;
+    static constexpr int MAX_FRAMES = (MAX_BLOCK_SIZE / 256) + 2; // worst case
+
+    // REAL-TIME SAFE: Pre-allocated buffers (allocated in activate(), never in process())
+    torch::Tensor prealloc_input_;       // [1, MAX_BLOCK_SIZE]
+    torch::Tensor prealloc_mel_spec_;    // [MAX_FRAMES, n_mels]
+    torch::Tensor prealloc_processed_mel_; // [MAX_FRAMES, n_mels]
+    torch::Tensor prealloc_zeros_;        // [1, n_mels] - reusable zero tensor for error path
+
+    // Persistent Mamba state (survives across blocks)
+    std::vector<torch::Tensor> mamba_state_;
+    bool state_initialized_ = false;
+
+    // Atomic parameter access (safe from NRT thread)
+    std::atomic<float> param_effect_type_{0.0f};
+    std::atomic<float> param_mix_{0.5f};
+
+    // Metrics (for monitoring and diagnostics)
+    std::atomic<uint64_t> blocks_processed_count_{0};
+    std::atomic<uint64_t> total_fft_time_us_{0};
+    std::atomic<uint64_t> processing_error_count_{0};
+    std::atomic<uint64_t> last_error_code_{0};
+
+    // Get metrics snapshot (thread-safe)
+    struct Metrics {
+        uint64_t blocks_processed;
+        uint64_t total_fft_time_us;
+        uint64_t processing_errors;
+        double avg_fft_time_us() const {
+            return blocks_processed > 0 ? static_cast<double>(total_fft_time_us) / blocks_processed : 0.0;
+        }
+    };
+    Metrics getMetrics() const {
+        return Metrics{
+            blocks_processed_count_.load(std::memory_order_relaxed),
+            total_fft_time_us_.load(std::memory_order_relaxed),
+            processing_error_count_.load(std::memory_order_relaxed)
+        };
+    }
 
     // Helper to map effect_type float to int index
     int getEffectTypeIndex() const {
-        // Clamp and round to nearest integer 0-3
-        float v = param_effect_type;
+        float v = param_effect_type_.load(std::memory_order_relaxed);
         if (v < 0.0f) v = 0.0f;
         if (v > 3.0f) v = 3.0f;
         return static_cast<int>(std::round(v));
@@ -121,14 +157,14 @@ public:
 
 private:
     torch::Device device_;
-    std::shared_ptr<torch::jit::script::Module> module_;
+    torch::jit::Module module_;
     int n_mels_;
     
     // Effect decoders (simple linear layers for now)
-    std::shared_ptr<torch::nn::Linear> reverb_decoder_;
-    std::shared_ptr<torch::nn::Linear> compression_decoder_;
-    std::shared_ptr<torch::nn::Linear> saturation_decoder_;
-    std::shared_ptr<torch::nn::Linear> eq_decoder_;
+    torch::nn::Linear reverb_decoder_{nullptr};
+    torch::nn::Linear compression_decoder_{nullptr};
+    torch::nn::Linear saturation_decoder_{nullptr};
+    torch::nn::Linear eq_decoder_{nullptr};
 };
 
 } // namespace mamba_audio

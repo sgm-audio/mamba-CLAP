@@ -1,8 +1,8 @@
 {
 	"InstallScripts" : 
 	[
-		"/home/SGM/dev/Mamba Based/MambaDAW/build/cmake_install.cmake",
-		"/home/SGM/dev/Mamba Based/MambaDAW/build/_deps/clap-build/cmake_install.cmake"
+		"/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/cmake_install.cmake",
+		"/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

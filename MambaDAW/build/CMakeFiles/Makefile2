@@ -54,115 +54,115 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = "/home/SGM/dev/Mamba Based/MambaDAW"
+CMAKE_SOURCE_DIR = "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW"
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = "/home/SGM/dev/Mamba Based/MambaDAW/build"
+CMAKE_BINARY_DIR = "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build"
+
+#=============================================================================
+# Directory level rules for directory /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build
+
+# Recursive "all" directory target.
+/home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/all:
+.PHONY : /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/all
+
+# Recursive "codegen" directory target.
+/home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/codegen:
+.PHONY : /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/codegen
+
+# Recursive "preinstall" directory target.
+/home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/preinstall:
+.PHONY : /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/preinstall
+
+# Recursive "clean" directory target.
+/home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/clean: /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/clean
+.PHONY : /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/clean
 
 #=============================================================================
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
-all: CMakeFiles/MambaDAW.dir/all
-all: _deps/clap-build/all
+all: CMakeFiles/MambaClapPlugin.dir/all
+all: /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/all
 .PHONY : all
 
 # The main recursive "codegen" target.
-codegen: CMakeFiles/MambaDAW.dir/codegen
-codegen: _deps/clap-build/codegen
+codegen: CMakeFiles/MambaClapPlugin.dir/codegen
+codegen: /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
-preinstall: _deps/clap-build/preinstall
+preinstall: /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
-clean: CMakeFiles/MambaDAW.dir/clean
-clean: _deps/clap-build/clean
+clean: CMakeFiles/MambaClapPlugin.dir/clean
+clean: /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/clean
 .PHONY : clean
 
 #=============================================================================
-# Directory level rules for directory _deps/clap-build
-
-# Recursive "all" directory target.
-_deps/clap-build/all:
-.PHONY : _deps/clap-build/all
-
-# Recursive "codegen" directory target.
-_deps/clap-build/codegen:
-.PHONY : _deps/clap-build/codegen
-
-# Recursive "preinstall" directory target.
-_deps/clap-build/preinstall:
-.PHONY : _deps/clap-build/preinstall
-
-# Recursive "clean" directory target.
-_deps/clap-build/clean: _deps/clap-build/CMakeFiles/clap-tests.dir/clean
-.PHONY : _deps/clap-build/clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/MambaDAW.dir
+# Target rules for target CMakeFiles/MambaClapPlugin.dir
 
 # All Build rule for target.
-CMakeFiles/MambaDAW.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" --progress-num=1,2,3,4,5,6,7 "Built target MambaDAW"
-.PHONY : CMakeFiles/MambaDAW.dir/all
+CMakeFiles/MambaClapPlugin.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" --progress-num=1,2,3,4,5,6 "Built target MambaClapPlugin"
+.PHONY : CMakeFiles/MambaClapPlugin.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/MambaDAW.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" 7
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/MambaDAW.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" 0
-.PHONY : CMakeFiles/MambaDAW.dir/rule
+CMakeFiles/MambaClapPlugin.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" 6
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/MambaClapPlugin.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" 0
+.PHONY : CMakeFiles/MambaClapPlugin.dir/rule
 
 # Convenience name for target.
-MambaDAW: CMakeFiles/MambaDAW.dir/rule
-.PHONY : MambaDAW
+MambaClapPlugin: CMakeFiles/MambaClapPlugin.dir/rule
+.PHONY : MambaClapPlugin
 
 # codegen rule for target.
-CMakeFiles/MambaDAW.dir/codegen:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" --progress-num=1,2,3,4,5,6,7 "Finished codegen for target MambaDAW"
-.PHONY : CMakeFiles/MambaDAW.dir/codegen
+CMakeFiles/MambaClapPlugin.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" --progress-num=1,2,3,4,5,6 "Finished codegen for target MambaClapPlugin"
+.PHONY : CMakeFiles/MambaClapPlugin.dir/codegen
 
 # clean rule for target.
-CMakeFiles/MambaDAW.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaDAW.dir/build.make CMakeFiles/MambaDAW.dir/clean
-.PHONY : CMakeFiles/MambaDAW.dir/clean
+CMakeFiles/MambaClapPlugin.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MambaClapPlugin.dir/build.make CMakeFiles/MambaClapPlugin.dir/clean
+.PHONY : CMakeFiles/MambaClapPlugin.dir/clean
 
 #=============================================================================
-# Target rules for target _deps/clap-build/CMakeFiles/clap-tests.dir
+# Target rules for target /home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir
 
 # All Build rule for target.
-_deps/clap-build/CMakeFiles/clap-tests.dir/all:
-	$(MAKE) $(MAKESILENT) -f _deps/clap-build/CMakeFiles/clap-tests.dir/build.make _deps/clap-build/CMakeFiles/clap-tests.dir/depend
-	$(MAKE) $(MAKESILENT) -f _deps/clap-build/CMakeFiles/clap-tests.dir/build.make _deps/clap-build/CMakeFiles/clap-tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" --progress-num= "Built target clap-tests"
-.PHONY : _deps/clap-build/CMakeFiles/clap-tests.dir/all
+/home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/all:
+	$(MAKE) $(MAKESILENT) -f "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/build.make" "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/depend"
+	$(MAKE) $(MAKESILENT) -f "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/build.make" "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/build"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" --progress-num= "Built target clap-tests"
+.PHONY : /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/all
 
 # Build rule for subdir invocation for target.
-_deps/clap-build/CMakeFiles/clap-tests.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" 0
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 _deps/clap-build/CMakeFiles/clap-tests.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start "/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" 0
-.PHONY : _deps/clap-build/CMakeFiles/clap-tests.dir/rule
+/home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" 0
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/all"
+	$(CMAKE_COMMAND) -E cmake_progress_start "/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" 0
+.PHONY : /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/rule
 
 # Convenience name for target.
-clap-tests: _deps/clap-build/CMakeFiles/clap-tests.dir/rule
+clap-tests: /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/rule
 .PHONY : clap-tests
 
 # codegen rule for target.
-_deps/clap-build/CMakeFiles/clap-tests.dir/codegen:
-	$(MAKE) $(MAKESILENT) -f _deps/clap-build/CMakeFiles/clap-tests.dir/build.make _deps/clap-build/CMakeFiles/clap-tests.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/home/SGM/dev/Mamba Based/MambaDAW/build/CMakeFiles" --progress-num= "Finished codegen for target clap-tests"
-.PHONY : _deps/clap-build/CMakeFiles/clap-tests.dir/codegen
+/home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/build.make" "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/codegen"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir="/var/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/CMakeFiles" --progress-num= "Finished codegen for target clap-tests"
+.PHONY : /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/codegen
 
 # clean rule for target.
-_deps/clap-build/CMakeFiles/clap-tests.dir/clean:
-	$(MAKE) $(MAKESILENT) -f _deps/clap-build/CMakeFiles/clap-tests.dir/build.make _deps/clap-build/CMakeFiles/clap-tests.dir/clean
-.PHONY : _deps/clap-build/CMakeFiles/clap-tests.dir/clean
+/home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/clean:
+	$(MAKE) $(MAKESILENT) -f "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/build.make" "/home/SGM/dev/Audio Development/Mamba Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/clean"
+.PHONY : /home/SGM/dev/Audio\ Development/Mamba\ Based/MambaDAW/build/_deps/clap-build/CMakeFiles/clap-tests.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

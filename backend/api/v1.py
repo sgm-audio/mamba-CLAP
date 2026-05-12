@@ -2,12 +2,15 @@
 API v1 routes for the AI-Powered Audio Mastering Service.
 """
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from werkzeug.utils import secure_filename
 from functools import wraps
 import os
+import re
+import time
 import uuid
 from datetime import datetime, timedelta
+from typing import Tuple
 import boto3
 from botocore.exceptions import ClientError
 from backend import db
@@ -47,6 +50,25 @@ def rate_limit(max_per_minute):
             return func(*args, **kwargs)
         return wrapper
     return decorator
+
+def validate_password_strength(password: str) -> Tuple[bool, str]:
+    """
+    Validate password meets complexity requirements.
+    Returns (is_valid, error_message).
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters"
+    if len(password) > 128:
+        return False, "Password must be at most 128 characters"
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter"
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one digit"
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>[\]\\;_+`/.-]', password):
+        return False, "Password must contain at least one special character"
+    return True, ""
 
 # Helper function to get presigned URL for upload
 def get_presigned_upload_url(file_name, content_type, user_id, job_id):
@@ -181,7 +203,12 @@ def register():
     
     if len(fullName) < 2 or len(fullName) > 100:
         return jsonify({'error': 'VALIDATION_ERROR', 'message': 'Full name must be between 2 and 100 characters'}), 400
-    
+
+    # Validate password strength
+    password_valid, password_error = validate_password_strength(password)
+    if not password_valid:
+        return jsonify({'error': 'VALIDATION_ERROR', 'message': password_error}), 400
+
     # Check if user already exists
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'CONFLICT', 'message': 'User with this email already exists'}), 409
@@ -219,6 +246,7 @@ def register():
     }), 201
 
 @api_bp.route('/auth/login', methods=['POST'])
+@rate_limit(5)  # 5 login attempts per minute per IP (account lockout after 5 failures)
 def login():
     """
     Log in user.
@@ -267,13 +295,36 @@ def login():
     
     email = data['email'].strip().lower()
     password = data['password']
-    
+
     user = User.query.filter_by(email=email).first()
-    
+
+    # Check if account is locked
+    if user and user.lockedUntil and user.lockedUntil > datetime.utcnow():
+        lockout_remaining = (user.lockedUntil - datetime.utcnow()).seconds
+        return jsonify({
+            'error': 'ACCOUNT_LOCKED',
+            'message': f'Account is locked due to too many failed login attempts. Try again in {lockout_remaining} seconds.',
+            'retryAfter': lockout_remaining
+        }), 429
+
     if not user or not user.check_password(password):
+        # Increment failed login attempts
+        if user:
+            user.failedLoginAttempts = (user.failedLoginAttempts or 0) + 1
+            if user.failedLoginAttempts >= 5:
+                user.lockedUntil = datetime.utcnow() + timedelta(minutes=5)
+                db.session.commit()
+                return jsonify({
+                    'error': 'ACCOUNT_LOCKED',
+                    'message': 'Account locked due to too many failed login attempts. Try again in 5 minutes.',
+                    'retryAfter': 300
+                }), 429
+        db.session.commit()
         return jsonify({'error': 'INVALID_CREDENTIALS', 'message': 'Invalid email or password'}), 401
-    
-    # Update last login
+
+    # Successful login - reset failed attempts and update last login
+    user.failedLoginAttempts = 0
+    user.lockedUntil = None
     user.lastLoginAt = datetime.utcnow()
     db.session.commit()
     
@@ -299,7 +350,7 @@ def login():
 @jwt_required()
 def logout():
     """
-    Log out user.
+    Log out user by blacklisting the JWT token.
     ---
     tags:
       - authentication
@@ -311,8 +362,14 @@ def logout():
       '401':
         description: Unauthorized
     """
-    # In a more advanced implementation, we might add the token to a blacklist
-    # For now, we just return success (the client should discard the token)
+    if current_app.config.get('JWT_TOKEN_BLACKLIST_ENABLED', False):
+        jwt_data = get_jwt()
+        jti = jwt_data.get('jti')
+        exp = jwt_data.get('exp')
+        if jti and exp:
+            remaining = exp - int(time.time())
+            if remaining > 0:
+                current_app.redis.setex(f'jwt_blocklist:{jti}', remaining, '1')
     return jsonify({'message': 'Logged out successfully'}), 200
 
 # Job routes
@@ -523,7 +580,7 @@ def create_job():
     
     # Validate preset
     if preset_id not in current_app.config['PRESETS']:
-        return jsonify({'error': 'VALIDALID_ERROR', 'message': 'Invalid preset ID'}), 400
+        return jsonify({'error': 'VALIDATION_ERROR', 'message': 'Invalid preset ID'}), 400
     
     # Validate content type
     if content_type not in current_app.config['ALLOWED_CONTENT_TYPES']:
@@ -545,7 +602,34 @@ def create_job():
     user = User.query.get(current_user_id)
     if user.credits < 1:
         return jsonify({'error': 'INSUFFICIENT_CREDITS', 'message': 'Insufficient credits to process this job'}), 402
-    
+
+    # Idempotency check: look for a recent pending/processing job with the same parameters
+    # If found, return that job instead of creating a duplicate
+    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+    potential_duplicate = Job.query.filter(
+        Job.userId == current_user_id,
+        Job.fileName == file_name,
+        Job.presetId == preset_id,
+        Job.intensity == intensity,
+        Job.loudnessTarget == loudness_target,
+        Job.stereoWidth == stereo_width,
+        Job.enableTruePeakLimiting == enable_true_peak_limiting,
+        Job.status.in_(['pending', 'processing']),
+        Job.createdAt >= five_minutes_ago
+    ).first()
+
+    if potential_duplicate:
+        return jsonify({
+            'message': 'Returning existing job with same parameters (idempotent request)',
+            'job': {
+                'id': str(potential_duplicate.id),
+                'status': potential_duplicate.status,
+                'fileName': potential_duplicate.fileName,
+                'presetId': potential_duplicate.presetId,
+                'createdAt': potential_duplicate.createdAt.isoformat()
+            }
+        }), 200
+
     # Check concurrent job limit
     max_concurrent = current_app.config.get('MAX_CONCURRENT_JOBS', 5)
     active_jobs = Job.query.filter_by(userId=current_user_id).filter(
@@ -891,39 +975,68 @@ def list_presets():
     }), 200
 
 # Health check route
+def _check_database() -> tuple[bool, str]:
+    """Check database connectivity. Returns (healthy, message)."""
+    try:
+        db.session.execute(db.text('SELECT 1'))
+        return True, 'healthy'
+    except Exception as e:
+        return False, f'unhealthy: {str(e)[:100]}'
+
+def _check_redis() -> tuple[bool, str]:
+    """Check Redis connectivity. Returns (healthy, message)."""
+    try:
+        current_app.redis.ping()
+        return True, 'healthy'
+    except Exception as e:
+        return False, f'unhealthy: {str(e)[:100]}'
+
+def _check_s3() -> tuple[bool, str]:
+    """Check S3 connectivity. Returns (healthy, message)."""
+    try:
+        s3_client = boto3.client('s3')
+        bucket_name = os.environ.get('AWS_STORAGE_BUCKET_NAME', '')
+        if bucket_name:
+            s3_client.head_bucket(Bucket=bucket_name)
+        return True, 'healthy'
+    except ClientError as e:
+        return False, f'unhealthy: {str(e)[:100]}'
+    except Exception as e:
+        return False, f'unhealthy: {str(e)[:100]}'
+
 @api_bp.route('/health', methods=['GET'])
 def get_health():
     """
-    Health check endpoint.
+    Health check endpoint with real dependency checks.
     ---
     tags:
       - health
     responses:
       '200':
-        description: Service is healthy
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HealthResponse'
+        description: Service is healthy (all components operational)
       '503':
-        description: Service unavailable
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
+        description: Service unavailable (one or more components unhealthy)
     """
-    # We'll do a simple health check: check if we can connect to the database and the queue.
-    # For now, we'll just return healthy.
-    # In a real implementation, we would check the database, Redis, and object storage.
+    db_healthy, db_msg = _check_database()
+    redis_healthy, redis_msg = _check_redis()
+    s3_healthy, s3_msg = _check_s3()
+
+    all_healthy = db_healthy and redis_healthy and s3_healthy
+
+    components = {
+        'api': 'healthy',
+        'database': db_msg,
+        'jobQueue': redis_msg,
+        'objectStorage': s3_msg
+    }
+
+    status = 'healthy' if all_healthy else 'unhealthy'
+    status_code = 200 if all_healthy else 503
+
     return jsonify({
-        'status': 'healthy',
+        'status': status,
         'timestamp': datetime.utcnow().isoformat(),
         'version': '1.0.0',
-        'uptimeSeconds': 0,  # We don't track uptime in this simple implementation
-        'components': {
-            'api': 'healthy',
-            'database': 'healthy',  # We assume it's healthy if we can make a query
-            'jobQueue': 'healthy',  # We assume it's healthy if we can connect to Redis
-            'objectStorage': 'healthy'  # We assume it's healthy if we can connect to S3
-        }
-    }), 200
+        'uptimeSeconds': 0,
+        'components': components
+    }), status_code

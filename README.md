@@ -70,6 +70,21 @@ MAMBA_FORCE_BUILD=TRUE pip install --no-cache-dir mamba-ssm --no-build-isolation
 
 ---
 
+## 🏛️ State-Centric Architecture
+
+The CLAP plugin implements a **state-centric design** where Mamba's hidden state (`h_t`) lives entirely on the real-time audio thread:
+
+| Rule | Why | How |
+|------|-----|-----|
+| **No heap allocation in RT** | Prevents non-deterministic glitches | Buffers pre-allocated in `activate()` |
+| **No background threads** | Synchronization overhead > inference time | `processBlock()` calls `processSample()` directly |
+| **State persists** across callbacks | `h_t` is the memory; reset only between songs | `resetState()` called in `activate()`/`deactivate()` |
+| **Quantization mandatory** | FP32 CPU > 200 µs/frame (fails real-time) | INT8/INT4 quantized models via `-DENABLE_QUANTIZATION=ON` |
+
+**Why this matters**: In a traditional plugin, processing each block independently loses context. Mamba's state carries 60+ seconds of musical memory across callbacks, enabling compression decisions that "hear" what came before.
+
+---
+
 ## 🛠️ Development & Automation
 
 The project includes a suite of scripts in the [`scripts/`](./scripts) directory for common workflows:

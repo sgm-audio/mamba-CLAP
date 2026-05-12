@@ -1,0 +1,38 @@
+graph TD
+    %% Threads
+    subgraph Threads
+        AT[Audio Thread<br/>(process() callback)]
+        MT[Main Thread<br/>(UI, CLAP param flush, state serialization)]
+        ARA[ARA Thread<br/>(DocumentController, offline rendering, analysis)]
+    end
+
+    %% Shared Data Structures
+    subgraph SharedData
+        direction TB
+        h_state[h_state<br/>SSM State Vector]
+        params[Atomic Param Array<br/>(float[NUM_PARAMS])]
+        cond_buf[Double-Buffered Conditioning Frame<br/>(COND_DIM floats)]
+        state_snapshot[State Snapshot Buffer<br/>(for seqlock)]
+        seq_lock[Seqlock Counter<br/>(atomic int)]
+    end
+
+    %% Ownership and Communication
+    AT -->|Reads| h_state
+    AT -->|Reads| params
+    AT -->|Reads| cond_buf
+    AT -->|Writes (secondary buffer)| state_snapshot
+    MT -->|Writes| params
+    MT -->|Reads/Writes| state_snapshot (with seqlock)
+    ARA -->|Writes| cond_buf
+    MT -->|Reads| cond_buf (for UI display? optional)
+
+    %% Notes
+    classDef audioThread fill:#ffe4b5,stroke:#333;
+    classDef mainThread fill:#b0e0e6,stroke:#333;
+    classDef araThread fill:#e6e6fa,stroke:#333;
+    classDef shared fill:#f0f8ff,stroke:#333;
+
+    class AT audioThread;
+    class MT mainThread;
+    class ARA araThread;
+    class h_state,params,cond_buf,state_snapshot,seq_lock shared;

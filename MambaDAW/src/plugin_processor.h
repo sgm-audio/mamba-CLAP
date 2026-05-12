@@ -97,7 +97,8 @@ private:
     std::atomic<bool>  bypass_{false};
     std::atomic<bool>  model_loaded_{false};
     std::atomic<float> dry_wet_mix_{0.5f};
-    std::atomic<float> context_scale_{1.0f};
+    std::atomic<float> base_context_scale_{1.0f};  // Base context scale (from param_id 3)
+    std::atomic<float> feature_context_scale_{1.0f};  // Context scale adjustment from features
     std::atomic<int>   model_type_{0};
 
     // Parameter gating and flush control

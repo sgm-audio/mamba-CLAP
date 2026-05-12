@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 class User(db.Model):
     __tablename__ = 'users'
 
-    id = db.Column(db.UUID(as_binary=False), primary_key=True, default=uuid.uuid4)
+    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     fullName = db.Column(db.String(100), nullable=False)
     passwordHash = db.Column(db.String(255), nullable=False)
@@ -19,6 +19,8 @@ class User(db.Model):
     updatedAt = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     isActive = db.Column(db.Boolean, nullable=False, default=True)
     lastLoginAt = db.Column(db.DateTime(timezone=True), nullable=True)
+    failedLoginAttempts = db.Column(db.Integer, nullable=False, default=0)
+    lockedUntil = db.Column(db.DateTime(timezone=True), nullable=True)
 
     # Relationship
     jobs = db.relationship('Job', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -37,8 +39,8 @@ class User(db.Model):
 class Job(db.Model):
     __tablename__ = 'jobs'
 
-    id = db.Column(db.UUID(as_binary=False), primary_key=True, default=uuid.uuid4)
-    userId = db.Column(db.UUID(as_binary=False), db.ForeignKey('users.id'), nullable=False, index=True)
+    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
+    userId = db.Column(db.Uuid, db.ForeignKey('users.id'), nullable=False, index=True)
     fileName = db.Column(db.String(255), nullable=False)
     fileSize = db.Column(db.BigInteger, nullable=False)
     contentType = db.Column(db.String(50), nullable=False)
