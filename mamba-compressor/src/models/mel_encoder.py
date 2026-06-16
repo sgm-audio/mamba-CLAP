@@ -7,16 +7,16 @@ import torch.nn as nn
 class MelEncoder(nn.Module):
     """
     Converts log-mel spectrogram to d_model dimensional embeddings.
-    
+
     Input:  (B, n_mels, T) — log-mel, normalized to [-1, 1]
     Output: (B, T, d_model)
-    
+
     Args:
         n_mels: Number of mel bands (default: 128)
         d_model: Embedding dimension (default: 256)
         dropout: Dropout rate (default: 0.1)
     """
-    
+
     def __init__(
         self,
         n_mels: int = 128,
@@ -26,21 +26,21 @@ class MelEncoder(nn.Module):
         super().__init__()
         self.n_mels = n_mels
         self.d_model = d_model
-        
+
         self.proj = nn.Sequential(
             nn.Linear(n_mels, d_model),
             nn.GELU(),
             nn.Dropout(dropout),
             nn.LayerNorm(d_model),
         )
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass.
-        
+
         Args:
             x: Input tensor of shape (B, n_mels, T)
-        
+
         Returns:
             Embedded tensor of shape (B, T, d_model)
         """

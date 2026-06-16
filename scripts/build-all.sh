@@ -19,14 +19,14 @@ fi
 echo "Building MambaDAW C++ plugin..."
 if [ -d "MambaDAW" ]; then
     cd MambaDAW
-    
+
     # Create build directory if it doesn't exist
     if [ ! -d "build" ]; then
         mkdir build
     fi
-    
+
     cd build
-    
+
     # Configure with CMake (adjust path to libtorch as needed)
     # Users should set LIBTORCH_PATH environment variable or edit this line
     if [ -z "$LIBTORCH_PATH" ]; then
@@ -34,13 +34,13 @@ if [ -d "MambaDAW" ]; then
         echo "To specify libtorch path, export LIBTORCH_PATH=/path/to/libtorch before running"
         LIBTORCH_PATH="/usr/local/libtorch"
     fi
-    
+
     echo "Configuring with libtorch at: $LIBTORCH_PATH"
     cmake .. -DCMAKE_PREFIX_PATH="$LIBTORCH_PATH"
-    
+
     # Build
     cmake --build . --config Release
-    
+
     echo "MambaDAW build completed successfully"
     cd ../..
 else

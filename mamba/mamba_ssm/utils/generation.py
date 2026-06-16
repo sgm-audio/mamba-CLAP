@@ -34,6 +34,8 @@ def modify_logits_for_min_p_filtering(logits, min_p):
         return
     indices_to_remove = logits < min_p
     logits.masked_fill_(indices_to_remove, float("-Inf"))
+
+
 # https://github.com/NVIDIA/Megatron-LM/blob/0bb597b42c53355a567aba2a1357cc34b9d99ddd/megatron/text_generation/sampling.py
 # https://github.com/huggingface/transformers/blob/a44985b41cfa2de48a5e1de7f1f93b7483da25d1/src/transformers/generation/logits_process.py#L231
 def modify_logits_for_top_k_filtering(logits, top_k):
@@ -102,7 +104,9 @@ def sample(logits, top_k=1, top_p=0.0, min_p=0.0, temperature=1.0):
                 modify_logits_for_min_p_filtering(logits_top, min_prob)
                 if temperature != 1.0:
                     logits_top /= temperature
-                return torch.multinomial(torch.softmax(logits_top, dim=-1), num_samples=1).squeeze(dim=-1)
+                return torch.multinomial(torch.softmax(logits_top, dim=-1), num_samples=1).squeeze(
+                    dim=-1
+                )
             # Clone so that when we modify for top_p we don't change the original logits
             logits_top = logits / temperature if temperature != 1.0 else logits.clone()
             modify_logits_for_top_p_filtering(logits_top, top_p)
@@ -127,7 +131,7 @@ def decode(
     cg=False,
     enable_timing=False,
     output_scores=False,
-    streamer: Optional[TextStreamer] = None
+    streamer: Optional[TextStreamer] = None,
 ):
     """Decoding, either greedy or with top-k or top-p sampling.
     If top-k = 0, don't limit the number of candidates (pure sampling).
@@ -220,9 +224,7 @@ def decode(
         if repetition_penalty == 1.0:
             sampled_tokens = sample_tokens(logits, inference_params)
         else:
-            logits = modify_logit_for_repetition_penalty(
-                logits, sequences_cat, repetition_penalty
-            )
+            logits = modify_logit_for_repetition_penalty(logits, sequences_cat, repetition_penalty)
             sampled_tokens = sample_tokens(logits, inference_params)
             sequences_cat = torch.cat([sequences_cat, sampled_tokens], dim=1)
         sequences.append(sampled_tokens)
@@ -254,7 +256,15 @@ class GenerationMixin:
         **kwargs,
     ):
         output = decode(
-            input_ids, self, max_length, top_k=top_k, top_p=top_p, min_p = min_p, temperature=temperature, output_scores=output_scores, **kwargs
+            input_ids,
+            self,
+            max_length,
+            top_k=top_k,
+            top_p=top_p,
+            min_p=min_p,
+            temperature=temperature,
+            output_scores=output_scores,
+            **kwargs,
         )
         if not output_scores:
             output.scores = None
@@ -301,7 +311,9 @@ def update_graph_cache(
         gc.collect()
         cache.device, cache.dtype = device, dtype
         cache.max_batch_size, cache.max_seqlen = batch_size, max_seqlen
-        assert hasattr(model, "allocate_inference_cache"), "CUDA graph decoding requires that the model has a method allocate_inference_cache"
+        assert hasattr(
+            model, "allocate_inference_cache"
+        ), "CUDA graph decoding requires that the model has a method allocate_inference_cache"
         inf_cache = model.allocate_inference_cache(batch_size, max_seqlen, dtype)
         lengths_per_sample = torch.full((batch_size,), seqlen_og, dtype=torch.int32, device=device)
         cache.inference_params = InferenceParams(

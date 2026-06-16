@@ -21,7 +21,7 @@ graph TD
 
     subgraph Real-Time Audio Thread
         Process[clap_process_t]
-        
+
         subgraph MambaModel
             StateH[(state_h_ persistent)]
             ConvH[(conv_buffer_ persistent)]
@@ -32,10 +32,10 @@ graph TD
     UI --> Params
     Autom --> Params
     Load --> Weights
-    
+
     Params -.->|Read| Process
     Weights -.->|Read| SIMD
-    
+
     Process --> SIMD
     SIMD <--> StateH
     SIMD <--> ConvH

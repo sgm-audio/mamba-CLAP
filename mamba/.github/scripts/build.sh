@@ -11,9 +11,9 @@ export PATH=/usr/local/cuda/bin:/usr/local/nvidia/bin:/usr/local/nvidia/lib64:$P
 export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
 # Limit MAX_JOBS otherwise the github runner goes OOM
-export MAX_JOBS=2 
-export MAMBA_FORCE_BUILD="TRUE" 
-export MAMBA_FORCE_CXX11_ABI=$CXX11_ABI 
+export MAX_JOBS=2
+export MAMBA_FORCE_BUILD="TRUE"
+export MAMBA_FORCE_CXX11_ABI=$CXX11_ABI
 
 # 5h timeout since GH allows max 6h and we want some buffer
 EXIT_CODE=0

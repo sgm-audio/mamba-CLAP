@@ -6,11 +6,12 @@ import math
 from typing import Optional
 
 import torch
-
 import triton
 import triton.language as tl
 import triton.testing
-#from flash_attn.cute.benchmark import pytorch_profiler
+
+# from flash_attn.cute.benchmark import pytorch_profiler
+
 
 @triton.jit
 def rotary_qk_inference_kernel(
@@ -26,37 +27,45 @@ def rotary_qk_inference_kernel(
     BIAS_K,
     nheads,
     headdim,
-    stride_out_q,           # (batch, mimo_dim, nheads, headdim)
-    stride_out_k,           # (batch, mimo_dim, nheads, headdim)
-    stride_out_angle_state, # (batch, nheads, rotary_dim // 2)
-    stride_q,               # (batch, mimo_dim, nheads, headdim)
-    stride_k,               # (batch, mimo_dim, nheads, headdim)
-    stride_angle_state,     # (batch, nheads, rotary_dim // 2)
-    stride_angle_proj,      # (batch, nheads, rotary_dim // 2)
-    stride_dt,              # (batch, nheads)
-    stride_bias_q,          # (mimo_dim, nheads, headdim)
-    stride_bias_k,          # (mimo_dim, nheads, headdim)
+    stride_out_q,  # (batch, mimo_dim, nheads, headdim)
+    stride_out_k,  # (batch, mimo_dim, nheads, headdim)
+    stride_out_angle_state,  # (batch, nheads, rotary_dim // 2)
+    stride_q,  # (batch, mimo_dim, nheads, headdim)
+    stride_k,  # (batch, mimo_dim, nheads, headdim)
+    stride_angle_state,  # (batch, nheads, rotary_dim // 2)
+    stride_angle_proj,  # (batch, nheads, rotary_dim // 2)
+    stride_dt,  # (batch, nheads)
+    stride_bias_q,  # (mimo_dim, nheads, headdim)
+    stride_bias_k,  # (mimo_dim, nheads, headdim)
     # Meta-parameters
     ROTARY_DIM: tl.constexpr,
     CONJUGATE: tl.constexpr,
     HAS_BIAS_Q: tl.constexpr,
     HAS_BIAS_K: tl.constexpr,
     MIMO_DIM: tl.constexpr,
-    BLOCK_D: tl.constexpr, # headdim, no chunking
-    ROTATE_PAIRWISE: tl.constexpr, # If true, rotate every pair of dimensions together. Otherwise, rotate the first half and second half separately (like in the original RoPE paper)
+    BLOCK_D: tl.constexpr,  # headdim, no chunking
+    ROTATE_PAIRWISE: tl.constexpr,  # If true, rotate every pair of dimensions together. Otherwise, rotate the first half and second half separately (like in the original RoPE paper)
 ):
-    pid_nheads = tl.program_id(axis=0) # heads
+    pid_nheads = tl.program_id(axis=0)  # heads
     pid_batch = tl.program_id(axis=1)
 
     Q = Q + pid_batch * stride_q[0] + pid_nheads * stride_q[2]
     K = K + pid_batch * stride_k[0] + pid_nheads * stride_k[2]
-    ANGLE_STATE = ANGLE_STATE + pid_batch * stride_angle_state[0] + pid_nheads * stride_angle_state[1]  # FIX: [1]
-    ANGLE_PROJ = ANGLE_PROJ + pid_batch * stride_angle_proj[0] + pid_nheads * stride_angle_proj[1]      # FIX: [1]
+    ANGLE_STATE = (
+        ANGLE_STATE + pid_batch * stride_angle_state[0] + pid_nheads * stride_angle_state[1]
+    )  # FIX: [1]
+    ANGLE_PROJ = (
+        ANGLE_PROJ + pid_batch * stride_angle_proj[0] + pid_nheads * stride_angle_proj[1]
+    )  # FIX: [1]
     DT = DT + pid_batch * stride_dt[0] + pid_nheads * stride_dt[1]
 
     OUT_Q = OUT_Q + pid_batch * stride_out_q[0] + pid_nheads * stride_out_q[2]
     OUT_K = OUT_K + pid_batch * stride_out_k[0] + pid_nheads * stride_out_k[2]
-    OUT_ANGLE_STATE = OUT_ANGLE_STATE + pid_batch * stride_out_angle_state[0] + pid_nheads * stride_out_angle_state[1]  # FIX: [1]
+    OUT_ANGLE_STATE = (
+        OUT_ANGLE_STATE
+        + pid_batch * stride_out_angle_state[0]
+        + pid_nheads * stride_out_angle_state[1]
+    )  # FIX: [1]
 
     rm = tl.arange(0, MIMO_DIM)
     rd = tl.arange(0, BLOCK_D)
@@ -67,7 +76,7 @@ def rotary_qk_inference_kernel(
     mask_angle = rd_half < ROTARY_DIM // 2
     angle_state = tl.load(ANGLE_STATE, mask=mask_angle, other=0.0).to(tl.float32)
 
-    ANGLE_PROJ = ANGLE_PROJ + rd_half * stride_angle_proj[2]     # (rotary_dim // 2)
+    ANGLE_PROJ = ANGLE_PROJ + rd_half * stride_angle_proj[2]  # (rotary_dim // 2)
     angle_proj = tl.load(ANGLE_PROJ, mask=mask_angle, other=0.0).to(tl.float32)
 
     dt = tl.load(DT, mask=True, other=0.0).to(tl.float32)
@@ -93,7 +102,7 @@ def rotary_qk_inference_kernel(
 
     # Add bias to Q if present
     if HAS_BIAS_Q:
-        BIAS_Q = BIAS_Q + pid_nheads * stride_bias_q[1]                                                   
+        BIAS_Q = BIAS_Q + pid_nheads * stride_bias_q[1]
         BIAS_Q = BIAS_Q + (rm[:, None] * stride_bias_q[0] + rd[None, :] * stride_bias_q[2])
         bias_q = tl.load(BIAS_Q, mask=mask, other=0.0).to(tl.float32)
         q = q + bias_q
@@ -124,7 +133,7 @@ def rotary_qk_inference_kernel(
 
     # Add bias to K if present
     if HAS_BIAS_K:
-        BIAS_K = BIAS_K + pid_nheads * stride_bias_k[1]                                                 
+        BIAS_K = BIAS_K + pid_nheads * stride_bias_k[1]
         BIAS_K = BIAS_K + (rm[:, None] * stride_bias_k[0] + rd[None, :] * stride_bias_k[2])
         bias_k = tl.load(BIAS_K, mask=mask, other=0.0).to(tl.float32)
         k = k + bias_k
@@ -147,6 +156,7 @@ def rotary_qk_inference_kernel(
         k_final = tl.permute(k_joined, (0, 2, 1))  # (mimo_dim, 2, block_d // 2)
         ko = tl.reshape(k_final, [MIMO_DIM, BLOCK_D])
         tl.store(OUT_K, ko, mask=mask)
+
 
 def apply_rotary_qk_inference_fwd(
     q: torch.Tensor,
@@ -188,11 +198,19 @@ def apply_rotary_qk_inference_fwd(
     assert headdim <= 256, "Only support headdim <= 256"
 
     if bias_q is not None:
-        assert bias_q.shape == (mimo_dim, nheads, headdim), f"bias_q shape {bias_q.shape} != (mimo_dim, nheads, headdim) {(mimo_dim, nheads, headdim)}"
+        assert bias_q.shape == (
+            mimo_dim,
+            nheads,
+            headdim,
+        ), f"bias_q shape {bias_q.shape} != (mimo_dim, nheads, headdim) {(mimo_dim, nheads, headdim)}"
         bias_q = bias_q.contiguous()
 
     if bias_k is not None:
-        assert bias_k.shape == (mimo_dim, nheads, headdim), f"bias_k shape {bias_k.shape} != (mimo_dim, nheads, headdim) {(mimo_dim, nheads, headdim)}"
+        assert bias_k.shape == (
+            mimo_dim,
+            nheads,
+            headdim,
+        ), f"bias_k shape {bias_k.shape} != (mimo_dim, nheads, headdim) {(mimo_dim, nheads, headdim)}"
         bias_k = bias_k.contiguous()
 
     output_q = torch.empty_like(q) if not inplace else q
@@ -237,13 +255,13 @@ def apply_rotary_qk_inference_fwd(
 
 
 def apply_rotary_qk_inference_reference(
-    q: torch.Tensor, # (B, R, N, D)
-    k: torch.Tensor, # (B, R, N, D)
-    angle_state: torch.Tensor, # (B, N, S) S: num_rope_angles
-    angle_proj: torch.Tensor, # (B, N, S)
-    dt: torch.Tensor, # (B, N)
-    bias_q: Optional[torch.Tensor] = None, # (R, N, D)
-    bias_k: Optional[torch.Tensor] = None, # (R, N, D)
+    q: torch.Tensor,  # (B, R, N, D)
+    k: torch.Tensor,  # (B, R, N, D)
+    angle_state: torch.Tensor,  # (B, N, S) S: num_rope_angles
+    angle_proj: torch.Tensor,  # (B, N, S)
+    dt: torch.Tensor,  # (B, N)
+    bias_q: Optional[torch.Tensor] = None,  # (R, N, D)
+    bias_k: Optional[torch.Tensor] = None,  # (R, N, D)
     conjugate=False,
     rotate_pairwise=True,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -264,13 +282,13 @@ def apply_rotary_qk_inference_reference(
         k = k + bias_k[None, :, :, :]  # Broadcast bias_k
 
     # Only apply rotary to the rotary dimensions
-    q_rot = q[..., :rotary_dim] # (B, R, N, rotary_dim)
+    q_rot = q[..., :rotary_dim]  # (B, R, N, rotary_dim)
     q_pass = q[..., rotary_dim:]
     k_rot = k[..., :rotary_dim]
     k_pass = k[..., rotary_dim:]
 
     # Compute cos and sin from angle (same for both q and k)
-    cos = torch.cos(angle) # (B, N, S)
+    cos = torch.cos(angle)  # (B, N, S)
     sin = torch.sin(angle)
     if conjugate:
         sin = -sin
@@ -310,8 +328,12 @@ def apply_rotary_qk_inference_reference(
         if half > rdim_half:
             pad_shape = list(cos.shape)
             pad_shape[-1] = half - rdim_half
-            cos = torch.cat([cos, torch.ones(pad_shape, device=cos.device, dtype=cos.dtype)], dim=-1)
-            sin = torch.cat([sin, torch.zeros(pad_shape, device=sin.device, dtype=sin.dtype)], dim=-1)
+            cos = torch.cat(
+                [cos, torch.ones(pad_shape, device=cos.device, dtype=cos.dtype)], dim=-1
+            )
+            sin = torch.cat(
+                [sin, torch.zeros(pad_shape, device=sin.device, dtype=sin.dtype)], dim=-1
+            )
 
         qo0 = q0 * cos - q1 * sin
         qo1 = q0 * sin + q1 * cos
@@ -337,37 +359,54 @@ def test_correctness_qk_inference():
         # Build q,k with optional head broadcasting
         q0 = torch.randn(B, R, 1 if expanded_heads else N, D, device=device, dtype=dtype_qk)
         k0 = torch.randn(B, R, 1 if expanded_heads else N, D, device=device, dtype=dtype_qk)
-        q  = q0.expand(B, R, N, D) if expanded_heads else q0
-        k  = k0.expand(B, R, N, D) if expanded_heads else k0
+        q = q0.expand(B, R, N, D) if expanded_heads else q0
+        k = k0.expand(B, R, N, D) if expanded_heads else k0
 
         angle_state = torch.randn(B, N, RD // 2, device=device, dtype=dtype_ang)
-        angle_proj  = torch.randn(B, N, RD // 2, device=device, dtype=dtype_ang)
-        dt          = torch.randn(B, N, device=device, dtype=dtype_ang)
+        angle_proj = torch.randn(B, N, RD // 2, device=device, dtype=dtype_ang)
+        dt = torch.randn(B, N, device=device, dtype=dtype_ang)
 
         bias_q = torch.randn(R, N, D, device=device, dtype=dtype_qk) if with_bias else None
         bias_k = torch.randn(R, N, D, device=device, dtype=dtype_qk) if with_bias else None
 
         # Reference
         q_ref, k_ref, updated_angle_ref = apply_rotary_qk_inference_reference(
-            q, k, angle_state, angle_proj, dt,
-            bias_q=bias_q, bias_k=bias_k, conjugate=conjugate,
+            q,
+            k,
+            angle_state,
+            angle_proj,
+            dt,
+            bias_q=bias_q,
+            bias_k=bias_k,
+            conjugate=conjugate,
             rotate_pairwise=rotate_pairwise,
         )
 
         # Kernel
         q_out, k_out, updated_angle = apply_rotary_qk_inference_fwd(
-            q, k, angle_state, angle_proj, dt,
-            bias_q=bias_q, bias_k=bias_k, conjugate=conjugate, inplace=False,
+            q,
+            k,
+            angle_state,
+            angle_proj,
+            dt,
+            bias_q=bias_q,
+            bias_k=bias_k,
+            conjugate=conjugate,
+            inplace=False,
             rotate_pairwise=rotate_pairwise,
         )
 
         def _chk(name, a, b, atol=1e-1, rtol=1e-1):
             diff = (a - b).abs().max().item()
             if not torch.allclose(a, b, atol=atol, rtol=rtol):
-                raise AssertionError(f"{name} mismatch: max|Δ|={diff:.3e}  got={tuple(a.shape)}  ref={tuple(b.shape)}")
+                raise AssertionError(
+                    f"{name} mismatch: max|Δ|={diff:.3e}  got={tuple(a.shape)}  ref={tuple(b.shape)}"
+                )
             print(f"  {name:18s} ok   max|Δ|={diff:.2e}")
 
-        print(f"\nInference [{B=}, {R=}, {N=}, {D=}, {RD=} | bias={with_bias}, conj={conjugate}, expanded={expanded_heads}, pairwise={rotate_pairwise}]")
+        print(
+            f"\nInference [{B=}, {R=}, {N=}, {D=}, {RD=} | bias={with_bias}, conj={conjugate}, expanded={expanded_heads}, pairwise={rotate_pairwise}]"
+        )
         _chk("q_out", q_out.float(), q_ref.float(), atol=1e-1, rtol=1e-1)
         _chk("k_out", k_out.float(), k_ref.float(), atol=1e-1, rtol=1e-1)
         _chk("updated_angle", updated_angle, updated_angle_ref, atol=1e-1, rtol=1e-1)
@@ -381,14 +420,34 @@ def test_correctness_qk_inference():
                     run_case(B, R, N, D, RD, with_bias, conjugate, expanded, pairwise)
 
     # light shape sweep
-    for (BB, RR, NN, DD, RRd) in [
-        (1, 2, 64, 64,  32),
+    for BB, RR, NN, DD, RRd in [
+        (1, 2, 64, 64, 32),
         (3, 1, 32, 128, 64),
         (2, 8, 32, 128, 64),
     ]:
         for pairwise in [True, False]:
-            run_case(BB, RR, NN, DD, RRd, with_bias=True,  conjugate=False, expanded_heads=True, rotate_pairwise=pairwise)
-            run_case(BB, RR, NN, DD, RRd, with_bias=False, conjugate=True,  expanded_heads=False, rotate_pairwise=pairwise)
+            run_case(
+                BB,
+                RR,
+                NN,
+                DD,
+                RRd,
+                with_bias=True,
+                conjugate=False,
+                expanded_heads=True,
+                rotate_pairwise=pairwise,
+            )
+            run_case(
+                BB,
+                RR,
+                NN,
+                DD,
+                RRd,
+                with_bias=False,
+                conjugate=True,
+                expanded_heads=False,
+                rotate_pairwise=pairwise,
+            )
 
     print("\nAll QK Inference tests passed! ✓")
 

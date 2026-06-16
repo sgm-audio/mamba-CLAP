@@ -1,21 +1,25 @@
 """
 Pytest configuration and fixtures for the backend tests.
 """
+
 import pytest
-from backend.app import create_app, db as _db
-from backend.config import TestingConfig
+
+from backend.app import create_app
+from backend.app import db as _db
+
 
 @pytest.fixture
 def app():
     """
     Create and configure a new app instance for each test.
     """
-    app = create_app('testing')
+    app = create_app("testing")
     with app.app_context():
         _db.create_all()
         yield app
         _db.session.remove()
         _db.drop_all()
+
 
 @pytest.fixture
 def client(app):
@@ -24,12 +28,14 @@ def client(app):
     """
     return app.test_client()
 
+
 @pytest.fixture
 def runner(app):
     """
     A test runner for the app's Click commands.
     """
     return app.test_cli_runner()
+
 
 @pytest.fixture
 def db(app):

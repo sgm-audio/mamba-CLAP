@@ -507,7 +507,7 @@ void selective_scan_bwd_launch(SSMParamsBwd &params, cudaStream_t stream) {
                         constexpr int kSmemSize = Ktraits::kSmemSize + MAX_DSTATE * sizeof(typename Ktraits::scan_t) + (kNThreads + 4 * MAX_DSTATE) * sizeof(typename Ktraits::weight_t);
 
                         dim3 grid(params.batch, params.dim);
-                        
+
                         auto kernel = &selective_scan_bwd_kernel<Ktraits>;
 
                         if (kSmemSize >= 48 * 1024) {
@@ -547,7 +547,7 @@ void selective_scan_bwd_cuda(SSMParamsBwd &params, cudaStream_t stream) {
         } else {
             selective_scan_bwd_launch<128, 16, input_t, weight_t>(params, stream);
         }
-    #else 
+    #else
         if (params.seqlen <= 256) {
             selective_scan_bwd_launch<64, 4, input_t, weight_t>(params, stream);
         } else if (params.seqlen <= 512) {

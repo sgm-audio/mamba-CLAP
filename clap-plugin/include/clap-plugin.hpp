@@ -125,7 +125,7 @@ private:
     // Mel filter bank: [n_mels, n_fft/2+1]
     torch::Tensor mel_basis_;
     torch::Tensor inv_mel_basis_; // pseudo-inverse for ISTFT
-    
+
     // FFTW resources
     fftwf_plan forward_plan_;
     fftwf_plan inverse_plan_;
@@ -136,7 +136,7 @@ private:
     float* padded_buffer_;
     size_t padded_buffer_capacity_;
     int max_block_size_;
-    
+
     // State for inverse cropping
     size_t last_input_len_ = 0; // input length from most recent forward call
     float window_energy_sum_ = 0.0f; // sum of squared window for compensation
@@ -159,7 +159,7 @@ private:
     torch::Device device_;
     torch::jit::Module module_;
     int n_mels_;
-    
+
     // Effect decoders (simple linear layers for now)
     torch::nn::Linear reverb_decoder_{nullptr};
     torch::nn::Linear compression_decoder_{nullptr};

@@ -45,13 +45,12 @@ chunk without overwriting the next sequence's slots.  Two int32 mapping tensors
 position in the packed tensor; see _build_varlen_chunk_mapping for details.
 """
 
-import torch
-import triton
-import triton.language as tl
 import math
 from typing import Tuple
 
-
+import torch
+import triton
+import triton.language as tl
 
 # ============================================================================
 # Kernel group 1 (dense): fused reverse-cumsum + forward-exclusive-cumsum
@@ -59,22 +58,19 @@ from typing import Tuple
 #   bwd_dadt_cumsum_fused_kernel_varlen – varlen (see bottom of file)
 # ============================================================================
 
+
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_stages=s, num_warps=w)
-        for s in [1, 2, 3]
-        for w in [4, 8]
-    ],
+    configs=[triton.Config({}, num_stages=s, num_warps=w) for s in [1, 2, 3] for w in [4, 8]],
     key=["CHUNK_SIZE"],
     restore_value=["ddt_out_ptr"],
 )
 @triton.jit
 def bwd_dadt_cumsum_fused_kernel(
-    ddA_cs_ptr,         # [B, H, S]
-    ddA_cs_rev_ptr,     # [B, H, S]
-    dA_cs_ptr,          # [B, H, S]
-    dA_cs_rev_ptr,      # [B, H, S]
-    ddt_out_ptr,        # [B, H, S] - output
+    ddA_cs_ptr,  # [B, H, S]
+    ddA_cs_rev_ptr,  # [B, H, S]
+    dA_cs_ptr,  # [B, H, S]
+    dA_cs_rev_ptr,  # [B, H, S]
+    ddt_out_ptr,  # [B, H, S] - output
     stride_batch,
     stride_head,
     stride_seq,
@@ -103,10 +99,10 @@ def bwd_dadt_cumsum_fused_kernel(
 
     base_offset = pid_batch * stride_batch + pid_head * stride_head
 
-    ddA_cs     = tl.load(ddA_cs_ptr     + base_offset + offs_seq * stride_seq, mask=mask, other=0.0)
+    ddA_cs = tl.load(ddA_cs_ptr + base_offset + offs_seq * stride_seq, mask=mask, other=0.0)
     ddA_cs_rev = tl.load(ddA_cs_rev_ptr + base_offset + offs_seq * stride_seq, mask=mask, other=0.0)
-    dA_cs      = tl.load(dA_cs_ptr      + base_offset + offs_seq * stride_seq, mask=mask, other=0.0)
-    dA_cs_rev  = tl.load(dA_cs_rev_ptr  + base_offset + offs_seq * stride_seq, mask=mask, other=0.0)
+    dA_cs = tl.load(dA_cs_ptr + base_offset + offs_seq * stride_seq, mask=mask, other=0.0)
+    dA_cs_rev = tl.load(dA_cs_rev_ptr + base_offset + offs_seq * stride_seq, mask=mask, other=0.0)
 
     # Reverse-cumsum contribution from ddA_cs.
     scaled_ddA_cs = tl.exp(dA_cs) * ddA_cs
@@ -119,9 +115,9 @@ def bwd_dadt_cumsum_fused_kernel(
     ddt_cs_rev_inclusive = tl.cumsum(scaled_ddA_cs_rev, axis=0)
 
     # Roll one to the right:
-    i = tl.arange(0, CHUNK_SIZE)[:, None]          # [N,1]
-    j = tl.arange(0, CHUNK_SIZE)[None, :]          # [1,N]
-    S = (i == j + 1)                      # strictly lower diagonal (one below main)
+    i = tl.arange(0, CHUNK_SIZE)[:, None]  # [N,1]
+    j = tl.arange(0, CHUNK_SIZE)[None, :]  # [1,N]
+    S = i == j + 1  # strictly lower diagonal (one below main)
     ddt_cs_rev_exclusive = tl.sum(tl.where(S, ddt_cs_rev_inclusive, 0), axis=1)
 
     ddt_total = ddt_cs + ddt_cs_rev_exclusive
@@ -134,21 +130,17 @@ def bwd_dadt_cumsum_fused_kernel(
 #   bwd_segsum_dadt_kernel_varlen – varlen (see bottom of file)
 # ============================================================================
 
+
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_stages=s, num_warps=w)
-        for s in [2, 3]
-        for w in [4, 8]
-    ],
+    configs=[triton.Config({}, num_stages=s, num_warps=w) for s in [2, 3] for w in [4, 8]],
     key=["CHUNK_SIZE"],
     restore_value=["ddt_out_ptr"],
-
 )
 @triton.jit
 def bwd_segsum_dadt_kernel(
-    dSSdA_ptr,          # [B, H, nchunks, C, C]
-    SSdA_cs_ptr,          # [B, H, S]
-    ddt_out_ptr,        # [B, H, S] - accumulated output
+    dSSdA_ptr,  # [B, H, nchunks, C, C]
+    SSdA_cs_ptr,  # [B, H, S]
+    ddt_out_ptr,  # [B, H, S] - accumulated output
     stride_dSSdA_batch,
     stride_dSSdA_head,
     stride_dSSdA_chunk,
@@ -190,19 +182,25 @@ def bwd_segsum_dadt_kernel(
     offs_seq = chunk_start + offs_c
 
     # dSSdA is stored transposed (seq_k × seq_q), so row/col strides are swapped.
-    dSSdA_offset = dSSdA_ptr + (pid_batch * stride_dSSdA_batch +
-                    pid_head * stride_dSSdA_head +
-                    pid_chunk * stride_dSSdA_chunk)
-    SSdA_offset = SSdA_cs_ptr + (pid_batch * stride_SSdA_batch +
-                    pid_head * stride_SSdA_head +
-                    pid_chunk * stride_SSdA_chunk)
-    ddt_ptrs = ddt_out_ptr + (pid_batch * stride_ddt_batch +
-                    pid_head * stride_ddt_head +
-                    offs_seq * stride_ddt_seq)
+    dSSdA_offset = dSSdA_ptr + (
+        pid_batch * stride_dSSdA_batch
+        + pid_head * stride_dSSdA_head
+        + pid_chunk * stride_dSSdA_chunk
+    )
+    SSdA_offset = SSdA_cs_ptr + (
+        pid_batch * stride_SSdA_batch + pid_head * stride_SSdA_head + pid_chunk * stride_SSdA_chunk
+    )
+    ddt_ptrs = ddt_out_ptr + (
+        pid_batch * stride_ddt_batch + pid_head * stride_ddt_head + offs_seq * stride_ddt_seq
+    )
 
     # dSSdA is stored as (seq_k × seq_q); swap row/col strides to transpose on load.
-    dSSdA_block = tl.load(dSSdA_offset + offs_c[:, None]*stride_dSSdA_col + offs_c[None, :]*stride_dSSdA_row)
-    SSdA_block  = tl.load(SSdA_offset  + offs_c[:, None]*stride_SSdA_row  + offs_c[None, :]*stride_SSdA_col)
+    dSSdA_block = tl.load(
+        dSSdA_offset + offs_c[:, None] * stride_dSSdA_col + offs_c[None, :] * stride_dSSdA_row
+    )
+    SSdA_block = tl.load(
+        SSdA_offset + offs_c[:, None] * stride_SSdA_row + offs_c[None, :] * stride_SSdA_col
+    )
 
     dSSdA_block = dSSdA_block * tl.exp(SSdA_block)
     dSSdA_block = tl.cumsum(dSSdA_block, axis=0, reverse=True)
@@ -223,25 +221,37 @@ def bwd_segsum_dadt_kernel(
 #   bwd_dtrap_ddt_kernel_varlen – varlen (see bottom of file)
 # ============================================================================
 
+
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_stages=s, num_warps=w)
-        for s in [2, 3]
-        for w in [4, 8]
-    ],
+    configs=[triton.Config({}, num_stages=s, num_warps=w) for s in [2, 3] for w in [4, 8]],
     key=["CHUNK_SIZE"],
 )
 @triton.jit
 def bwd_dtrap_ddt_kernel(
-    trap_ptr, dt_ptr, dfactor_ptr, dgamma_diag_ptr,
-    ddt_ptr, dtrap_ptr, 
-    stride_trap_batch, stride_trap_head, stride_trap_seq,
-    stride_dt_batch, stride_dt_head, stride_dt_seq,
-    stride_dfactor_batch, stride_dfactor_head, stride_dfactor_seq,
-    stride_dgamma_diag_batch, stride_dgamma_diag_head, stride_dgamma_diag_seq,
-    stride_ddt_batch, stride_ddt_head, stride_ddt_seq,
-    stride_dtrap_batch, stride_dtrap_head, stride_dtrap_seq,
-
+    trap_ptr,
+    dt_ptr,
+    dfactor_ptr,
+    dgamma_diag_ptr,
+    ddt_ptr,
+    dtrap_ptr,
+    stride_trap_batch,
+    stride_trap_head,
+    stride_trap_seq,
+    stride_dt_batch,
+    stride_dt_head,
+    stride_dt_seq,
+    stride_dfactor_batch,
+    stride_dfactor_head,
+    stride_dfactor_seq,
+    stride_dgamma_diag_batch,
+    stride_dgamma_diag_head,
+    stride_dgamma_diag_seq,
+    stride_ddt_batch,
+    stride_ddt_head,
+    stride_ddt_seq,
+    stride_dtrap_batch,
+    stride_dtrap_head,
+    stride_dtrap_seq,
     SEQLEN: tl.constexpr,
     CHUNK_SIZE: tl.constexpr,
 ):
@@ -266,59 +276,56 @@ def bwd_dtrap_ddt_kernel(
     offs_c = tl.arange(0, CHUNK_SIZE)
     offs_seq = chunk_start + offs_c
 
-    trap_offset = pid_batch*stride_trap_batch + pid_head*stride_trap_head
-    dt_offset = pid_batch*stride_dt_batch + pid_head*stride_dt_head
-    dfactor_offset = pid_batch*stride_dfactor_batch + pid_head*stride_dfactor_head
-    dgamma_diag_offset = pid_batch*stride_dgamma_diag_batch + pid_head*stride_dgamma_diag_head
+    trap_offset = pid_batch * stride_trap_batch + pid_head * stride_trap_head
+    dt_offset = pid_batch * stride_dt_batch + pid_head * stride_dt_head
+    dfactor_offset = pid_batch * stride_dfactor_batch + pid_head * stride_dfactor_head
+    dgamma_diag_offset = pid_batch * stride_dgamma_diag_batch + pid_head * stride_dgamma_diag_head
 
     strap_block = tl.load(
-        trap_ptr + trap_offset + (offs_seq + 1)*stride_trap_seq,
-        mask=(offs_seq + 1) < SEQLEN, other=0.0
-        )
+        trap_ptr + trap_offset + (offs_seq + 1) * stride_trap_seq,
+        mask=(offs_seq + 1) < SEQLEN,
+        other=0.0,
+    )
     sdt_block = tl.load(
-        dt_ptr + dt_offset + (offs_seq + 1)*stride_dt_seq,
-        mask=(offs_seq + 1) < SEQLEN, other=0.0
+        dt_ptr + dt_offset + (offs_seq + 1) * stride_dt_seq, mask=(offs_seq + 1) < SEQLEN, other=0.0
     )
     trap_block = tl.load(
-        trap_ptr + trap_offset + offs_seq * stride_trap_seq,
-        mask=offs_seq < SEQLEN, other=0.0
+        trap_ptr + trap_offset + offs_seq * stride_trap_seq, mask=offs_seq < SEQLEN, other=0.0
     )
     dt_block = tl.load(
-        dt_ptr + dt_offset + offs_seq * stride_dt_seq,
-        mask=offs_seq < SEQLEN, other=0.0
+        dt_ptr + dt_offset + offs_seq * stride_dt_seq, mask=offs_seq < SEQLEN, other=0.0
     )
     dfactor_block = tl.load(
         dfactor_ptr + dfactor_offset + offs_seq * stride_dfactor_seq,
-        mask=offs_seq < SEQLEN, other=0.0
+        mask=offs_seq < SEQLEN,
+        other=0.0,
     )
     dgamma_diag_input_block = tl.load(
         dgamma_diag_ptr + dgamma_diag_offset + offs_seq * stride_dgamma_diag_seq,
-        mask=offs_seq < SEQLEN, other=0.0
+        mask=offs_seq < SEQLEN,
+        other=0.0,
     )
 
-    dgamma_block  = dfactor_block + dgamma_diag_input_block
+    dgamma_block = dfactor_block + dgamma_diag_input_block
     dsgamma_block = dfactor_block
 
     # Gradients w.r.t. the shifted (next-token) trap/dt values.
-    dsdt_block  = tl.sigmoid(-strap_block.to(tl.float32)) * dsgamma_block
+    dsdt_block = tl.sigmoid(-strap_block.to(tl.float32)) * dsgamma_block
     dstrap_block = -sdt_block * dsgamma_block
 
     # Fetch the last token of the previous chunk to fill position 0 of this chunk
     # after the right-shift (cross-chunk boundary contribution).
-    prev_seq  = chunk_start - 1
+    prev_seq = chunk_start - 1
     prev_mask = prev_seq >= 0
-    prev_dgamma  = tl.load(
-        dfactor_ptr + dfactor_offset + prev_seq * stride_dfactor_seq,
-        mask=prev_mask, other=0.0
+    prev_dgamma = tl.load(
+        dfactor_ptr + dfactor_offset + prev_seq * stride_dfactor_seq, mask=prev_mask, other=0.0
     )
     prev_dsgamma = prev_dgamma
     prev_strap = tl.load(
-        trap_ptr + trap_offset + chunk_start * stride_trap_seq,
-        mask=chunk_start < SEQLEN, other=0.0
+        trap_ptr + trap_offset + chunk_start * stride_trap_seq, mask=chunk_start < SEQLEN, other=0.0
     )
     prev_sdt = tl.load(
-        dt_ptr + dt_offset + chunk_start * stride_dt_seq,
-        mask=chunk_start < SEQLEN, other=0.0
+        dt_ptr + dt_offset + chunk_start * stride_dt_seq, mask=chunk_start < SEQLEN, other=0.0
     )
     prev_dsdt = tl.sigmoid(-prev_strap.to(tl.float32)) * prev_dsgamma
     prev_dstrap = -prev_sdt * prev_dsgamma
@@ -337,15 +344,15 @@ def bwd_dtrap_ddt_kernel(
 
     # Add dgamma path
     ddt_out = dsdt_shift + dgamma_block * tl.sigmoid(trap_block.to(tl.float32))
-    dtrap_out = dstrap_shift + dgamma_block * dt_block 
-    dtrap_out *= tl.sigmoid(trap_block.to(tl.float32)) * tl.sigmoid(-trap_block.to(tl.float32)) 
+    dtrap_out = dstrap_shift + dgamma_block * dt_block
+    dtrap_out *= tl.sigmoid(trap_block.to(tl.float32)) * tl.sigmoid(-trap_block.to(tl.float32))
 
-    ddt_ptrs = ddt_ptr + (pid_batch * stride_ddt_batch +
-                          pid_head * stride_ddt_head +
-                          offs_seq * stride_ddt_seq)
-    dtrap_ptrs = dtrap_ptr + (pid_batch * stride_dtrap_batch +
-                              pid_head * stride_dtrap_head +
-                              offs_seq * stride_dtrap_seq)
+    ddt_ptrs = ddt_ptr + (
+        pid_batch * stride_ddt_batch + pid_head * stride_ddt_head + offs_seq * stride_ddt_seq
+    )
+    dtrap_ptrs = dtrap_ptr + (
+        pid_batch * stride_dtrap_batch + pid_head * stride_dtrap_head + offs_seq * stride_dtrap_seq
+    )
 
     tl.store(ddt_ptrs, ddt_out, mask=offs_seq < SEQLEN)
     tl.store(dtrap_ptrs, dtrap_out, mask=offs_seq < SEQLEN)
@@ -357,12 +364,9 @@ def bwd_dtrap_ddt_kernel(
 #   dacs_segsum_kernel_varlen – varlen (this kernel)
 # ============================================================================
 
+
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_stages=s, num_warps=w)
-        for s in [2, 3]
-        for w in [4, 8]
-    ],
+    configs=[triton.Config({}, num_stages=s, num_warps=w) for s in [2, 3] for w in [4, 8]],
     key=["CHUNK_SIZE"],
 )
 @triton.jit
@@ -374,12 +378,23 @@ def dacs_segsum_kernel_varlen(
     cu_seqlens_ptr,
     state_seq_mapping_ptr,
     state_chunk_in_seq_ptr,
-    stride_da_batch, stride_da_head, stride_da_seq,
-    stride_da_cs_batch, stride_da_cs_head, stride_da_cs_seq,
-    stride_da_cs_rev_batch, stride_da_cs_rev_head, stride_da_cs_rev_seq,
-    stride_segsum_batch, stride_segsum_head, stride_segsum_chunk,
-    stride_segsum_row, stride_segsum_col,
-    stride_cu_seqlen, stride_state_seq_mapping, stride_state_chunk_in_seq,
+    stride_da_batch,
+    stride_da_head,
+    stride_da_seq,
+    stride_da_cs_batch,
+    stride_da_cs_head,
+    stride_da_cs_seq,
+    stride_da_cs_rev_batch,
+    stride_da_cs_rev_head,
+    stride_da_cs_rev_seq,
+    stride_segsum_batch,
+    stride_segsum_head,
+    stride_segsum_chunk,
+    stride_segsum_row,
+    stride_segsum_col,
+    stride_cu_seqlen,
+    stride_state_seq_mapping,
+    stride_state_chunk_in_seq,
     SEQLEN,
     NUM_SEQUENCES: tl.constexpr,
     CHUNK_SIZE: tl.constexpr,
@@ -431,22 +446,23 @@ def dacs_segsum_kernel_varlen(
     segsum = tl.cumsum(segsum, axis=0)
     segsum = tl.minimum(segsum, 0.0)
 
-    base_segsum = (pid_batch * stride_segsum_batch +
-                   pid_head * stride_segsum_head +
-                   pid_chunk * stride_segsum_chunk)
-    tl.store(segsum_ptr + base_segsum + offs_i * stride_segsum_row + offs_j * stride_segsum_col, segsum)
+    base_segsum = (
+        pid_batch * stride_segsum_batch
+        + pid_head * stride_segsum_head
+        + pid_chunk * stride_segsum_chunk
+    )
+    tl.store(
+        segsum_ptr + base_segsum + offs_i * stride_segsum_row + offs_j * stride_segsum_col, segsum
+    )
 
 
 # ============================================================================
 # Kernel group 4 (dense): compute da_cs, da_cs_rev, and segsum from da
 # ============================================================================
 
+
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_stages=s, num_warps=w)
-        for s in [2, 3]
-        for w in [4, 8]
-    ],
+    configs=[triton.Config({}, num_stages=s, num_warps=w) for s in [2, 3] for w in [4, 8]],
     key=["CHUNK_SIZE"],
 )
 @triton.jit
@@ -455,11 +471,20 @@ def dacs_segsum_kernel(
     da_cs_ptr,
     da_cs_rev_ptr,
     segsum_ptr,
-    stride_da_batch, stride_da_head, stride_da_seq,
-    stride_da_cs_batch, stride_da_cs_head, stride_da_cs_seq,
-    stride_da_cs_rev_batch, stride_da_cs_rev_head, stride_da_cs_rev_seq,
-    stride_segsum_batch, stride_segsum_head, stride_segsum_chunk,
-    stride_segsum_row, stride_segsum_col,
+    stride_da_batch,
+    stride_da_head,
+    stride_da_seq,
+    stride_da_cs_batch,
+    stride_da_cs_head,
+    stride_da_cs_seq,
+    stride_da_cs_rev_batch,
+    stride_da_cs_rev_head,
+    stride_da_cs_rev_seq,
+    stride_segsum_batch,
+    stride_segsum_head,
+    stride_segsum_chunk,
+    stride_segsum_row,
+    stride_segsum_col,
     SEQLEN: tl.constexpr,
     CHUNK_SIZE: tl.constexpr,
 ):
@@ -488,9 +513,9 @@ def dacs_segsum_kernel(
 
     da_cs_rev = tl.cumsum(da_chunk, axis=0, reverse=True)
     # Roll one to the left:
-    i = tl.arange(0, CHUNK_SIZE)[:, None]          # [N,1]
-    j = tl.arange(0, CHUNK_SIZE)[None, :]          # [1,N]
-    S_mat = (i == j - 1)                      # strictly upper diagonal (one above main)
+    i = tl.arange(0, CHUNK_SIZE)[:, None]  # [N,1]
+    j = tl.arange(0, CHUNK_SIZE)[None, :]  # [1,N]
+    S_mat = i == j - 1  # strictly upper diagonal (one above main)
     da_cs_rev = tl.sum(tl.where(S_mat, da_cs_rev, 0), axis=1)
     da_cs_rev = tl.minimum(da_cs_rev, 0.0)
 
@@ -500,30 +525,37 @@ def dacs_segsum_kernel(
     tl.store(da_cs_rev_ptr + base_da_cs_rev + offs_seq * stride_da_cs_rev_seq, da_cs_rev, mask=mask)
 
     broadcasted_indices = tl.zeros_like(offs)
-    segsum = tl.load(da_ptr + base_da + offs_seq[:, None] * stride_da_seq + broadcasted_indices[None, :])
+    segsum = tl.load(
+        da_ptr + base_da + offs_seq[:, None] * stride_da_seq + broadcasted_indices[None, :]
+    )
     offs_i = offs[:, None]
     offs_j = offs[None, :]
     segsum = tl.where(offs_i > offs_j, segsum, 0.0)
     segsum = tl.cumsum(segsum, axis=0)
     segsum = tl.minimum(segsum, 0.0)
 
-    base_segsum = (pid_batch * stride_segsum_batch +
-                   pid_head * stride_segsum_head +
-                   pid_chunk * stride_segsum_chunk)
-    tl.store(segsum_ptr + base_segsum + offs_i * stride_segsum_row + offs_j * stride_segsum_col, segsum)
+    base_segsum = (
+        pid_batch * stride_segsum_batch
+        + pid_head * stride_segsum_head
+        + pid_chunk * stride_segsum_chunk
+    )
+    tl.store(
+        segsum_ptr + base_segsum + offs_i * stride_segsum_row + offs_j * stride_segsum_col, segsum
+    )
 
 
 # ============================================================================
 # Public wrappers – dense (fixed-length sequences)
 # ============================================================================
 
+
 def bwd_dadt_fused_triton(
-    dSSdA: torch.Tensor,              # [B, H, nchunks, C, C]
-    SSdA: torch.Tensor,               # [B, H, nchunks, C, C]
-    ddA_cs: torch.Tensor,             # [B, H, S]
-    ddA_cs_rev: torch.Tensor,         # [B, H, S]
-    dA_cs: torch.Tensor,              # [B, H, S]
-    dA_cs_rev: torch.Tensor,          # [B, H, S]
+    dSSdA: torch.Tensor,  # [B, H, nchunks, C, C]
+    SSdA: torch.Tensor,  # [B, H, nchunks, C, C]
+    ddA_cs: torch.Tensor,  # [B, H, S]
+    ddA_cs_rev: torch.Tensor,  # [B, H, S]
+    dA_cs: torch.Tensor,  # [B, H, S]
+    dA_cs_rev: torch.Tensor,  # [B, H, S]
     chunk_size: int,
 ) -> torch.Tensor:
     """Fuse the three ddt backward contributions for fixed-length sequences.
@@ -542,8 +574,13 @@ def bwd_dadt_fused_triton(
     B, H, S = ddA_cs.shape
     nchunks = S // chunk_size
     assert S % chunk_size == 0, f"Sequence length {S} must be divisible by chunk_size {chunk_size}"
-    assert dSSdA.shape == (B, H, nchunks, chunk_size, chunk_size), \
-        f"dSSdA shape mismatch: expected {(B, H, nchunks, chunk_size, chunk_size)}, got {dSSdA.shape}"
+    assert dSSdA.shape == (
+        B,
+        H,
+        nchunks,
+        chunk_size,
+        chunk_size,
+    ), f"dSSdA shape mismatch: expected {(B, H, nchunks, chunk_size, chunk_size)}, got {dSSdA.shape}"
 
     # Initialize output tensor
     dadt_out = torch.zeros(B, H, S, device=ddA_cs.device, dtype=torch.float32)
@@ -551,33 +588,55 @@ def bwd_dadt_fused_triton(
     # Kernel 1: Fused ddA_cs and ddA_cs_rev contributions
     grid1 = (B, H, nchunks)
     bwd_dadt_cumsum_fused_kernel[grid1](
-        ddA_cs, ddA_cs_rev, dA_cs, dA_cs_rev, dadt_out,
-        ddA_cs.stride(0), ddA_cs.stride(1), ddA_cs.stride(2),
-        B, H, S,
+        ddA_cs,
+        ddA_cs_rev,
+        dA_cs,
+        dA_cs_rev,
+        dadt_out,
+        ddA_cs.stride(0),
+        ddA_cs.stride(1),
+        ddA_cs.stride(2),
+        B,
+        H,
+        S,
         CHUNK_SIZE=chunk_size,
     )
 
     # Kernel 2: dSSdA segsum contribution
     grid2 = (B, H, nchunks)
     bwd_segsum_dadt_kernel[grid2](
-        dSSdA, SSdA, dadt_out,
-        dSSdA.stride(0), dSSdA.stride(1), dSSdA.stride(2),
-        dSSdA.stride(3), dSSdA.stride(4),
-        SSdA.stride(0), SSdA.stride(1), SSdA.stride(2),
-        SSdA.stride(3), SSdA.stride(4),
-        dadt_out.stride(0), dadt_out.stride(1), dadt_out.stride(2),
-        B, H, nchunks, chunk_size,
+        dSSdA,
+        SSdA,
+        dadt_out,
+        dSSdA.stride(0),
+        dSSdA.stride(1),
+        dSSdA.stride(2),
+        dSSdA.stride(3),
+        dSSdA.stride(4),
+        SSdA.stride(0),
+        SSdA.stride(1),
+        SSdA.stride(2),
+        SSdA.stride(3),
+        SSdA.stride(4),
+        dadt_out.stride(0),
+        dadt_out.stride(1),
+        dadt_out.stride(2),
+        B,
+        H,
+        nchunks,
+        chunk_size,
         CHUNK_SIZE=chunk_size,
     )
 
     return dadt_out
 
+
 def bwd_dtrap_ddt_triton(
-    trap: torch.Tensor,           # [B, H, S]  – trap_presigmoid values
-    dt: torch.Tensor,             # [B, H, S]
-    dfactor: torch.Tensor,        # [B, H, S]  – upstream gradient of factor
-    dgamma_diag: torch.Tensor,    # [B, H, S]  – upstream gradient of gamma (diagonal)
-    chunk_size: int,              # may differ from the chunk_size used by bwd_dadt_fused_triton
+    trap: torch.Tensor,  # [B, H, S]  – trap_presigmoid values
+    dt: torch.Tensor,  # [B, H, S]
+    dfactor: torch.Tensor,  # [B, H, S]  – upstream gradient of factor
+    dgamma_diag: torch.Tensor,  # [B, H, S]  – upstream gradient of gamma (diagonal)
+    chunk_size: int,  # may differ from the chunk_size used by bwd_dadt_fused_triton
 ):
     """Back-propagate through the trapezoidal gamma parameterisation (dense).
 
@@ -594,23 +653,40 @@ def bwd_dtrap_ddt_triton(
 
     grid = (B, H, nchunks)
     bwd_dtrap_ddt_kernel[grid](
-        trap, dt, dfactor, dgamma_diag,
-        ddt, dtrap,
-        trap.stride(0), trap.stride(1), trap.stride(2),
-        dt.stride(0), dt.stride(1), dt.stride(2),
-        dfactor.stride(0), dfactor.stride(1), dfactor.stride(2),
-        dgamma_diag.stride(0), dgamma_diag.stride(1), dgamma_diag.stride(2),
-        ddt.stride(0), ddt.stride(1), ddt.stride(2),
-        dtrap.stride(0), dtrap.stride(1), dtrap.stride(2),
+        trap,
+        dt,
+        dfactor,
+        dgamma_diag,
+        ddt,
+        dtrap,
+        trap.stride(0),
+        trap.stride(1),
+        trap.stride(2),
+        dt.stride(0),
+        dt.stride(1),
+        dt.stride(2),
+        dfactor.stride(0),
+        dfactor.stride(1),
+        dfactor.stride(2),
+        dgamma_diag.stride(0),
+        dgamma_diag.stride(1),
+        dgamma_diag.stride(2),
+        ddt.stride(0),
+        ddt.stride(1),
+        ddt.stride(2),
+        dtrap.stride(0),
+        dtrap.stride(1),
+        dtrap.stride(2),
         S,
         chunk_size,
     )
     return ddt, dtrap
 
+
 def compute_dacs_segsum_triton_varlen(
-    da: torch.Tensor,              # [B, H, S]
+    da: torch.Tensor,  # [B, H, S]
     chunk_size: int,
-    cu_seqlens: torch.Tensor = None,   # [NS+1], int32
+    cu_seqlens: torch.Tensor = None,  # [NS+1], int32
 ):
     """Compute da_cs, da_cs_rev, and segsum for variable-length packed sequences.
 
@@ -654,7 +730,7 @@ def compute_dacs_segsum_triton_varlen(
     # Build mapping tensors: both have length nchunks_global.
     # Inactive (padding) slots are given a sentinel local-chunk index that
     # places chunk_start >= seq_end, making the kernel mask all-False.
-    state_seq_mapping  = torch.zeros(nchunks, dtype=torch.int32, device=da.device)
+    state_seq_mapping = torch.zeros(nchunks, dtype=torch.int32, device=da.device)
     state_chunk_in_seq = torch.zeros(nchunks, dtype=torch.int32, device=da.device)
     default_seq_len = int(seq_lens[0].item()) if num_sequences > 0 else 0
     default_inactive_local_chunk = (default_seq_len + chunk_size - 1) // chunk_size
@@ -665,21 +741,40 @@ def compute_dacs_segsum_triton_varlen(
         n = int(chunks_per_seq[i].item())
         chunk_start = (start // chunk_size) + i
         chunk_end = chunk_start + n
-        assert chunk_end <= nchunks, (
-            f"Chunk mapping overflow for seq {i}: [{chunk_start}, {chunk_end}) vs nchunks={nchunks}"
-        )
+        assert (
+            chunk_end <= nchunks
+        ), f"Chunk mapping overflow for seq {i}: [{chunk_start}, {chunk_end}) vs nchunks={nchunks}"
         state_seq_mapping[chunk_start:chunk_end] = i
-        state_chunk_in_seq[chunk_start:chunk_end] = torch.arange(n, dtype=torch.int32, device=da.device)
+        state_chunk_in_seq[chunk_start:chunk_end] = torch.arange(
+            n, dtype=torch.int32, device=da.device
+        )
 
     grid = (B, H, nchunks)
     dacs_segsum_kernel_varlen[grid](
-        da, da_cs, da_cs_rev, segsum, cu_seqlens, state_seq_mapping, state_chunk_in_seq,
-        da.stride(0), da.stride(1), da.stride(2),
-        da_cs.stride(0), da_cs.stride(1), da_cs.stride(2),
-        da_cs_rev.stride(0), da_cs_rev.stride(1), da_cs_rev.stride(2),
-        segsum.stride(0), segsum.stride(1), segsum.stride(2),
-        segsum.stride(3), segsum.stride(4),
-        cu_seqlens.stride(0), state_seq_mapping.stride(0), state_chunk_in_seq.stride(0),
+        da,
+        da_cs,
+        da_cs_rev,
+        segsum,
+        cu_seqlens,
+        state_seq_mapping,
+        state_chunk_in_seq,
+        da.stride(0),
+        da.stride(1),
+        da.stride(2),
+        da_cs.stride(0),
+        da_cs.stride(1),
+        da_cs.stride(2),
+        da_cs_rev.stride(0),
+        da_cs_rev.stride(1),
+        da_cs_rev.stride(2),
+        segsum.stride(0),
+        segsum.stride(1),
+        segsum.stride(2),
+        segsum.stride(3),
+        segsum.stride(4),
+        cu_seqlens.stride(0),
+        state_seq_mapping.stride(0),
+        state_chunk_in_seq.stride(0),
         S,
         num_sequences,
         chunk_size,
@@ -709,12 +804,24 @@ def compute_dacs_segsum_triton(
 
     grid = (B, H, nchunks)
     dacs_segsum_kernel[grid](
-        da, da_cs, da_cs_rev, segsum,
-        da.stride(0), da.stride(1), da.stride(2),
-        da_cs.stride(0), da_cs.stride(1), da_cs.stride(2),
-        da_cs_rev.stride(0), da_cs_rev.stride(1), da_cs_rev.stride(2),
-        segsum.stride(0), segsum.stride(1), segsum.stride(2),
-        segsum.stride(3), segsum.stride(4),
+        da,
+        da_cs,
+        da_cs_rev,
+        segsum,
+        da.stride(0),
+        da.stride(1),
+        da.stride(2),
+        da_cs.stride(0),
+        da_cs.stride(1),
+        da_cs.stride(2),
+        da_cs_rev.stride(0),
+        da_cs_rev.stride(1),
+        da_cs_rev.stride(2),
+        segsum.stride(0),
+        segsum.stride(1),
+        segsum.stride(2),
+        segsum.stride(3),
+        segsum.stride(4),
         S,
         chunk_size,
     )
@@ -731,11 +838,12 @@ def compute_dacs_segsum_triton(
 #                  compute_dacs_segsum_ref_varlen
 # ============================================================================
 
+
 def bwd_segsum_ddt_from_dSSdA_ref(
-    dSSdA: torch.Tensor,   # [B, H, nchunks, C, C]
-    dA_cs: torch.Tensor,   # [B, H, S]
+    dSSdA: torch.Tensor,  # [B, H, nchunks, C, C]
+    dA_cs: torch.Tensor,  # [B, H, S]
     chunk_size: int,
-) -> torch.Tensor:         # [B, H, S]
+) -> torch.Tensor:  # [B, H, S]
     """Dense reference for the segsum contribution to ddt.
 
     Computes the row-sum of exp(dA_cs[i]-dA_cs[j]) * dSSdA[j,i] for i > j
@@ -754,14 +862,14 @@ def bwd_segsum_ddt_from_dSSdA_ref(
     ddA = ddA * mask
     ddA = ddA.sum(-1)
     ddt = ddA * (-math.log2(math.e))
-    return ddt.reshape(B, H, nchunks*C)
+    return ddt.reshape(B, H, nchunks * C)
 
 
 def bwd_ddt_from_ddA_cs_rev_ref(
     ddA_cs_rev: torch.Tensor,  # [B, H, S]
-    dA_cs_rev: torch.Tensor,   # [B, H, S]
+    dA_cs_rev: torch.Tensor,  # [B, H, S]
     chunk_size: int,
-) -> torch.Tensor:             # [B, H, S]
+) -> torch.Tensor:  # [B, H, S]
     """Dense reference for the forward-exclusive-cumsum contribution to ddt.
 
     Propagates ddA_cs_rev through exp(dA_cs_rev) and a forward exclusive
@@ -775,14 +883,14 @@ def bwd_ddt_from_ddA_cs_rev_ref(
     ddA = torch.cumsum(ddA_cs_rev, dim=-1)
     ddA = torch.cat([torch.zeros_like(ddA[..., :1]), ddA[..., :-1]], dim=-1)
     ddt = ddA * (-math.log2(math.e))
-    return ddt.reshape(B, H, nchunks*chunk_size)
+    return ddt.reshape(B, H, nchunks * chunk_size)
 
- 
+
 def bwd_ddt_from_ddA_cs_ref(
     ddA_cs: torch.Tensor,  # [B, H, S]
-    dA_cs: torch.Tensor,   # [B, H, S]
+    dA_cs: torch.Tensor,  # [B, H, S]
     chunk_size: int,
-) -> torch.Tensor:         # [B, H, S]
+) -> torch.Tensor:  # [B, H, S]
     """Dense reference for the reverse-cumsum contribution to ddt.
 
     Propagates ddA_cs through exp(dA_cs) and a reverse cumsum within each
@@ -790,39 +898,41 @@ def bwd_ddt_from_ddA_cs_ref(
     """
     B, H, S = ddA_cs.shape
     nchunks = S // chunk_size
-    ddA_cs =  torch.exp(dA_cs) * ddA_cs
+    ddA_cs = torch.exp(dA_cs) * ddA_cs
     dA_cs = dA_cs.view(B, H, nchunks, chunk_size)
     ddA_cs = ddA_cs.view(B, H, nchunks, chunk_size)
     ddA = torch.flip(torch.cumsum(torch.flip(ddA_cs, dims=[-1]), dim=-1), dims=[-1])
     ddt = ddA * (-math.log2(math.e))
-    return ddt.reshape(B, H, nchunks*chunk_size)
+    return ddt.reshape(B, H, nchunks * chunk_size)
+
 
 def compute_dtrap_ddt_ref(
-    dfactor: torch.Tensor,          # [B, H, S]
-    dgamma_diag_input: torch.Tensor, # [B, H, S]
+    dfactor: torch.Tensor,  # [B, H, S]
+    dgamma_diag_input: torch.Tensor,  # [B, H, S]
     trap_presigmoid: torch.Tensor,  # [B, H, S]
-    dt: torch.Tensor,               # [B, H, S]
+    dt: torch.Tensor,  # [B, H, S]
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Dense reference for bwd_dtrap_ddt_triton.
 
     Returns (ddt, dtrap_presigmoid), both shaped [B, H, S].
     """
-    trap   = torch.nn.functional.sigmoid(trap_presigmoid)
-    strap  = torch.nn.functional.pad(trap[:, :, 1:], (0, 1), value=0.0)
-    sdt    = torch.nn.functional.pad(dt[:, :, 1:],   (0, 1), value=0.0)
-    dgamma  = dfactor.detach().clone() + dgamma_diag_input.detach().clone()
+    trap = torch.nn.functional.sigmoid(trap_presigmoid)
+    strap = torch.nn.functional.pad(trap[:, :, 1:], (0, 1), value=0.0)
+    sdt = torch.nn.functional.pad(dt[:, :, 1:], (0, 1), value=0.0)
+    dgamma = dfactor.detach().clone() + dgamma_diag_input.detach().clone()
     dsgamma = dfactor.detach().clone()
-    dsdt   = (1 - strap) * dsgamma
+    dsdt = (1 - strap) * dsgamma
     dstrap = -sdt * dsgamma
     # Right-shift by one: gradient from sgamma[t] lands on position t-1.
     ddt = torch.nn.functional.pad(dsdt[:, :, :-1], (1, 0), value=0.0)
     dtrap = torch.nn.functional.pad(dstrap[:, :, :-1], (1, 0), value=0.0)
     # Add the dgamma path:
-    dtrap += dgamma*dt
+    dtrap += dgamma * dt
     # grad of sigmoid(x) = sigmoid(x) * (1 - sigmoid(x))
     dtrap *= trap * torch.nn.functional.sigmoid(-trap_presigmoid)
-    ddt += dgamma*trap
+    ddt += dgamma * trap
     return ddt, dtrap
+
 
 def compute_dacs_segsum_ref(
     da: torch.Tensor,  # [B, H, S]
@@ -833,6 +943,7 @@ def compute_dacs_segsum_ref(
     Requires S to be a multiple of chunk_size.  Returns (da_cs, da_cs_rev, segsum).
     """
     from einops import repeat
+
     B, H, S = da.shape
     nchunks = S // chunk_size
 
@@ -842,7 +953,9 @@ def compute_dacs_segsum_ref(
     da_cs_rev = da_cs_sum[..., None] - da_cs
 
     segsum = repeat(da_reshaped, "... d -> ... d e", e=chunk_size)
-    mask = torch.tril(torch.ones(chunk_size, chunk_size, device=da_cs.device, dtype=bool), diagonal=-1)
+    mask = torch.tril(
+        torch.ones(chunk_size, chunk_size, device=da_cs.device, dtype=bool), diagonal=-1
+    )
     segsum = segsum.masked_fill(~mask, 0)
     segsum = torch.cumsum(segsum, dim=-2)
 
@@ -850,9 +963,9 @@ def compute_dacs_segsum_ref(
 
 
 def compute_dacs_segsum_ref_varlen(
-    da: torch.Tensor,              # [B, H, S]
+    da: torch.Tensor,  # [B, H, S]
     chunk_size: int,
-    cu_seqlens: torch.Tensor,      # [NS+1]
+    cu_seqlens: torch.Tensor,  # [NS+1]
     num_sequences: int,
 ):
     """Varlen reference for compute_dacs_segsum_triton_varlen.
@@ -871,7 +984,9 @@ def compute_dacs_segsum_ref_varlen(
 
     da_cs = torch.empty(B, H, S, device=da.device, dtype=da.dtype)
     da_cs_rev = torch.empty(B, H, S, device=da.device, dtype=da.dtype)
-    segsum = torch.zeros(B, H, nchunks_global, chunk_size, chunk_size, device=da.device, dtype=da.dtype)
+    segsum = torch.zeros(
+        B, H, nchunks_global, chunk_size, chunk_size, device=da.device, dtype=da.dtype
+    )
 
     for i in range(num_sequences):
         start = int(cu_seqlens[i].item())
@@ -892,24 +1007,28 @@ def compute_dacs_segsum_ref_varlen(
         da_cs_sum = torch.sum(da_reshaped, dim=-1)
         da_cs_rev_seq = da_cs_sum[..., None] - da_cs_seq
         segsum_seq = repeat(da_reshaped, "... d -> ... d e", e=chunk_size)
-        tril_mask = torch.tril(torch.ones(chunk_size, chunk_size, device=da.device, dtype=torch.bool), diagonal=-1)
+        tril_mask = torch.tril(
+            torch.ones(chunk_size, chunk_size, device=da.device, dtype=torch.bool), diagonal=-1
+        )
         segsum_seq = segsum_seq.masked_fill(~tril_mask, 0)
         segsum_seq = torch.cumsum(segsum_seq, dim=-2)
 
         if curr_seqlen > 0:
-            da_cs    [:, :, start:end] = da_cs_seq    .view(B, H, curr_padded_len)[:, :, :curr_seqlen]
-            da_cs_rev[:, :, start:end] = da_cs_rev_seq.view(B, H, curr_padded_len)[:, :, :curr_seqlen]
-        segsum[:, :, global_chunk_start:global_chunk_start + curr_nchunks, :, :] = segsum_seq
+            da_cs[:, :, start:end] = da_cs_seq.view(B, H, curr_padded_len)[:, :, :curr_seqlen]
+            da_cs_rev[:, :, start:end] = da_cs_rev_seq.view(B, H, curr_padded_len)[
+                :, :, :curr_seqlen
+            ]
+        segsum[:, :, global_chunk_start : global_chunk_start + curr_nchunks, :, :] = segsum_seq
 
     return da_cs, da_cs_rev, segsum
 
 
 def bwd_dadt_fused_varlen_ref(
-    dSSdA: torch.Tensor,       # [B, H, nchunks_global, C, C]
-    ddA_cs: torch.Tensor,      # [B, H, S]
+    dSSdA: torch.Tensor,  # [B, H, nchunks_global, C, C]
+    ddA_cs: torch.Tensor,  # [B, H, S]
     ddA_cs_rev: torch.Tensor,  # [B, H, S]
-    dA_cs: torch.Tensor,       # [B, H, S]
-    dA_cs_rev: torch.Tensor,   # [B, H, S]
+    dA_cs: torch.Tensor,  # [B, H, S]
+    dA_cs_rev: torch.Tensor,  # [B, H, S]
     chunk_size: int,
     cu_seqlens: torch.Tensor,  # [NS+1]
 ) -> torch.Tensor:
@@ -942,11 +1061,11 @@ def bwd_dadt_fused_varlen_ref(
             padded[:, :, :curr_seqlen] = x[:, :, start:end]
             return padded
 
-        ddA_cs_seq    = _pad(ddA_cs)
+        ddA_cs_seq = _pad(ddA_cs)
         ddA_cs_rev_seq = _pad(ddA_cs_rev)
-        dA_cs_seq     = _pad(dA_cs)
-        dA_cs_rev_seq  = _pad(dA_cs_rev)
-        dSSdA_seq = dSSdA[:, :, global_chunk_start:global_chunk_start + curr_nchunks, :, :]
+        dA_cs_seq = _pad(dA_cs)
+        dA_cs_rev_seq = _pad(dA_cs_rev)
+        dSSdA_seq = dSSdA[:, :, global_chunk_start : global_chunk_start + curr_nchunks, :, :]
 
         ddt1 = bwd_segsum_ddt_from_dSSdA_ref(dSSdA_seq, dA_cs_seq, chunk_size)
         ddt2 = bwd_ddt_from_ddA_cs_rev_ref(ddA_cs_rev_seq, dA_cs_rev_seq, chunk_size)
@@ -957,12 +1076,12 @@ def bwd_dadt_fused_varlen_ref(
 
 
 def compute_dtrap_ddt_varlen_ref(
-    dfactor: torch.Tensor,          # [B, H, S]
-    dgamma_diag_input: torch.Tensor, # [B, H, S]
+    dfactor: torch.Tensor,  # [B, H, S]
+    dgamma_diag_input: torch.Tensor,  # [B, H, S]
     trap_presigmoid: torch.Tensor,  # [B, H, S]
-    dt: torch.Tensor,               # [B, H, S]
+    dt: torch.Tensor,  # [B, H, S]
     chunk_size: int,
-    cu_seqlens: torch.Tensor,       # [NS+1]
+    cu_seqlens: torch.Tensor,  # [NS+1]
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Varlen reference for bwd_dtrap_ddt_triton_varlen.
 
@@ -976,7 +1095,7 @@ def compute_dtrap_ddt_varlen_ref(
     seq_lens = cu_seqlens[1:] - cu_seqlens[:-1]
     chunks_per_seq = (seq_lens // chunk_size) + 1
 
-    ddt_out   = torch.zeros(B, H, S, device=dt.device, dtype=dt.dtype)
+    ddt_out = torch.zeros(B, H, S, device=dt.device, dtype=dt.dtype)
     dtrap_out = torch.zeros(B, H, S, device=dt.device, dtype=dt.dtype)
 
     for i in range(num_sequences):
@@ -996,7 +1115,7 @@ def compute_dtrap_ddt_varlen_ref(
         ddt_seq, dtrap_seq = compute_dtrap_ddt_ref(
             _pad(dfactor), _pad(dgamma_diag_input), _pad(trap_presigmoid), _pad(dt)
         )
-        ddt_out  [:, :, start:end] = ddt_seq  [:, :, :curr_seqlen]
+        ddt_out[:, :, start:end] = ddt_seq[:, :, :curr_seqlen]
         dtrap_out[:, :, start:end] = dtrap_seq[:, :, :curr_seqlen]
 
     return ddt_out, dtrap_out
@@ -1007,25 +1126,22 @@ def compute_dtrap_ddt_varlen_ref(
 # Kernel groups 1-3 varlen implementations.  Group 4 varlen kernel is above.
 # ============================================================================
 
+
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_stages=s, num_warps=w)
-        for s in [1, 2, 3]
-        for w in [4, 8]
-    ],
+    configs=[triton.Config({}, num_stages=s, num_warps=w) for s in [1, 2, 3] for w in [4, 8]],
     key=["CHUNK_SIZE"],
     restore_value=["ddt_out_ptr"],
 )
 @triton.jit
 def bwd_dadt_cumsum_fused_kernel_varlen(
-    ddA_cs_ptr,         # [B, H, S]
-    ddA_cs_rev_ptr,     # [B, H, S]
-    dA_cs_ptr,          # [B, H, S]
-    dA_cs_rev_ptr,      # [B, H, S]
-    ddt_out_ptr,        # [B, H, S] - output (accumulate)
-    cu_seqlens_ptr,     # [NS+1]
-    state_seq_mapping_ptr,    # [nchunks_global]
-    state_chunk_in_seq_ptr,   # [nchunks_global]
+    ddA_cs_ptr,  # [B, H, S]
+    ddA_cs_rev_ptr,  # [B, H, S]
+    dA_cs_ptr,  # [B, H, S]
+    dA_cs_rev_ptr,  # [B, H, S]
+    ddt_out_ptr,  # [B, H, S] - output (accumulate)
+    cu_seqlens_ptr,  # [NS+1]
+    state_seq_mapping_ptr,  # [nchunks_global]
+    state_chunk_in_seq_ptr,  # [nchunks_global]
     stride_batch,
     stride_head,
     stride_seq,
@@ -1039,26 +1155,26 @@ def bwd_dadt_cumsum_fused_kernel_varlen(
     Grid: (B, H, nchunks_global).  Each program handles one global chunk slot.
     """
     pid_batch = tl.program_id(0)
-    pid_head  = tl.program_id(1)
+    pid_head = tl.program_id(1)
     pid_chunk = tl.program_id(2)
 
     # Decode global chunk → sequence start and local chunk index.
-    curr_seq_ind    = tl.load(state_seq_mapping_ptr  + pid_chunk * stride_ssm)
+    curr_seq_ind = tl.load(state_seq_mapping_ptr + pid_chunk * stride_ssm)
     local_chunk_ind = tl.load(state_chunk_in_seq_ptr + pid_chunk * stride_scis)
-    seq_start = tl.load(cu_seqlens_ptr + curr_seq_ind       * stride_cu)
-    seq_end   = tl.load(cu_seqlens_ptr + (curr_seq_ind + 1) * stride_cu)
+    seq_start = tl.load(cu_seqlens_ptr + curr_seq_ind * stride_cu)
+    seq_end = tl.load(cu_seqlens_ptr + (curr_seq_ind + 1) * stride_cu)
 
     chunk_start = seq_start + local_chunk_ind * CHUNK_SIZE
-    offs        = tl.arange(0, CHUNK_SIZE)
-    offs_seq    = chunk_start + offs
-    mask        = (offs_seq < seq_end) & (offs_seq < S)
+    offs = tl.arange(0, CHUNK_SIZE)
+    offs_seq = chunk_start + offs
+    mask = (offs_seq < seq_end) & (offs_seq < S)
 
     base = pid_batch * stride_batch + pid_head * stride_head
 
-    ddA_cs     = tl.load(ddA_cs_ptr     + base + offs_seq * stride_seq, mask=mask, other=0.0)
+    ddA_cs = tl.load(ddA_cs_ptr + base + offs_seq * stride_seq, mask=mask, other=0.0)
     ddA_cs_rev = tl.load(ddA_cs_rev_ptr + base + offs_seq * stride_seq, mask=mask, other=0.0)
-    dA_cs      = tl.load(dA_cs_ptr      + base + offs_seq * stride_seq, mask=mask, other=0.0)
-    dA_cs_rev  = tl.load(dA_cs_rev_ptr  + base + offs_seq * stride_seq, mask=mask, other=0.0)
+    dA_cs = tl.load(dA_cs_ptr + base + offs_seq * stride_seq, mask=mask, other=0.0)
+    dA_cs_rev = tl.load(dA_cs_rev_ptr + base + offs_seq * stride_seq, mask=mask, other=0.0)
 
     # Reverse cumsum contribution from ddA_cs
     scaled_ddA_cs = tl.exp(dA_cs) * ddA_cs
@@ -1069,7 +1185,7 @@ def bwd_dadt_cumsum_fused_kernel_varlen(
     ddt_cs_rev_inclusive = tl.cumsum(scaled_ddA_cs_rev, axis=0)
     i = tl.arange(0, CHUNK_SIZE)[:, None]
     j = tl.arange(0, CHUNK_SIZE)[None, :]
-    S_mat = (i == j + 1)
+    S_mat = i == j + 1
     ddt_cs_rev_exclusive = tl.sum(tl.where(S_mat, ddt_cs_rev_inclusive, 0), axis=1)
 
     ddt_total = ddt_cs + ddt_cs_rev_exclusive
@@ -1077,28 +1193,34 @@ def bwd_dadt_cumsum_fused_kernel_varlen(
 
 
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_stages=s, num_warps=w)
-        for s in [2, 3]
-        for w in [4, 8]
-    ],
+    configs=[triton.Config({}, num_stages=s, num_warps=w) for s in [2, 3] for w in [4, 8]],
     key=["CHUNK_SIZE"],
     restore_value=["ddt_out_ptr"],
 )
 @triton.jit
 def bwd_segsum_dadt_kernel_varlen(
-    dSSdA_ptr,          # [B, H, nchunks_global, C, C]
-    SSdA_cs_ptr,        # [B, H, nchunks_global, C, C]
-    ddt_out_ptr,        # [B, H, S] - accumulated output
-    cu_seqlens_ptr,     # [NS+1]
-    state_seq_mapping_ptr,    # [nchunks_global]
-    state_chunk_in_seq_ptr,   # [nchunks_global]
-    stride_dSSdA_batch, stride_dSSdA_head, stride_dSSdA_chunk,
-    stride_dSSdA_row,   stride_dSSdA_col,
-    stride_SSdA_batch,  stride_SSdA_head,  stride_SSdA_chunk,
-    stride_SSdA_row,    stride_SSdA_col,
-    stride_ddt_batch,   stride_ddt_head,   stride_ddt_seq,
-    stride_cu, stride_ssm, stride_scis,
+    dSSdA_ptr,  # [B, H, nchunks_global, C, C]
+    SSdA_cs_ptr,  # [B, H, nchunks_global, C, C]
+    ddt_out_ptr,  # [B, H, S] - accumulated output
+    cu_seqlens_ptr,  # [NS+1]
+    state_seq_mapping_ptr,  # [nchunks_global]
+    state_chunk_in_seq_ptr,  # [nchunks_global]
+    stride_dSSdA_batch,
+    stride_dSSdA_head,
+    stride_dSSdA_chunk,
+    stride_dSSdA_row,
+    stride_dSSdA_col,
+    stride_SSdA_batch,
+    stride_SSdA_head,
+    stride_SSdA_chunk,
+    stride_SSdA_row,
+    stride_SSdA_col,
+    stride_ddt_batch,
+    stride_ddt_head,
+    stride_ddt_seq,
+    stride_cu,
+    stride_ssm,
+    stride_scis,
     S: tl.constexpr,
     CHUNK_SIZE: tl.constexpr,
 ):
@@ -1106,34 +1228,44 @@ def bwd_segsum_dadt_kernel_varlen(
     Grid: (B, H, nchunks_global).
     """
     pid_batch = tl.program_id(0)
-    pid_head  = tl.program_id(1)
+    pid_head = tl.program_id(1)
     pid_chunk = tl.program_id(2)
 
-    curr_seq_ind    = tl.load(state_seq_mapping_ptr  + pid_chunk * stride_ssm)
+    curr_seq_ind = tl.load(state_seq_mapping_ptr + pid_chunk * stride_ssm)
     local_chunk_ind = tl.load(state_chunk_in_seq_ptr + pid_chunk * stride_scis)
-    seq_start = tl.load(cu_seqlens_ptr + curr_seq_ind       * stride_cu)
-    seq_end   = tl.load(cu_seqlens_ptr + (curr_seq_ind + 1) * stride_cu)
+    seq_start = tl.load(cu_seqlens_ptr + curr_seq_ind * stride_cu)
+    seq_end = tl.load(cu_seqlens_ptr + (curr_seq_ind + 1) * stride_cu)
 
     chunk_start = seq_start + local_chunk_ind * CHUNK_SIZE
-    offs_c   = tl.arange(0, CHUNK_SIZE)
+    offs_c = tl.arange(0, CHUNK_SIZE)
     offs_seq = chunk_start + offs_c
     mask_seq = (offs_seq < seq_end) & (offs_seq < S)
 
-    dSSdA_off = (pid_batch * stride_dSSdA_batch + pid_head * stride_dSSdA_head +
-                 pid_chunk * stride_dSSdA_chunk)
-    SSdA_off  = (pid_batch * stride_SSdA_batch  + pid_head * stride_SSdA_head  +
-                 pid_chunk * stride_SSdA_chunk)
-    ddt_ptrs = ddt_out_ptr + (pid_batch * stride_ddt_batch +
-                               pid_head  * stride_ddt_head  +
-                               offs_seq  * stride_ddt_seq)
+    dSSdA_off = (
+        pid_batch * stride_dSSdA_batch
+        + pid_head * stride_dSSdA_head
+        + pid_chunk * stride_dSSdA_chunk
+    )
+    SSdA_off = (
+        pid_batch * stride_SSdA_batch + pid_head * stride_SSdA_head + pid_chunk * stride_SSdA_chunk
+    )
+    ddt_ptrs = ddt_out_ptr + (
+        pid_batch * stride_ddt_batch + pid_head * stride_ddt_head + offs_seq * stride_ddt_seq
+    )
 
     # NOTE: dSSdA stored as (seq_k x seq_q) – transpose indices match non-varlen version.
-    dSSdA_block = tl.load(dSSdA_off + dSSdA_ptr +
-                          offs_c[:, None] * stride_dSSdA_col +
-                          offs_c[None, :] * stride_dSSdA_row)
-    SSdA_block  = tl.load(SSdA_off  + SSdA_cs_ptr  +
-                           offs_c[:, None] * stride_SSdA_row +
-                           offs_c[None, :] * stride_SSdA_col)
+    dSSdA_block = tl.load(
+        dSSdA_off
+        + dSSdA_ptr
+        + offs_c[:, None] * stride_dSSdA_col
+        + offs_c[None, :] * stride_dSSdA_row
+    )
+    SSdA_block = tl.load(
+        SSdA_off
+        + SSdA_cs_ptr
+        + offs_c[:, None] * stride_SSdA_row
+        + offs_c[None, :] * stride_SSdA_col
+    )
 
     dSSdA_block = dSSdA_block * tl.exp(SSdA_block)
     dSSdA_block = tl.cumsum(dSSdA_block, axis=0, reverse=True)
@@ -1141,7 +1273,7 @@ def bwd_segsum_dadt_kernel_varlen(
     offs_i = tl.arange(0, CHUNK_SIZE)[:, None]
     offs_j = tl.arange(0, CHUNK_SIZE)[None, :]
     SS_mask = offs_i > offs_j
-    dSSdA   = tl.where(SS_mask, dSSdA_block, 0.0)
+    dSSdA = tl.where(SS_mask, dSSdA_block, 0.0)
 
     ddt_chunk = tl.load(ddt_ptrs, mask=mask_seq, other=0.0)
     ddt_chunk += tl.sum(dSSdA, axis=1)
@@ -1149,27 +1281,41 @@ def bwd_segsum_dadt_kernel_varlen(
 
 
 @triton.autotune(
-    configs=[
-        triton.Config({}, num_stages=s, num_warps=w)
-        for s in [2, 3]
-        for w in [4, 8]
-    ],
+    configs=[triton.Config({}, num_stages=s, num_warps=w) for s in [2, 3] for w in [4, 8]],
     key=["CHUNK_SIZE"],
 )
 @triton.jit
 def bwd_dtrap_ddt_kernel_varlen(
-    trap_ptr, dt_ptr, dfactor_ptr, dgamma_diag_ptr,
-    ddt_ptr, dtrap_ptr,
+    trap_ptr,
+    dt_ptr,
+    dfactor_ptr,
+    dgamma_diag_ptr,
+    ddt_ptr,
+    dtrap_ptr,
     cu_seqlens_ptr,
     state_seq_mapping_ptr,
     state_chunk_in_seq_ptr,
-    stride_trap_batch, stride_trap_head, stride_trap_seq,
-    stride_dt_batch,   stride_dt_head,   stride_dt_seq,
-    stride_dfactor_batch, stride_dfactor_head, stride_dfactor_seq,
-    stride_dgamma_batch,  stride_dgamma_head,  stride_dgamma_seq,
-    stride_ddt_batch,  stride_ddt_head,  stride_ddt_seq,
-    stride_dtrap_batch, stride_dtrap_head, stride_dtrap_seq,
-    stride_cu, stride_ssm, stride_scis,
+    stride_trap_batch,
+    stride_trap_head,
+    stride_trap_seq,
+    stride_dt_batch,
+    stride_dt_head,
+    stride_dt_seq,
+    stride_dfactor_batch,
+    stride_dfactor_head,
+    stride_dfactor_seq,
+    stride_dgamma_batch,
+    stride_dgamma_head,
+    stride_dgamma_seq,
+    stride_ddt_batch,
+    stride_ddt_head,
+    stride_ddt_seq,
+    stride_dtrap_batch,
+    stride_dtrap_head,
+    stride_dtrap_seq,
+    stride_cu,
+    stride_ssm,
+    stride_scis,
     S: tl.constexpr,
     CHUNK_SIZE: tl.constexpr,
 ):
@@ -1177,44 +1323,46 @@ def bwd_dtrap_ddt_kernel_varlen(
     Grid: (B, H, nchunks_global).
     """
     pid_batch = tl.program_id(0)
-    pid_head  = tl.program_id(1)
+    pid_head = tl.program_id(1)
     pid_chunk = tl.program_id(2)
 
-    curr_seq_ind    = tl.load(state_seq_mapping_ptr  + pid_chunk * stride_ssm)
+    curr_seq_ind = tl.load(state_seq_mapping_ptr + pid_chunk * stride_ssm)
     local_chunk_ind = tl.load(state_chunk_in_seq_ptr + pid_chunk * stride_scis)
-    seq_start = tl.load(cu_seqlens_ptr + curr_seq_ind       * stride_cu)
-    seq_end   = tl.load(cu_seqlens_ptr + (curr_seq_ind + 1) * stride_cu)
-    is_first_chunk_in_seq = (local_chunk_ind == 0)
+    seq_start = tl.load(cu_seqlens_ptr + curr_seq_ind * stride_cu)
+    seq_end = tl.load(cu_seqlens_ptr + (curr_seq_ind + 1) * stride_cu)
+    is_first_chunk_in_seq = local_chunk_ind == 0
 
     chunk_start = seq_start + local_chunk_ind * CHUNK_SIZE
-    offs_c   = tl.arange(0, CHUNK_SIZE)
+    offs_c = tl.arange(0, CHUNK_SIZE)
     offs_seq = chunk_start + offs_c
     mask_seq = (offs_seq < seq_end) & (offs_seq < S)
 
     trap_off = pid_batch * stride_trap_batch + pid_head * stride_trap_head
-    dt_off   = pid_batch * stride_dt_batch   + pid_head * stride_dt_head
-    dfactor_off  = pid_batch * stride_dfactor_batch  + pid_head * stride_dfactor_head
-    dgamma_off   = pid_batch * stride_dgamma_batch   + pid_head * stride_dgamma_head
+    dt_off = pid_batch * stride_dt_batch + pid_head * stride_dt_head
+    dfactor_off = pid_batch * stride_dfactor_batch + pid_head * stride_dfactor_head
+    dgamma_off = pid_batch * stride_dgamma_batch + pid_head * stride_dgamma_head
 
     # Shifted (next-token) trap and dt – zero out at seq boundary.
     shift_mask = (offs_seq + 1 < seq_end) & (offs_seq + 1 < S)
-    strap_block = tl.load(trap_ptr + trap_off + (offs_seq + 1) * stride_trap_seq,
-                          mask=shift_mask, other=0.0)
-    sdt_block   = tl.load(dt_ptr   + dt_off   + (offs_seq + 1) * stride_dt_seq,
-                          mask=shift_mask, other=0.0)
-    trap_block  = tl.load(trap_ptr + trap_off + offs_seq * stride_trap_seq,
-                          mask=mask_seq, other=0.0)
-    dt_block    = tl.load(dt_ptr   + dt_off   + offs_seq * stride_dt_seq,
-                          mask=mask_seq, other=0.0)
-    dfactor_block     = tl.load(dfactor_ptr  + dfactor_off  + offs_seq * stride_dfactor_seq,
-                                mask=mask_seq, other=0.0)
-    dgamma_diag_block = tl.load(dgamma_diag_ptr + dgamma_off + offs_seq * stride_dgamma_seq,
-                                mask=mask_seq, other=0.0)
+    strap_block = tl.load(
+        trap_ptr + trap_off + (offs_seq + 1) * stride_trap_seq, mask=shift_mask, other=0.0
+    )
+    sdt_block = tl.load(
+        dt_ptr + dt_off + (offs_seq + 1) * stride_dt_seq, mask=shift_mask, other=0.0
+    )
+    trap_block = tl.load(trap_ptr + trap_off + offs_seq * stride_trap_seq, mask=mask_seq, other=0.0)
+    dt_block = tl.load(dt_ptr + dt_off + offs_seq * stride_dt_seq, mask=mask_seq, other=0.0)
+    dfactor_block = tl.load(
+        dfactor_ptr + dfactor_off + offs_seq * stride_dfactor_seq, mask=mask_seq, other=0.0
+    )
+    dgamma_diag_block = tl.load(
+        dgamma_diag_ptr + dgamma_off + offs_seq * stride_dgamma_seq, mask=mask_seq, other=0.0
+    )
 
-    dgamma_block  = dfactor_block + dgamma_diag_block
+    dgamma_block = dfactor_block + dgamma_diag_block
     dsgamma_block = dfactor_block
 
-    dsdt_block  = tl.sigmoid(-strap_block.to(tl.float32)) * dsgamma_block
+    dsdt_block = tl.sigmoid(-strap_block.to(tl.float32)) * dsgamma_block
     dstrap_block = -sdt_block * dsgamma_block
 
     # Cross-chunk: the first position of this chunk gets its shifted gradient from
@@ -1222,33 +1370,44 @@ def bwd_dtrap_ddt_kernel_varlen(
     prev_seq_valid = chunk_start > 0 and not is_first_chunk_in_seq
     prev_dgamma = tl.load(
         dfactor_ptr + dfactor_off + (chunk_start - 1) * stride_dfactor_seq,
-        mask=prev_seq_valid, other=0.0,
+        mask=prev_seq_valid,
+        other=0.0,
     )
     prev_dsgamma = prev_dgamma
-    prev_strap = tl.load(trap_ptr + trap_off + chunk_start * stride_trap_seq,
-                         mask=(chunk_start < S) and not is_first_chunk_in_seq, other=0.0)
-    prev_sdt   = tl.load(dt_ptr   + dt_off   + chunk_start * stride_dt_seq,
-                         mask=(chunk_start < S) and not is_first_chunk_in_seq, other=0.0)
-    prev_dsdt  = tl.sigmoid(-prev_strap.to(tl.float32)) * prev_dsgamma
+    prev_strap = tl.load(
+        trap_ptr + trap_off + chunk_start * stride_trap_seq,
+        mask=(chunk_start < S) and not is_first_chunk_in_seq,
+        other=0.0,
+    )
+    prev_sdt = tl.load(
+        dt_ptr + dt_off + chunk_start * stride_dt_seq,
+        mask=(chunk_start < S) and not is_first_chunk_in_seq,
+        other=0.0,
+    )
+    prev_dsdt = tl.sigmoid(-prev_strap.to(tl.float32)) * prev_dsgamma
     prev_dstrap = -prev_sdt * prev_dsgamma
 
     offs_i = tl.arange(0, CHUNK_SIZE)[:, None]
     offs_j = tl.arange(0, CHUNK_SIZE)[None, :]
     shift_mask_mat = offs_i == (offs_j + 1)
-    dsdt_shift  = tl.sum(tl.where(shift_mask_mat, dsdt_block [None, :], 0.0), axis=1)
+    dsdt_shift = tl.sum(tl.where(shift_mask_mat, dsdt_block[None, :], 0.0), axis=1)
     dstrap_shift = tl.sum(tl.where(shift_mask_mat, dstrap_block[None, :], 0.0), axis=1)
 
     offs = tl.arange(0, CHUNK_SIZE)
-    dsdt_shift  = tl.where(offs == 0, prev_dsdt,  dsdt_shift)
+    dsdt_shift = tl.where(offs == 0, prev_dsdt, dsdt_shift)
     dstrap_shift = tl.where(offs == 0, prev_dstrap, dstrap_shift)
 
-    ddt_out  = dsdt_shift + dgamma_block * tl.sigmoid(trap_block.to(tl.float32))
+    ddt_out = dsdt_shift + dgamma_block * tl.sigmoid(trap_block.to(tl.float32))
     dtrap_out = dstrap_shift + dgamma_block * dt_block
     dtrap_out *= tl.sigmoid(trap_block.to(tl.float32)) * tl.sigmoid(-trap_block.to(tl.float32))
 
-    ddt_ptrs  = ddt_ptr  + (pid_batch * stride_ddt_batch  + pid_head * stride_ddt_head  + offs_seq * stride_ddt_seq)
-    dtrap_ptrs = dtrap_ptr + (pid_batch * stride_dtrap_batch + pid_head * stride_dtrap_head + offs_seq * stride_dtrap_seq)
-    tl.store(ddt_ptrs,  ddt_out,  mask=mask_seq)
+    ddt_ptrs = ddt_ptr + (
+        pid_batch * stride_ddt_batch + pid_head * stride_ddt_head + offs_seq * stride_ddt_seq
+    )
+    dtrap_ptrs = dtrap_ptr + (
+        pid_batch * stride_dtrap_batch + pid_head * stride_dtrap_head + offs_seq * stride_dtrap_seq
+    )
+    tl.store(ddt_ptrs, ddt_out, mask=mask_seq)
     tl.store(dtrap_ptrs, dtrap_out, mask=mask_seq)
 
 
@@ -1292,7 +1451,7 @@ def _build_varlen_chunk_mapping(cu_seqlens: torch.Tensor, chunk_size: int):
     S = int(cu_seqlens[-1].item())
     nchunks_global = (S // chunk_size) + num_sequences
 
-    state_seq_mapping  = torch.zeros(nchunks_global, dtype=torch.int32, device=cu_seqlens.device)
+    state_seq_mapping = torch.zeros(nchunks_global, dtype=torch.int32, device=cu_seqlens.device)
     state_chunk_in_seq = torch.zeros(nchunks_global, dtype=torch.int32, device=cu_seqlens.device)
     # Fill with out-of-range sentinel so inactive slots are masked out.
     default_seq_len = int(seq_lens[0].item()) if num_sequences > 0 else 0
@@ -1300,21 +1459,22 @@ def _build_varlen_chunk_mapping(cu_seqlens: torch.Tensor, chunk_size: int):
 
     for i in range(num_sequences):
         start = int(cu_seqlens[i].item())
-        n     = int(chunks_per_seq[i].item())
+        n = int(chunks_per_seq[i].item())
         chunk_start = (start // chunk_size) + i
-        state_seq_mapping [chunk_start:chunk_start + n] = i
-        state_chunk_in_seq[chunk_start:chunk_start + n] = torch.arange(n, dtype=torch.int32,
-                                                                         device=cu_seqlens.device)
+        state_seq_mapping[chunk_start : chunk_start + n] = i
+        state_chunk_in_seq[chunk_start : chunk_start + n] = torch.arange(
+            n, dtype=torch.int32, device=cu_seqlens.device
+        )
     return nchunks_global, state_seq_mapping, state_chunk_in_seq
 
 
 def bwd_dadt_fused_triton_varlen(
-    dSSdA: torch.Tensor,       # [B, H, nchunks_global, C, C]
-    SSdA: torch.Tensor,        # [B, H, nchunks_global, C, C]
-    ddA_cs: torch.Tensor,      # [B, H, S]
+    dSSdA: torch.Tensor,  # [B, H, nchunks_global, C, C]
+    SSdA: torch.Tensor,  # [B, H, nchunks_global, C, C]
+    ddA_cs: torch.Tensor,  # [B, H, S]
     ddA_cs_rev: torch.Tensor,  # [B, H, S]
-    dA_cs: torch.Tensor,       # [B, H, S]
-    dA_cs_rev: torch.Tensor,   # [B, H, S]
+    dA_cs: torch.Tensor,  # [B, H, S]
+    dA_cs_rev: torch.Tensor,  # [B, H, S]
     chunk_size: int,
     cu_seqlens: torch.Tensor,  # [NS+1]
 ) -> torch.Tensor:
@@ -1330,16 +1490,29 @@ def bwd_dadt_fused_triton_varlen(
     nchunks_global, state_seq_mapping, state_chunk_in_seq = _build_varlen_chunk_mapping(
         cu_seqlens, chunk_size
     )
-    assert dSSdA.shape == (B, H, nchunks_global, chunk_size, chunk_size), \
-        f"dSSdA shape mismatch: got {dSSdA.shape}, expected {(B, H, nchunks_global, chunk_size, chunk_size)}"
+    assert dSSdA.shape == (
+        B,
+        H,
+        nchunks_global,
+        chunk_size,
+        chunk_size,
+    ), f"dSSdA shape mismatch: got {dSSdA.shape}, expected {(B, H, nchunks_global, chunk_size, chunk_size)}"
 
     dadt_out = torch.zeros(B, H, S, device=ddA_cs.device, dtype=torch.float32)
     grid = (B, H, nchunks_global)
 
     bwd_dadt_cumsum_fused_kernel_varlen[grid](
-        ddA_cs, ddA_cs_rev, dA_cs, dA_cs_rev, dadt_out,
-        cu_seqlens, state_seq_mapping, state_chunk_in_seq,
-        ddA_cs.stride(0), ddA_cs.stride(1), ddA_cs.stride(2),
+        ddA_cs,
+        ddA_cs_rev,
+        dA_cs,
+        dA_cs_rev,
+        dadt_out,
+        cu_seqlens,
+        state_seq_mapping,
+        state_chunk_in_seq,
+        ddA_cs.stride(0),
+        ddA_cs.stride(1),
+        ddA_cs.stride(2),
         cu_seqlens.stride(0),
         state_seq_mapping.stride(0),
         state_chunk_in_seq.stride(0),
@@ -1348,13 +1521,25 @@ def bwd_dadt_fused_triton_varlen(
     )
 
     bwd_segsum_dadt_kernel_varlen[grid](
-        dSSdA, SSdA, dadt_out,
-        cu_seqlens, state_seq_mapping, state_chunk_in_seq,
-        dSSdA.stride(0), dSSdA.stride(1), dSSdA.stride(2),
-        dSSdA.stride(3), dSSdA.stride(4),
-        SSdA.stride(0),  SSdA.stride(1),  SSdA.stride(2),
-        SSdA.stride(3),  SSdA.stride(4),
-        dadt_out.stride(0), dadt_out.stride(1), dadt_out.stride(2),
+        dSSdA,
+        SSdA,
+        dadt_out,
+        cu_seqlens,
+        state_seq_mapping,
+        state_chunk_in_seq,
+        dSSdA.stride(0),
+        dSSdA.stride(1),
+        dSSdA.stride(2),
+        dSSdA.stride(3),
+        dSSdA.stride(4),
+        SSdA.stride(0),
+        SSdA.stride(1),
+        SSdA.stride(2),
+        SSdA.stride(3),
+        SSdA.stride(4),
+        dadt_out.stride(0),
+        dadt_out.stride(1),
+        dadt_out.stride(2),
         cu_seqlens.stride(0),
         state_seq_mapping.stride(0),
         state_chunk_in_seq.stride(0),
@@ -1365,12 +1550,12 @@ def bwd_dadt_fused_triton_varlen(
 
 
 def bwd_dtrap_ddt_triton_varlen(
-    trap: torch.Tensor,           # [B, H, S]  – trap_presigmoid values
-    dt: torch.Tensor,             # [B, H, S]
-    dfactor: torch.Tensor,        # [B, H, S]
-    dgamma_diag: torch.Tensor,    # [B, H, S]
+    trap: torch.Tensor,  # [B, H, S]  – trap_presigmoid values
+    dt: torch.Tensor,  # [B, H, S]
+    dfactor: torch.Tensor,  # [B, H, S]
+    dgamma_diag: torch.Tensor,  # [B, H, S]
     chunk_size: int,
-    cu_seqlens: torch.Tensor,     # [NS+1]
+    cu_seqlens: torch.Tensor,  # [NS+1]
 ):
     """Varlen version of bwd_dtrap_ddt_triton.
 
@@ -1384,19 +1569,38 @@ def bwd_dtrap_ddt_triton_varlen(
     nchunks_global, state_seq_mapping, state_chunk_in_seq = _build_varlen_chunk_mapping(
         cu_seqlens, chunk_size
     )
-    ddt   = torch.zeros_like(dt)
+    ddt = torch.zeros_like(dt)
     dtrap = torch.zeros_like(trap)
-    grid  = (B, H, nchunks_global)
+    grid = (B, H, nchunks_global)
 
     bwd_dtrap_ddt_kernel_varlen[grid](
-        trap, dt, dfactor, dgamma_diag, ddt, dtrap,
-        cu_seqlens, state_seq_mapping, state_chunk_in_seq,
-        trap.stride(0),    trap.stride(1),    trap.stride(2),
-        dt.stride(0),      dt.stride(1),      dt.stride(2),
-        dfactor.stride(0), dfactor.stride(1), dfactor.stride(2),
-        dgamma_diag.stride(0), dgamma_diag.stride(1), dgamma_diag.stride(2),
-        ddt.stride(0),   ddt.stride(1),   ddt.stride(2),
-        dtrap.stride(0), dtrap.stride(1), dtrap.stride(2),
+        trap,
+        dt,
+        dfactor,
+        dgamma_diag,
+        ddt,
+        dtrap,
+        cu_seqlens,
+        state_seq_mapping,
+        state_chunk_in_seq,
+        trap.stride(0),
+        trap.stride(1),
+        trap.stride(2),
+        dt.stride(0),
+        dt.stride(1),
+        dt.stride(2),
+        dfactor.stride(0),
+        dfactor.stride(1),
+        dfactor.stride(2),
+        dgamma_diag.stride(0),
+        dgamma_diag.stride(1),
+        dgamma_diag.stride(2),
+        ddt.stride(0),
+        ddt.stride(1),
+        ddt.stride(2),
+        dtrap.stride(0),
+        dtrap.stride(1),
+        dtrap.stride(2),
         cu_seqlens.stride(0),
         state_seq_mapping.stride(0),
         state_chunk_in_seq.stride(0),
@@ -1409,6 +1613,7 @@ def bwd_dtrap_ddt_triton_varlen(
 # ============================================================================
 # Correctness tests (run via __main__)
 # ============================================================================
+
 
 def test_bwd_ddt_fused_correctness():
     """Test bwd_dadt_fused_triton (dense) against the reference implementations."""
@@ -1423,12 +1628,14 @@ def test_bwd_ddt_fused_correctness():
 
     # Generate random inputs
     torch.manual_seed(42)
-    dSSdA = torch.randn(B, H, nchunks, C, C, device='cuda', dtype=torch.float32)
-    ddA_cs = torch.randn(B, H, S, device='cuda', dtype=torch.float32)
-    ddA_cs_rev = torch.randn(B, H, S, device='cuda', dtype=torch.float32)
-    dA_cs = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1  # Scale to avoid overflow
-    dA_cs_rev = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
-    
+    dSSdA = torch.randn(B, H, nchunks, C, C, device="cuda", dtype=torch.float32)
+    ddA_cs = torch.randn(B, H, S, device="cuda", dtype=torch.float32)
+    ddA_cs_rev = torch.randn(B, H, S, device="cuda", dtype=torch.float32)
+    dA_cs = (
+        torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
+    )  # Scale to avoid overflow
+    dA_cs_rev = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
+
     dA_cs_reshape = dA_cs.view(B, H, nchunks, chunk_size)
     SSdA = dA_cs_reshape[:, :, :, :, None] - dA_cs_reshape[:, :, :, None, :]
 
@@ -1436,12 +1643,13 @@ def test_bwd_ddt_fused_correctness():
     ddt_ref1 = bwd_segsum_ddt_from_dSSdA_ref(dSSdA.clone(), dA_cs.clone(), chunk_size)
     ddt_ref2 = bwd_ddt_from_ddA_cs_rev_ref(ddA_cs_rev.clone(), dA_cs_rev.clone(), chunk_size)
     ddt_ref3 = bwd_ddt_from_ddA_cs_ref(ddA_cs.clone(), dA_cs.clone(), chunk_size)
-    ddt_ref = ddt_ref1 + ddt_ref2 + ddt_ref3 # TODO: 
+    ddt_ref = ddt_ref1 + ddt_ref2 + ddt_ref3  # TODO:
 
     # Fused Triton implementation
-    ddt_triton = bwd_dadt_fused_triton(
-        dSSdA, SSdA, ddA_cs, ddA_cs_rev, dA_cs, dA_cs_rev, chunk_size
-    ) * -1.4426950408889634 # i.e., -log2(e)
+    ddt_triton = (
+        bwd_dadt_fused_triton(dSSdA, SSdA, ddA_cs, ddA_cs_rev, dA_cs, dA_cs_rev, chunk_size)
+        * -1.4426950408889634
+    )  # i.e., -log2(e)
 
     # Compare
     max_diff = (ddt_ref - ddt_triton).abs().max().item()
@@ -1454,6 +1662,7 @@ def test_bwd_ddt_fused_correctness():
     print()
 
     return passed
+
 
 def test_dtrap_ddt_correctness():
     """Test bwd_dtrap_ddt_triton (dense) against compute_dtrap_ddt_ref."""
@@ -1470,18 +1679,16 @@ def test_dtrap_ddt_correctness():
     # Generate random inputs
     torch.manual_seed(42)
 
-    trap = torch.rand(B, H, S, device='cuda', dtype=torch.float16)
-    dt = F.softplus(-3.0 + torch.randn(B, H, S, device='cuda', dtype=torch.float))
-    dfactor = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
-    dgamma_diag = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
+    trap = torch.rand(B, H, S, device="cuda", dtype=torch.float16)
+    dt = F.softplus(-3.0 + torch.randn(B, H, S, device="cuda", dtype=torch.float))
+    dfactor = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
+    dgamma_diag = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
 
     # Reference implementation
     ddt_ref, dtrap_ref = compute_dtrap_ddt_ref(dfactor, dgamma_diag, trap, dt)
 
     # Triton implementation
-    ddt_triton, dtrap_triton = bwd_dtrap_ddt_triton(
-        trap, dt, dfactor, dgamma_diag, chunk_size
-    )
+    ddt_triton, dtrap_triton = bwd_dtrap_ddt_triton(trap, dt, dfactor, dgamma_diag, chunk_size)
 
     # Compare
     max_diff_ddt = (ddt_ref - ddt_triton).abs().max().item()
@@ -1499,8 +1706,10 @@ def test_dtrap_ddt_correctness():
 
     return passed
 
+
 def test_dacs_segsum_correctness_varlen():
     import torch.nn.functional as F
+
     B, H = 1, 8
     chunk_size = 16
     test_cases = [
@@ -1514,10 +1723,10 @@ def test_dacs_segsum_correctness_varlen():
         S = sum(seq_lengths)
         if S == 0:
             continue
-        da = -F.softplus(-3.0 + torch.randn(B, H, S, device='cuda', dtype=torch.float))
+        da = -F.softplus(-3.0 + torch.randn(B, H, S, device="cuda", dtype=torch.float))
         cu_seqlens = torch.tensor(
             [0] + list(torch.cumsum(torch.tensor(seq_lengths), dim=0).tolist()),
-            device='cuda',
+            device="cuda",
             dtype=torch.int32,
         )
         num_sequences = len(seq_lengths)
@@ -1554,9 +1763,10 @@ def test_dacs_segsum_correctness_varlen():
 def test_dacs_segsum_correctness():
     """Test the dense dacs+segsum Triton kernel against the dense reference."""
     import torch.nn.functional as F
+
     B, H, S = 16, 32, 2048
     chunk_size = 16
-    da = -F.softplus(-3.0 + torch.randn(B, H, S, device='cuda', dtype=torch.float))
+    da = -F.softplus(-3.0 + torch.randn(B, H, S, device="cuda", dtype=torch.float))
 
     da_cs_ref, da_cs_rev_ref, segsum_ref = compute_dacs_segsum_ref(da, chunk_size)
     da_cs_triton, da_cs_rev_triton, segsum_triton = compute_dacs_segsum_triton(da, chunk_size)
@@ -1596,7 +1806,8 @@ def test_bwd_dadt_fused_varlen_correctness():
     S = sum(seq_lengths)
     cu_seqlens = torch.tensor(
         [0] + list(torch.cumsum(torch.tensor(seq_lengths), dim=0).tolist()),
-        device='cuda', dtype=torch.int32,
+        device="cuda",
+        dtype=torch.int32,
     )
     num_sequences = len(seq_lengths)
     seq_lens = cu_seqlens[1:] - cu_seqlens[:-1]
@@ -1605,28 +1816,28 @@ def test_bwd_dadt_fused_varlen_correctness():
     C = chunk_size
 
     torch.manual_seed(42)
-    dSSdA    = torch.randn(B, H, nchunks_global, C, C, device='cuda', dtype=torch.float32)
-    ddA_cs   = torch.randn(B, H, S, device='cuda', dtype=torch.float32)
-    ddA_cs_rev = torch.randn(B, H, S, device='cuda', dtype=torch.float32)
-    dA_cs    = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
-    dA_cs_rev = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
+    dSSdA = torch.randn(B, H, nchunks_global, C, C, device="cuda", dtype=torch.float32)
+    ddA_cs = torch.randn(B, H, S, device="cuda", dtype=torch.float32)
+    ddA_cs_rev = torch.randn(B, H, S, device="cuda", dtype=torch.float32)
+    dA_cs = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
+    dA_cs_rev = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
 
     # Build SSdA in the varlen global chunk layout.
     # For each sequence i, the global chunk slots start at (cu_seqlens[i] // chunk_size) + i.
-    SSdA = torch.zeros(B, H, nchunks_global, C, C, device='cuda', dtype=torch.float32)
+    SSdA = torch.zeros(B, H, nchunks_global, C, C, device="cuda", dtype=torch.float32)
     for i in range(num_sequences):
         start = int(cu_seqlens[i].item())
-        end   = int(cu_seqlens[i + 1].item())
-        curr_seqlen  = end - start
+        end = int(cu_seqlens[i + 1].item())
+        curr_seqlen = end - start
         curr_nchunks = int(chunks_per_seq[i].item())
         curr_padded_len = curr_nchunks * chunk_size
         global_chunk_start = (start // chunk_size) + i
 
-        dA_cs_padded = torch.zeros(B, H, curr_padded_len, device='cuda', dtype=torch.float32)
+        dA_cs_padded = torch.zeros(B, H, curr_padded_len, device="cuda", dtype=torch.float32)
         if curr_seqlen > 0:
             dA_cs_padded[:, :, :curr_seqlen] = dA_cs[:, :, start:end]
         dA_cs_seq = dA_cs_padded.view(B, H, curr_nchunks, C)
-        SSdA[:, :, global_chunk_start:global_chunk_start + curr_nchunks, :, :] = (
+        SSdA[:, :, global_chunk_start : global_chunk_start + curr_nchunks, :, :] = (
             dA_cs_seq[:, :, :, :, None] - dA_cs_seq[:, :, :, None, :]
         )
 
@@ -1636,11 +1847,14 @@ def test_bwd_dadt_fused_varlen_correctness():
     )
 
     # Varlen Triton kernel (result scaled by -log2(e) to match reference sign convention)
-    ddt_triton = bwd_dadt_fused_triton_varlen(
-        dSSdA, SSdA, ddA_cs, ddA_cs_rev, dA_cs, dA_cs_rev, chunk_size, cu_seqlens
-    ) * -1.4426950408889634
+    ddt_triton = (
+        bwd_dadt_fused_triton_varlen(
+            dSSdA, SSdA, ddA_cs, ddA_cs_rev, dA_cs, dA_cs_rev, chunk_size, cu_seqlens
+        )
+        * -1.4426950408889634
+    )
 
-    max_diff  = (ddt_ref - ddt_triton).abs().max().item()
+    max_diff = (ddt_ref - ddt_triton).abs().max().item()
     mean_diff = (ddt_ref - ddt_triton).abs().mean().item()
     print(f"  Max difference:  {max_diff:.2e}")
     print(f"  Mean difference: {mean_diff:.2e}")
@@ -1657,19 +1871,21 @@ def test_dtrap_ddt_varlen_correctness():
     print("=" * 70)
 
     import torch.nn.functional as F
+
     B, H, chunk_size = 1, 8, 16
     seq_lengths = [37, 32, 28]
     S = sum(seq_lengths)
     cu_seqlens = torch.tensor(
         [0] + list(torch.cumsum(torch.tensor(seq_lengths), dim=0).tolist()),
-        device='cuda', dtype=torch.int32,
+        device="cuda",
+        dtype=torch.int32,
     )
 
     torch.manual_seed(42)
-    trap        = torch.rand(B, H, S, device='cuda', dtype=torch.float16)
-    dt          = F.softplus(-3.0 + torch.randn(B, H, S, device='cuda', dtype=torch.float32))
-    dfactor     = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
-    dgamma_diag = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
+    trap = torch.rand(B, H, S, device="cuda", dtype=torch.float16)
+    dt = F.softplus(-3.0 + torch.randn(B, H, S, device="cuda", dtype=torch.float32))
+    dfactor = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
+    dgamma_diag = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
 
     # Varlen reference
     ddt_ref, dtrap_ref = compute_dtrap_ddt_varlen_ref(
@@ -1681,8 +1897,8 @@ def test_dtrap_ddt_varlen_correctness():
         trap, dt, dfactor, dgamma_diag, chunk_size, cu_seqlens
     )
 
-    max_diff_ddt   = (ddt_ref   - ddt_triton  ).abs().max().item()
-    mean_diff_ddt  = (ddt_ref   - ddt_triton  ).abs().mean().item()
+    max_diff_ddt = (ddt_ref - ddt_triton).abs().max().item()
+    mean_diff_ddt = (ddt_ref - ddt_triton).abs().mean().item()
     max_diff_dtrap = (dtrap_ref - dtrap_triton).abs().max().item()
     mean_diff_dtrap = (dtrap_ref - dtrap_triton).abs().mean().item()
     print(f"  ddt  max difference:  {max_diff_ddt:.2e}")
@@ -1699,10 +1915,10 @@ def test_dtrap_ddt_varlen_correctness():
 # Benchmarks (run individually as needed)
 # ============================================================================
 
+
 def benchmark_bwd_ddt():
     """Benchmark fused kernel against unfused baseline."""
     from triton.testing import do_bench
-
 
     print("=" * 70)
     print("Benchmark: bwd_ddt_fused")
@@ -1718,11 +1934,11 @@ def benchmark_bwd_ddt():
 
     # Setup inputs
     torch.manual_seed(42)
-    dSSdA = torch.randn(B, H, nchunks, C, C, device='cuda', dtype=torch.float32)
-    ddA_cs = torch.randn(B, H, S, device='cuda', dtype=torch.float32)
-    ddA_cs_rev = torch.randn(B, H, S, device='cuda', dtype=torch.float32)
-    dA_cs = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
-    dA_cs_rev = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
+    dSSdA = torch.randn(B, H, nchunks, C, C, device="cuda", dtype=torch.float32)
+    ddA_cs = torch.randn(B, H, S, device="cuda", dtype=torch.float32)
+    ddA_cs_rev = torch.randn(B, H, S, device="cuda", dtype=torch.float32)
+    dA_cs = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
+    dA_cs_rev = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
 
     dA_cs_reshape = dA_cs.view(B, H, nchunks, chunk_size)
     SSdA = dA_cs_reshape[:, :, :, :, None] - dA_cs_reshape[:, :, :, None, :]
@@ -1735,16 +1951,20 @@ def benchmark_bwd_ddt():
         return ddt1 + ddt2 + ddt3
 
     # Benchmark individual components
-    ref1_time = do_bench(lambda: bwd_segsum_ddt_from_dSSdA_ref(dSSdA, dA_cs, chunk_size), warmup=25, rep=100)
-    ref2_time = do_bench(lambda: bwd_ddt_from_ddA_cs_rev_ref(ddA_cs_rev, dA_cs_rev, chunk_size), warmup=25, rep=100)
-    ref3_time = do_bench(lambda: bwd_ddt_from_ddA_cs_ref(ddA_cs, dA_cs, chunk_size), warmup=25, rep=100)
+    ref1_time = do_bench(
+        lambda: bwd_segsum_ddt_from_dSSdA_ref(dSSdA, dA_cs, chunk_size), warmup=25, rep=100
+    )
+    ref2_time = do_bench(
+        lambda: bwd_ddt_from_ddA_cs_rev_ref(ddA_cs_rev, dA_cs_rev, chunk_size), warmup=25, rep=100
+    )
+    ref3_time = do_bench(
+        lambda: bwd_ddt_from_ddA_cs_ref(ddA_cs, dA_cs, chunk_size), warmup=25, rep=100
+    )
     ref_time = do_bench(ref_impl, warmup=25, rep=100)
 
     # Benchmark fused
     def fused_impl():
-        return bwd_dadt_fused_triton(
-            dSSdA, SSdA, ddA_cs, ddA_cs_rev, dA_cs, dA_cs_rev, chunk_size
-        )
+        return bwd_dadt_fused_triton(dSSdA, SSdA, ddA_cs, ddA_cs_rev, dA_cs, dA_cs_rev, chunk_size)
 
     fused_time = do_bench(fused_impl, warmup=25, rep=100)
 
@@ -1764,8 +1984,8 @@ def benchmark_bwd_ddt():
 
 def benchmark_dacs_segsum():
     """Benchmark dacs+segsum Triton against reference implementation."""
-    from triton.testing import do_bench
     import torch.nn.functional as F
+    from triton.testing import do_bench
 
     print("=" * 70)
     print("Benchmark: dacs_segsum")
@@ -1778,7 +1998,7 @@ def benchmark_dacs_segsum():
     print()
 
     torch.manual_seed(42)
-    da = F.softplus(-3.0 + torch.randn(B, H, S, device='cuda', dtype=torch.float))
+    da = F.softplus(-3.0 + torch.randn(B, H, S, device="cuda", dtype=torch.float))
 
     def ref_impl():
         return compute_dacs_segsum_ref(da, chunk_size)
@@ -1801,8 +2021,8 @@ def benchmark_dacs_segsum():
 
 def benchmark_dtrap_ddt():
     """Benchmark dtrap/ddt kernel against reference implementation."""
-    from triton.testing import do_bench
     import torch.nn.functional as F
+    from triton.testing import do_bench
 
     print("=" * 70)
     print("Benchmark: bwd_dtrap_ddt")
@@ -1815,10 +2035,10 @@ def benchmark_dtrap_ddt():
     print()
 
     torch.manual_seed(42)
-    trap = torch.ones(B, H, S, device='cuda', dtype=torch.float16) * 0.5
-    dt = F.softplus(-3.0 + torch.randn(B, H, S, device='cuda', dtype=torch.float))
-    dfactor = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
-    dgamma_diag = torch.randn(B, H, S, device='cuda', dtype=torch.float32) * 0.1
+    trap = torch.ones(B, H, S, device="cuda", dtype=torch.float16) * 0.5
+    dt = F.softplus(-3.0 + torch.randn(B, H, S, device="cuda", dtype=torch.float))
+    dfactor = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
+    dgamma_diag = torch.randn(B, H, S, device="cuda", dtype=torch.float32) * 0.1
 
     def ref_impl():
         return compute_dtrap_ddt_ref(dfactor, dgamma_diag, trap, dt)

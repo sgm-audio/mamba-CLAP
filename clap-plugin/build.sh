@@ -2,7 +2,7 @@
 set -e
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TORCH_CMAKE_DIR="/home/SGM/.local/lib/python3.14/site-packages/torch/share/cmake/Torch"
+TORCH_CMAKE_DIR="${TORCH_CMAKE_DIR:-$HOME/.local/lib/python3.10/site-packages/torch/share/cmake/Torch}"
 MODEL_PATH="$(dirname "$PLUGIN_DIR")/models/mamba3_audio_effects.pt"
 
 echo "=== MambaFX CLAP Build ==="

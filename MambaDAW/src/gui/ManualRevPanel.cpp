@@ -23,7 +23,7 @@ ManualRevPanel::ManualRevPanel(ParamCallback cb) : onParam_(std::move(cb)) {
     setupLabel(preLabel_,   "Pre ms");
     setupLabel(diffLabel_,  "Diffuse");
 
-    decaySlider_.setRange(0.1, 8.0, 0.01);
+    decaySlider_.setRange(0.2, 8.0, 0.01);
     decaySlider_.setValue(1.5, dontSendNotification);
     decaySlider_.setTextBoxStyle(Slider::TextBoxRight, false, 36, 18);
     decaySlider_.setTextValueSuffix(" s");
@@ -32,7 +32,7 @@ ManualRevPanel::ManualRevPanel(ParamCallback cb) : onParam_(std::move(cb)) {
     };
     addAndMakeVisible(decaySlider_);
 
-    preSlider_.setRange(0.0, 100.0, 0.1);
+    preSlider_.setRange(0.0, 80.0, 0.1);
     preSlider_.setValue(20.0, dontSendNotification);
     preSlider_.setTextBoxStyle(Slider::TextBoxRight, false, 36, 18);
     preSlider_.onValueChange = [this] {
@@ -59,14 +59,15 @@ void ManualRevPanel::updateToggleLabel() {
         enabled_ ? MambaColors::amber : MambaColors::textSecondary);
 }
 
-void ManualRevPanel::syncFromProcessor(bool enabled, double decay, double predelay, double diffusion) {
-    if (enabled != enabled_) {
-        enabled_ = enabled;
-        updateToggleLabel();
-    }
-    decaySlider_.setValue(decay,     dontSendNotification);
-    preSlider_  .setValue(predelay,  dontSendNotification);
-    diffSlider_ .setValue(diffusion, dontSendNotification);
+void ManualRevPanel::syncFromProcessor(bool enabled, double decay, double predelay, double diffusion,
+  const int* paramSuppress) {
+  if (enabled != enabled_) {
+    enabled_ = enabled;
+    updateToggleLabel();
+  }
+  if (!(paramSuppress && paramSuppress[11] > 0) && !decaySlider_.isMouseButtonDown()) decaySlider_.setValue(decay, dontSendNotification);
+  if (!(paramSuppress && paramSuppress[31] > 0) && !preSlider_.isMouseButtonDown()) preSlider_ .setValue(predelay, dontSendNotification);
+  if (!(paramSuppress && paramSuppress[32] > 0) && !diffSlider_.isMouseButtonDown()) diffSlider_ .setValue(diffusion, dontSendNotification);
 }
 
 void ManualRevPanel::paint(Graphics& g) {

@@ -9,7 +9,8 @@ public:
 
     explicit ManualRevPanel(ParamCallback cb);
 
-    void syncFromProcessor(bool enabled, double decay, double predelay, double diffusion);
+    void syncFromProcessor(bool enabled, double decay, double predelay, double diffusion,
+  const int* paramSuppress = nullptr);
 
     void paint(juce::Graphics&) override;
     void resized() override;

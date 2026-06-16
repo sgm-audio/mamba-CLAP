@@ -49,7 +49,9 @@ def _make_inputs(
 
     B = torch.randn(batch, seqlen, ngroups, dstate, device=device, dtype=dtype).contiguous()
     C = torch.randn(batch, seqlen, ngroups, dstate, device=device, dtype=dtype).contiguous()
-    dstates = torch.randn(batch, nchunks, nheads, headdim, dstate, device=device, dtype=torch.float32)
+    dstates = torch.randn(
+        batch, nchunks, nheads, headdim, dstate, device=device, dtype=torch.float32
+    )
     prev_states = torch.randn_like(dstates)
 
     ddA = torch.randn(batch, nheads, nchunks, chunk_size, device=device, dtype=torch.float32)
@@ -107,31 +109,46 @@ def _run_case_outputs(
 
     if case == "chunk_scan_bwd_dx":
         from mamba_ssm.ops.triton.ssd_chunk_scan import _chunk_scan_bwd_dx
+
         dx, ddt = _chunk_scan_bwd_dx(t["cb"], t["x"], t["dt"], t["dA_cumsum"], t["dout"])
         out = {"dx": dx, "ddt": ddt}
     elif case == "chunk_scan_bwd_dC":
         from mamba_ssm.ops.triton.ssd_chunk_scan import _chunk_scan_bwd_dC
-        dC, ddA_prev = _chunk_scan_bwd_dC(t["prev_states"], t["dA_cumsum"], t["dout"], C=t["C"], ngroups=1)
+
+        dC, ddA_prev = _chunk_scan_bwd_dC(
+            t["prev_states"], t["dA_cumsum"], t["dout"], C=t["C"], ngroups=1
+        )
         out = {"dC": dC, "ddA_cumsum_prev": ddA_prev}
     elif case == "chunk_state_bwd_dx":
         from mamba_ssm.ops.triton.ssd_chunk_state import _chunk_state_bwd_dx
+
         dx, ddt, ddA = _chunk_state_bwd_dx(t["B"], t["x"], t["dt"], t["dA_cumsum"], t["dstates"])
         out = {"dx": dx, "ddt": ddt, "ddA_cumsum": ddA}
     elif case == "chunk_state_bwd_db":
         from mamba_ssm.ops.triton.ssd_chunk_state import _chunk_state_bwd_db
-        dB, ddA = _chunk_state_bwd_db(t["x"], t["dt"], t["dA_cumsum"], t["dstates"], B=t["B"], ngroups=1)
+
+        dB, ddA = _chunk_state_bwd_db(
+            t["x"], t["dt"], t["dA_cumsum"], t["dstates"], B=t["B"], ngroups=1
+        )
         out = {"dB": dB, "ddA_cumsum": ddA}
     elif case == "chunk_state_bwd_ddAcs_stable":
         from mamba_ssm.ops.triton.ssd_chunk_state import _chunk_state_bwd_ddAcs_stable
+
         ddA = _chunk_state_bwd_ddAcs_stable(t["B"], t["x"], t["dt"], t["dA_cumsum"], t["dstates"])
         out = {"ddA_cumsum": ddA}
     elif case == "chunk_cumsum_bwd":
         from mamba_ssm.ops.triton.ssd_chunk_state import _chunk_cumsum_bwd
-        ddt, dA, ddt_bias = _chunk_cumsum_bwd(t["ddA"], t["ddt_out"], t["dt_raw"], t["A"], dt_bias=t["dt_bias"], dt_softplus=True)
+
+        ddt, dA, ddt_bias = _chunk_cumsum_bwd(
+            t["ddA"], t["ddt_out"], t["dt_raw"], t["A"], dt_bias=t["dt_bias"], dt_softplus=True
+        )
         out = {"ddt": ddt, "dA": dA, "ddt_bias": ddt_bias}
     elif case.startswith("combined_bwd_dx"):
         from mamba_ssm.ops.triton.ssd_combined import _chunk_scan_chunk_state_bwd_dx
-        dx, ddt, dD = _chunk_scan_chunk_state_bwd_dx(t["x"], t["dt"], t["dA_cumsum"], t["B"], t["cb"], t["dout"], t["dstates"], D=t["D"])
+
+        dx, ddt, dD = _chunk_scan_chunk_state_bwd_dx(
+            t["x"], t["dt"], t["dA_cumsum"], t["B"], t["cb"], t["dout"], t["dstates"], D=t["D"]
+        )
         out = {"dx": dx, "ddt": ddt, "dD": dD}
     else:
         raise AssertionError(f"Unknown case: {case}")
@@ -161,22 +178,47 @@ _DSTATES = [64]
 def _kernel_is_reproducible(case: str, headdim: int, dstate: int, d_has_hdim: bool = False):
     runs = 5
     outs = [
-        _run_case_outputs(case=case, deterministic=True, seed=123, headdim=headdim, dstate=dstate, d_has_hdim=d_has_hdim)
+        _run_case_outputs(
+            case=case,
+            deterministic=True,
+            seed=123,
+            headdim=headdim,
+            dstate=dstate,
+            d_has_hdim=d_has_hdim,
+        )
         for _ in range(runs)
     ]
     ref = outs[0]
     for i in range(1, runs):
         for k in ref:
-            assert _max_abs_diff(ref[k], outs[i][k]) == 0.0, f"{case} output {k} differs (headdim={headdim}, dstate={dstate})"
+            assert (
+                _max_abs_diff(ref[k], outs[i][k]) == 0.0
+            ), f"{case} output {k} differs (headdim={headdim}, dstate={dstate})"
 
 
 def _kernel_close_to_default(case: str, headdim: int, dstate: int, d_has_hdim: bool = False):
     atol = rtol = 1e-2
-    det = _run_case_outputs(case=case, deterministic=True, seed=123, headdim=headdim, dstate=dstate, d_has_hdim=d_has_hdim)
+    det = _run_case_outputs(
+        case=case,
+        deterministic=True,
+        seed=123,
+        headdim=headdim,
+        dstate=dstate,
+        d_has_hdim=d_has_hdim,
+    )
     for _ in range(3):
-        default = _run_case_outputs(case=case, deterministic=False, seed=123, headdim=headdim, dstate=dstate, d_has_hdim=d_has_hdim)
+        default = _run_case_outputs(
+            case=case,
+            deterministic=False,
+            seed=123,
+            headdim=headdim,
+            dstate=dstate,
+            d_has_hdim=d_has_hdim,
+        )
         for k in det:
-            assert torch.allclose(default[k], det[k], atol=atol, rtol=rtol), f"{case} output {k} not close (headdim={headdim}, dstate={dstate})"
+            assert torch.allclose(
+                default[k], det[k], atol=atol, rtol=rtol
+            ), f"{case} output {k} not close (headdim={headdim}, dstate={dstate})"
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
@@ -224,8 +266,15 @@ def test_default_mode_is_not_reproducible():
 
     _set_seeds(seed)
     model = Mamba2(
-        d_model=256, d_state=64, headdim=64, expand=2, d_conv=4, chunk_size=256,
-        use_mem_eff_path=True, device=device, dtype=dtype,
+        d_model=256,
+        d_state=64,
+        headdim=64,
+        expand=2,
+        d_conv=4,
+        chunk_size=256,
+        use_mem_eff_path=True,
+        device=device,
+        dtype=dtype,
     ).train()
     x_data = torch.randn(batch, seqlen, model.d_model, device=device, dtype=dtype)
 
@@ -277,8 +326,15 @@ def test_mamba2_fwd_bwd_deterministic_reproducible():
     _set_deterministic(True)
 
     model = Mamba2(
-        d_model=headdim, d_state=16, headdim=headdim, expand=2, d_conv=4, chunk_size=16,
-        use_mem_eff_path=True, device=device, dtype=dtype,
+        d_model=headdim,
+        d_state=16,
+        headdim=headdim,
+        expand=2,
+        d_conv=4,
+        chunk_size=16,
+        use_mem_eff_path=True,
+        device=device,
+        dtype=dtype,
     ).train()
     x_data = torch.randn(batch, seqlen, model.d_model, device=device, dtype=dtype)
 
@@ -320,10 +376,19 @@ def test_mamba2_fwd_bwd_deterministic_close_to_default():
         torch.use_deterministic_algorithms(deterministic, warn_only=True)
         _set_seeds(seed)
         model = Mamba2(
-            d_model=headdim * 4, d_state=32, headdim=headdim, expand=2, d_conv=4, chunk_size=64,
-            use_mem_eff_path=True, device=device, dtype=dtype,
+            d_model=headdim * 4,
+            d_state=32,
+            headdim=headdim,
+            expand=2,
+            d_conv=4,
+            chunk_size=64,
+            use_mem_eff_path=True,
+            device=device,
+            dtype=dtype,
         ).train()
-        x = torch.randn(batch, seqlen, model.d_model, device=device, dtype=dtype).requires_grad_(True)
+        x = torch.randn(batch, seqlen, model.d_model, device=device, dtype=dtype).requires_grad_(
+            True
+        )
         y = model(x)
         (y.float().square().mean()).backward()
         torch.cuda.synchronize()
@@ -339,4 +404,6 @@ def test_mamba2_fwd_bwd_deterministic_close_to_default():
 
     assert torch.allclose(y_default, y_det, atol=atol, rtol=rtol), "Mamba2 output differs"
     for k in g_default:
-        assert torch.allclose(g_default[k], g_det[k], atol=atol, rtol=rtol), f"Mamba2 grad {k} not close"
+        assert torch.allclose(
+            g_default[k], g_det[k], atol=atol, rtol=rtol
+        ), f"Mamba2 grad {k} not close"

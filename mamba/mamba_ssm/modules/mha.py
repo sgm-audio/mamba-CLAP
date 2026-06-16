@@ -99,13 +99,21 @@ class MHA(nn.Module):
                 device=device,
             )
 
-        self.in_proj = nn.Linear(embed_dim, qkv_dim + self.mlp_dim, bias=qkv_proj_bias, **factory_kwargs)
+        self.in_proj = nn.Linear(
+            embed_dim, qkv_dim + self.mlp_dim, bias=qkv_proj_bias, **factory_kwargs
+        )
         if self.d_conv > 0:
             self.conv1d = nn.Conv1d(
-                qkv_dim, qkv_dim, kernel_size=self.d_conv, padding=self.d_conv - 1, groups=qkv_dim,
+                qkv_dim,
+                qkv_dim,
+                kernel_size=self.d_conv,
+                padding=self.d_conv - 1,
+                groups=qkv_dim,
                 **factory_kwargs
             )
-        self.out_proj = nn.Linear(out_dim + self.mlp_dim // 2, embed_dim, bias=out_proj_bias, **factory_kwargs)
+        self.out_proj = nn.Linear(
+            out_dim + self.mlp_dim // 2, embed_dim, bias=out_proj_bias, **factory_kwargs
+        )
 
     def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None):
         dtype = self.out_proj.weight.dtype if dtype is None else dtype
@@ -117,7 +125,13 @@ class MHA(nn.Module):
         else:
             conv_state = None
         kv_cache = torch.empty(
-            batch_size, max_seqlen, 2, self.num_heads_kv, self.head_dim, dtype=dtype, device=device,
+            batch_size,
+            max_seqlen,
+            2,
+            self.num_heads_kv,
+            self.head_dim,
+            dtype=dtype,
+            device=device,
         )
         return kv_cache, conv_state
 
@@ -166,17 +180,18 @@ class MHA(nn.Module):
 
     def _update_kvcache_attention(self, q, kv, inference_params):
         """Write kv to inference_params, then do attention"""
-        if (
-            inference_params.seqlen_offset == 0
-            or flash_attn_with_kvcache is None
-        ):
+        if inference_params.seqlen_offset == 0 or flash_attn_with_kvcache is None:
             # TODO: this only uses seqlen_offset and not lengths_per_sample.
             kv = self._update_kv_cache(kv, inference_params)
             k, v = kv.unbind(dim=-3)
             k = torch.repeat_interleave(k, dim=2, repeats=self.num_heads // self.num_heads_kv)
             v = torch.repeat_interleave(v, dim=2, repeats=self.num_heads // self.num_heads_kv)
             return F.scaled_dot_product_attention(
-                q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), is_causal=self.causal, scale=self.softmax_scale
+                q.transpose(1, 2),
+                k.transpose(1, 2),
+                v.transpose(1, 2),
+                is_causal=self.causal,
+                scale=self.softmax_scale,
             ).transpose(1, 2)
         else:
             batch = q.shape[0]
@@ -207,7 +222,10 @@ class MHA(nn.Module):
             inference_params: for generation. Adapted from Megatron-LM (and Apex)
             https://github.com/NVIDIA/apex/blob/3ff1a10f72ec07067c4e44759442329804ac5162/apex/transformer/testing/standalone_transformer_lm.py#L470
         """
-        if inference_params is not None and self.layer_idx not in inference_params.key_value_memory_dict:
+        if (
+            inference_params is not None
+            and self.layer_idx not in inference_params.key_value_memory_dict
+        ):
             inference_params.key_value_memory_dict[self.layer_idx] = self.allocate_inference_cache(
                 x.shape[0], inference_params.max_seqlen, dtype=x.dtype
             )
@@ -228,32 +246,39 @@ class MHA(nn.Module):
             x_mlp = x_mlp_up * F.silu(x_mlp_gate)
         if self.d_conv > 0:
             # The inference code for conv1d is pretty messy, should clean it up
-            if (inference_params is None or inference_params.seqlen_offset == 0):
+            if inference_params is None or inference_params.seqlen_offset == 0:
                 if causal_conv1d_fn is None:
                     qkv = rearrange(
-                        self.conv1d(rearrange(qkv, "b s d -> b d s"))[..., :-(self.d_conv - 1)], "b d s -> b s d"
+                        self.conv1d(rearrange(qkv, "b s d -> b d s"))[..., : -(self.d_conv - 1)],
+                        "b d s -> b s d",
                     ).contiguous()
                 else:
                     qkv = causal_conv1d_fn(
                         qkv.transpose(1, 2),
                         rearrange(self.conv1d.weight, "d 1 w -> d w"),
-                        self.conv1d.bias
+                        self.conv1d.bias,
                     ).transpose(1, 2)
                 if inference_params is not None:
                     _, conv_state = inference_params.key_value_memory_dict[self.layer_idx]
                     # If we just take qkv[:, :, -self.d_conv :], it will error if seqlen < self.d_conv
                     # Instead F.pad will pad with zeros if seqlen < self.d_conv, and truncate otherwise.
                     qkv_t = rearrange(qkv, "b l d -> b d l")
-                    conv_state.copy_(F.pad(qkv_t, (self.d_conv - qkv_t.shape[-1], 0)))  # Update state (B D W)
+                    conv_state.copy_(
+                        F.pad(qkv_t, (self.d_conv - qkv_t.shape[-1], 0))
+                    )  # Update state (B D W)
             else:
                 _, conv_state = inference_params.key_value_memory_dict[self.layer_idx]
                 assert qkv.shape[1] == 1, "Only support decoding with 1 token at a time for now"
                 qkv = qkv.squeeze(1)
                 # Conv step
                 if causal_conv1d_update is None:
-                    conv_state.copy_(torch.roll(conv_state, shifts=-1, dims=-1))  # Update state (B D W)
+                    conv_state.copy_(
+                        torch.roll(conv_state, shifts=-1, dims=-1)
+                    )  # Update state (B D W)
                     conv_state[:, :, -1] = qkv
-                    qkv = torch.sum(conv_state * rearrange(self.conv1d.weight, "d 1 w -> d w"), dim=-1)  # (B D)
+                    qkv = torch.sum(
+                        conv_state * rearrange(self.conv1d.weight, "d 1 w -> d w"), dim=-1
+                    )  # (B D)
                     if self.conv1d.bias is not None:
                         qkv = qkv + self.conv1d.bias
                 else:
@@ -261,10 +286,12 @@ class MHA(nn.Module):
                         qkv,
                         conv_state,
                         rearrange(self.conv1d.weight, "d 1 w -> d w"),
-                        self.conv1d.bias
+                        self.conv1d.bias,
                     )
                 qkv = qkv.unsqueeze(1)
-        q, kv = qkv.split([self.num_heads * self.head_dim, self.num_heads_kv * 2 * self.head_dim], dim=-1)
+        q, kv = qkv.split(
+            [self.num_heads * self.head_dim, self.num_heads_kv * 2 * self.head_dim], dim=-1
+        )
         q = rearrange(q, "... (h d) -> ... h d", d=self.head_dim)
         kv = rearrange(kv, "... (two hkv d) -> ... two hkv d", two=2, d=self.head_dim)
         if (
@@ -281,7 +308,11 @@ class MHA(nn.Module):
                 k = torch.repeat_interleave(k, dim=2, repeats=self.num_heads // self.num_heads_kv)
                 v = torch.repeat_interleave(v, dim=2, repeats=self.num_heads // self.num_heads_kv)
                 context = F.scaled_dot_product_attention(
-                    q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), is_causal=self.causal, scale=self.softmax_scale
+                    q.transpose(1, 2),
+                    k.transpose(1, 2),
+                    v.transpose(1, 2),
+                    is_causal=self.causal,
+                    scale=self.softmax_scale,
                 ).transpose(1, 2)
             else:
                 context = self._update_kvcache_attention(q, kv, inference_params)

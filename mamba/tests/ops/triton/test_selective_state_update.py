@@ -1,12 +1,13 @@
 # Copyright (C) 2023, Tri Dao.
 
 
-import torch
 import pytest
-
+import torch
 from einops import repeat
-
-from mamba_ssm.ops.triton.selective_state_update import selective_state_update, selective_state_update_ref
+from mamba_ssm.ops.triton.selective_state_update import (
+    selective_state_update,
+    selective_state_update_ref,
+)
 
 
 @pytest.mark.parametrize("itype", [torch.float32, torch.float16, torch.bfloat16])
@@ -41,7 +42,9 @@ def test_selective_state_update(dim, dstate, has_z, itype):
         z = None
     state_ref = state.detach().clone()
     out = selective_state_update(state, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True)
-    out_ref = selective_state_update_ref(state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True)
+    out_ref = selective_state_update_ref(
+        state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True
+    )
 
     print(f"Output max diff: {(out - out_ref).abs().max().item()}")
     print(f"Output mean diff: {(out - out_ref).abs().mean().item()}")
@@ -79,7 +82,9 @@ def test_selective_state_update_with_heads(dim, dstate, ngroups, has_z, tie_hdim
         A = -torch.rand(nheads, headdim, dstate, device=device) - 1.0
         D = torch.randn(nheads, headdim, device=device)
     else:
-        dt = repeat(torch.randn(batch_size, nheads, device=device, dtype=itype), "b h -> b h p", p=headdim)
+        dt = repeat(
+            torch.randn(batch_size, nheads, device=device, dtype=itype), "b h -> b h p", p=headdim
+        )
         dt_bias = repeat(torch.rand(nheads, device=device) - 4.0, "h -> h p", p=headdim)
         A = repeat(-torch.rand(nheads, device=device) - 1.0, "h -> h p n", p=headdim, n=dstate)
         D = repeat(torch.randn(nheads, device=device), "h -> h p", p=headdim)
@@ -92,12 +97,15 @@ def test_selective_state_update_with_heads(dim, dstate, ngroups, has_z, tie_hdim
     state_ref = state.detach().clone()
     state.detach().clone()
     out = selective_state_update(state, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True)
-    out_ref = selective_state_update_ref(state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True)
+    out_ref = selective_state_update_ref(
+        state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True
+    )
 
     print(f"Output max diff: {(out - out_ref).abs().max().item()}")
     print(f"Output mean diff: {(out - out_ref).abs().mean().item()}")
     assert torch.allclose(state, state_ref, rtol=rtol, atol=atol)
     assert torch.allclose(out, out_ref, rtol=rtol, atol=atol)
+
 
 @pytest.mark.parametrize("itype", [torch.float32, torch.float16, torch.bfloat16])
 # @pytest.mark.parametrize('itype', [torch.float16])
@@ -133,19 +141,32 @@ def test_selective_state_update_with_batch_indices(dim, dstate, has_z, itype):
         z = torch.randn_like(x)
     else:
         z = None
-    state_ref = state[state_indices,:].detach().clone()
-    out = selective_state_update(state, x, dt, A, B, C, D=D, z=z,
-                                 dt_bias=dt_bias, dt_softplus=True, state_batch_indices=state_indices)
-    out_ref = selective_state_update_ref(state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True)
+    state_ref = state[state_indices, :].detach().clone()
+    out = selective_state_update(
+        state,
+        x,
+        dt,
+        A,
+        B,
+        C,
+        D=D,
+        z=z,
+        dt_bias=dt_bias,
+        dt_softplus=True,
+        state_batch_indices=state_indices,
+    )
+    out_ref = selective_state_update_ref(
+        state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True
+    )
 
     print(f"Output max diff: {(out - out_ref).abs().max().item()}")
     print(f"Output mean diff: {(out - out_ref).abs().mean().item()}")
-    assert torch.allclose(state[state_indices,:], state_ref, rtol=rtol, atol=atol)
+    assert torch.allclose(state[state_indices, :], state_ref, rtol=rtol, atol=atol)
     assert torch.allclose(out, out_ref, rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("itype", [torch.float32, torch.float16, torch.bfloat16])
-#@pytest.mark.parametrize('itype', [torch.float32])
+# @pytest.mark.parametrize('itype', [torch.float32])
 @pytest.mark.parametrize("has_z", [False, True])
 # @pytest.mark.parametrize('has_z', [True])
 @pytest.mark.parametrize("tie_hdim", [False, True])
@@ -156,7 +177,9 @@ def test_selective_state_update_with_batch_indices(dim, dstate, has_z, itype):
 # @pytest.mark.parametrize("dstate", [16])
 @pytest.mark.parametrize("dim", [2048, 4096])
 # @pytest.mark.parametrize("dim", [2048])
-def test_selective_state_update_with_heads_with_batch_indices(dim, dstate, ngroups, has_z, tie_hdim, itype):
+def test_selective_state_update_with_heads_with_batch_indices(
+    dim, dstate, ngroups, has_z, tie_hdim, itype
+):
     device = "cuda"
     rtol, atol = (3e-4, 1e-3) if itype == torch.float32 else (5e-3, 3e-2)
     if itype == torch.bfloat16:
@@ -178,7 +201,9 @@ def test_selective_state_update_with_heads_with_batch_indices(dim, dstate, ngrou
         A = -torch.rand(nheads, headdim, dstate, device=device) - 1.0
         D = torch.randn(nheads, headdim, device=device)
     else:
-        dt = repeat(torch.randn(batch_size, nheads, device=device, dtype=itype), "b h -> b h p", p=headdim)
+        dt = repeat(
+            torch.randn(batch_size, nheads, device=device, dtype=itype), "b h -> b h p", p=headdim
+        )
         dt_bias = repeat(torch.rand(nheads, device=device) - 4.0, "h -> h p", p=headdim)
         A = repeat(-torch.rand(nheads, device=device) - 1.0, "h -> h p n", p=headdim, n=dstate)
         D = repeat(torch.randn(nheads, device=device), "h -> h p", p=headdim)
@@ -188,12 +213,26 @@ def test_selective_state_update_with_heads_with_batch_indices(dim, dstate, ngrou
         z = torch.randn_like(x)
     else:
         z = None
-    state_ref = state[state_indices,:].detach().clone()
-    state[state_indices,:].detach().clone()
-    out = selective_state_update(state, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True, state_batch_indices=state_indices)
-    out_ref = selective_state_update_ref(state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True)
+    state_ref = state[state_indices, :].detach().clone()
+    state[state_indices, :].detach().clone()
+    out = selective_state_update(
+        state,
+        x,
+        dt,
+        A,
+        B,
+        C,
+        D=D,
+        z=z,
+        dt_bias=dt_bias,
+        dt_softplus=True,
+        state_batch_indices=state_indices,
+    )
+    out_ref = selective_state_update_ref(
+        state_ref, x, dt, A, B, C, D=D, z=z, dt_bias=dt_bias, dt_softplus=True
+    )
 
     print(f"Output max diff: {(out - out_ref).abs().max().item()}")
     print(f"Output mean diff: {(out - out_ref).abs().mean().item()}")
-    assert torch.allclose(state[state_indices,:], state_ref, rtol=rtol, atol=atol)
+    assert torch.allclose(state[state_indices, :], state_ref, rtol=rtol, atol=atol)
     assert torch.allclose(out, out_ref, rtol=rtol, atol=atol)

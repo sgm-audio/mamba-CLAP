@@ -1,29 +1,21 @@
 # Copyright (c) 2023, Albert Gu, Tri Dao.
-import sys
-import warnings
-import os
-import re
 import ast
-from pathlib import Path
-from packaging.version import parse, Version
+import os
 import platform
+import re
 import shutil
-
-from setuptools import setup, find_packages
 import subprocess
-
-import urllib.request
+import sys
 import urllib.error
-from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+import urllib.request
+import warnings
+from pathlib import Path
 
 import torch
-from torch.utils.cpp_extension import (
-    BuildExtension,
-    CUDAExtension,
-    CUDA_HOME,
-    HIP_HOME
-)
-
+from packaging.version import Version, parse
+from setuptools import find_packages, setup
+from torch.utils.cpp_extension import CUDA_HOME, HIP_HOME, BuildExtension, CUDAExtension
+from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -60,9 +52,7 @@ def get_platform():
 
 
 def get_cuda_bare_metal_version(cuda_dir):
-    raw_output = subprocess.check_output(
-        [cuda_dir + "/bin/nvcc", "-V"], universal_newlines=True
-    )
+    raw_output = subprocess.check_output([cuda_dir + "/bin/nvcc", "-V"], universal_newlines=True)
     output = raw_output.split()
     release_idx = output.index("release") + 1
     bare_metal_ver = parse(output[release_idx].split(",")[0])
@@ -74,18 +64,16 @@ def get_hip_version(rocm_dir):
 
     hipcc_bin = "hipcc" if rocm_dir is None else os.path.join(rocm_dir, "bin", "hipcc")
     try:
-        raw_output = subprocess.check_output(
-            [hipcc_bin, "--version"], universal_newlines=True
-        )
+        raw_output = subprocess.check_output([hipcc_bin, "--version"], universal_newlines=True)
     except Exception as e:
-        print(
-            f"hip installation not found: {e} ROCM_PATH={os.environ.get('ROCM_PATH')}"
-        )
+        print(f"hip installation not found: {e} ROCM_PATH={os.environ.get('ROCM_PATH')}")
         return None, None
 
     for line in raw_output.split("\n"):
         if "HIP version" in line:
-            rocm_version = parse(line.split()[-1].rstrip('-').replace('-', '+')) # local version is not parsed correctly
+            rocm_version = parse(
+                line.split()[-1].rstrip("-").replace("-", "+")
+            )  # local version is not parsed correctly
             return line, rocm_version
 
     return None, None
@@ -94,7 +82,7 @@ def get_hip_version(rocm_dir):
 def get_torch_hip_version():
 
     if torch.version.hip:
-        return parse(torch.version.hip.split()[-1].rstrip('-').replace('-', '+'))
+        return parse(torch.version.hip.split()[-1].rstrip("-").replace("-", "+"))
     else:
         return None
 
@@ -155,7 +143,7 @@ if not SKIP_CUDA_BUILD:
                 warnings.warn(
                     f"{PACKAGE_NAME} requires a patch to be applied when running on ROCm 6.0. "
                     "Refer to the README.md for detailed instructions.",
-                    UserWarning
+                    UserWarning,
                 )
 
         cc_flag.append("-DBUILD_PYTHON_PACKAGE")
@@ -199,7 +187,6 @@ if not SKIP_CUDA_BUILD:
             cc_flag.append("arch=compute_110,code=sm_110")
             cc_flag.append("-gencode")
             cc_flag.append("arch=compute_121,code=sm_121")
-
 
     # HACK: The compiler flag -D_GLIBCXX_USE_CXX11_ABI is set to be the same as
     # torch._C._GLIBCXX_USE_CXX11_ABI
@@ -298,7 +285,7 @@ def get_wheel_url():
             torch_cuda_version = parse("13.0")
         else:
             raise ValueError(f"CUDA version {torch_cuda_version} not supported")
-        
+
         cuda_version = f"{torch_cuda_version.major}"
 
     gpu_compute_version = hip_ver if HIP_BUILD else cuda_version
@@ -319,9 +306,7 @@ def get_wheel_url():
 
     # Determine wheel URL based on CUDA version, torch version, python version and OS
     wheel_filename = f"{PACKAGE_NAME}-{mamba_ssm_version}+{cuda_or_hip}{gpu_compute_version}torch{torch_version}cxx11abi{cxx11_abi}-{python_version}-{python_version}-{platform_name}.whl"
-    wheel_url = BASE_WHEEL_URL.format(
-        tag_name=f"v{mamba_ssm_version}", wheel_name=wheel_filename
-    )
+    wheel_url = BASE_WHEEL_URL.format(tag_name=f"v{mamba_ssm_version}", wheel_name=wheel_filename)
     return wheel_url, wheel_filename
 
 
@@ -359,6 +344,7 @@ class CachedWheelsCommand(_bdist_wheel):
             # If the wheel could not be downloaded, build from source
             super().run()
 
+
 setup(
     name=PACKAGE_NAME,
     version=get_package_version(),
@@ -386,11 +372,13 @@ setup(
         "Operating System :: Unix",
     ],
     ext_modules=ext_modules,
-    cmdclass={"bdist_wheel": CachedWheelsCommand, "build_ext": BuildExtension}
-    if ext_modules
-    else {
-        "bdist_wheel": CachedWheelsCommand,
-    },
+    cmdclass=(
+        {"bdist_wheel": CachedWheelsCommand, "build_ext": BuildExtension}
+        if ext_modules
+        else {
+            "bdist_wheel": CachedWheelsCommand,
+        }
+    ),
     python_requires=">=3.9",
     install_requires=[
         "torch",

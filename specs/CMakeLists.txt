@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.18)
 project(MambaSSM_PLUGIN_SUITE VERSION 1.0.0 LANGUAGES CXX)
 
 # Set C++20 standard
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -31,9 +31,9 @@ endif()
 
 # Include directories
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CLAP_SDK_DIR}/include
-    ${ARA_SDK_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CLAP_SDK_PATH}/include
+  ${ARA_SDK_PATH}/include
 )
 
 # Library for SSM inference core (static library, used by all plugins)
@@ -90,9 +90,9 @@ add_library(ara_companion MODULE
 )
 
 target_link_libraries(ara_companion PRIVATE
-    ssm_core
-    ${CLAP_LIBRARY}
-    ${ARA_LIBRARY}  // ARA library
+  ssm_core
+  ${CLAP_LIBRARY}
+  ${ARA_LIBRARY} # ARA library
 )
 
 set_target_properties(ara_companion PROPERTIES
@@ -105,7 +105,7 @@ if(UNIX AND NOT APPLE)
     # Find LV2 SDK
     find_package(PkgConfig)
     pkg_check_modules(LV2 REQUIRED lv2)
-    
+
     # Create LV2 bundles that wrap the CLAP plugins
     # This would involve creating .ttl.ttl files and a small wrapper
     # For brevity, we omit the detailed LV2 wrapping logic here.

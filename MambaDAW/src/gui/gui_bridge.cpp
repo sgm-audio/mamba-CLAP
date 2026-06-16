@@ -11,6 +11,9 @@
 
 #include "../plugin_instance.h"
 #include "PluginEditor.h"
+#include "MambaLookAndFeel.h"
+
+static MambaLookAndFeel s_laf;
 
 // Convenience alias so callback bodies read cleanly.
 static inline MambaPluginInstance* gui_get_instance(const clap_plugin_t* p) {
@@ -35,6 +38,7 @@ static bool gui_create(const clap_plugin_t* plugin, const char* /*api*/, bool /*
     auto* inst = gui_get_instance(plugin);
     if (!inst) return false;
     juce::initialiseJuce_GUI();
+    juce::LookAndFeel::setDefaultLookAndFeel(&s_laf);
 
     const clap_host_params_t* host_params = nullptr;
     if (inst->host)
@@ -53,6 +57,7 @@ static void gui_destroy(const clap_plugin_t* plugin) {
         inst->editor.reset();
     }
     inst->gui_attached = false;
+    juce::LookAndFeel::setDefaultLookAndFeel(nullptr);
     juce::shutdownJuce_GUI();
 }
 
@@ -71,7 +76,7 @@ static bool gui_set_parent(const clap_plugin_t* plugin, const clap_window_t* win
     auto* inst = gui_get_instance(plugin);
     if (!inst || !inst->editor) return false;
 
-    inst->editor->addToDesktop(0, reinterpret_cast<void*>(window->x11));
+    inst->editor->addToDesktop(0, reinterpret_cast<void*>(static_cast<uintptr_t>(window->x11)));
     inst->editor->setBounds(0, 0, 700, 520);
     inst->editor->setVisible(true);
     inst->editor->startTimerHz(30);

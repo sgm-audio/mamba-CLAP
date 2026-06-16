@@ -24,11 +24,11 @@ The plugin operates on a strictly per-sample basis, making it entirely agnostic 
 ```cpp
 // 1. Initialization (Main Thread / NRT)
 void MambaPlugin::activate(double sample_rate) {
-    // If the model was trained at 44.1kHz and the host provides 96kHz, 
-    // we must reject, disable processing, or enforce an offline resampler wrapper. 
+    // If the model was trained at 44.1kHz and the host provides 96kHz,
+    // we must reject, disable processing, or enforce an offline resampler wrapper.
     // (Mamba's learned 'dt' assumes a fixed temporal resolution).
     assert(sample_rate == EXPECTED_TRAINING_SR);
-    
+
     // Allocate all layers. No allocations will happen after this point.
     mamba_model_->initializeArchitecture();
     mamba_model_->resetState(); // Zeroes out state_h_ and conv_buffer_
@@ -38,27 +38,27 @@ void MambaPlugin::activate(double sample_rate) {
 void MambaPlugin::processBlock(const float* input, float* output, int num_samples) noexcept {
     // Variable host block sizes are natively supported by the sample-by-sample loop.
     for (int t = 0; t < num_samples; ++t) {
-        
+
         // 3. Step execution (Inlined, SIMD accelerated)
         float current_sample = input[t];
-        
+
         for (auto& layer : mamba_model_->layers) {
             // A. Update Convolution Ring Buffer (Causal)
             layer.conv_buffer_[layer.conv_pos_] = current_sample;
             float conv_out = calculate_depthwise_conv(layer.conv_buffer_, layer.conv_pos_);
             layer.conv_pos_ = (layer.conv_pos_ + 1) % d_conv;
-            
+
             // B. Selective Scan (State Update) - Carries over from previous step
             // h_t = dA * h_{t-1} + dB * conv_out
             // y_t = C * h_t + D * conv_out
             float ssm_out = 0.0f;
             update_state_simd(layer.state_h_, layer.dA_, layer.dB_, conv_out);
             ssm_out = compute_output_simd(layer.state_h_, layer.C_, layer.D_, conv_out);
-            
+
             // C. Apply gating and feed to next layer
             current_sample = apply_gating(ssm_out);
         }
-        
+
         output[t] = current_sample; // Mix logic omitted for brevity
     }
 }

@@ -6,10 +6,10 @@ vs. running each sequence independently in non-varlen mode.
 
 Copyright (c) 2026, Dao AI Lab, Goombalab.
 """
+
 import pytest
 import torch
 import torch.nn.functional as F
-
 from mamba_ssm.modules.mamba3 import Mamba3
 
 
@@ -21,6 +21,7 @@ def _require_cuda():
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_model(is_mimo: bool, **kwargs) -> Mamba3:
     defaults = dict(
@@ -56,6 +57,7 @@ def _cu_seqlens(lengths, device):
 # Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("is_mimo", [False, True])
 def test_mamba3_varlen_matches_nonvarlen(is_mimo):
     """Packed varlen output should match per-sequence non-varlen output."""
@@ -85,9 +87,9 @@ def test_mamba3_varlen_matches_nonvarlen(is_mimo):
     offset = 0
     for i, (L, ref) in enumerate(zip(lengths, outs_ref)):
         slc = out_varlen[:, offset : offset + L]
-        assert torch.allclose(slc, ref, atol=atol), (
-            f"Sequence {i} (length {L}): max diff = {(slc - ref).abs().max():.4f}"
-        )
+        assert torch.allclose(
+            slc, ref, atol=atol
+        ), f"Sequence {i} (length {L}): max diff = {(slc - ref).abs().max():.4f}"
         offset += L
 
 

@@ -262,15 +262,15 @@ void PluginProcessor::processBlock(float** inputs, float** outputs,
         nan_count_ = 0;
     }
 
-    if (!is_active || is_bypass || !has_model || is_degraded) {
-        const int32_t copy_ch = std::min(num_input_channels, num_output_channels);
-        for (int32_t c = 0; c < copy_ch; ++c)
-            std::copy_n(inputs[c], num_frames, outputs[c]);
-        for (int32_t c = copy_ch; c < num_output_channels; ++c)
-            std::fill_n(outputs[c], num_frames, 0.0f);
-        cpu_budget_.endBlock();
-        return;
-    }
+ if (!is_active || is_bypass || is_degraded) {
+ const int32_t copy_ch = std::min(num_input_channels, num_output_channels);
+ for (int32_t c = 0; c < copy_ch; ++c)
+ std::copy_n(inputs[c], num_frames, outputs[c]);
+ for (int32_t c = copy_ch; c < num_output_channels; ++c)
+ std::fill_n(outputs[c], num_frames, 0.0f);
+ cpu_budget_.endBlock();
+ return;
+ }
 
     param_smoother_.processAll();
 
@@ -337,7 +337,7 @@ void PluginProcessor::processBlock(float** inputs, float** outputs,
       mel_mono_scratch_[static_cast<size_t>(i)] = m;
     }
 
-		if (!is_manual && !dsp_chain_.isSilent()) {
+ if (!is_manual && has_model && !dsp_chain_.isSilent()) {
 			int n_mel = feature_extractor_.pushInterleaved(
 				mel_mono_scratch_.data(), chunk, 1, mel_scratch_.data());
 			for (int f = 0; f < n_mel; ++f) {
@@ -515,27 +515,48 @@ bool PluginProcessor::isBypassed() const {
 }
 
 void PluginProcessor::setBypass(bool bypass) {
-    bypass_.store(bypass, std::memory_order_relaxed);
+  bypass_.store(bypass, std::memory_order_relaxed);
+}
+
+void PluginProcessor::markParamGuiOrigin(uint32_t param_id) {
+  if (param_id < kNumClapParams)
+    gui_suppress_[param_id].store(kGuiSuppressMax, std::memory_order_release);
+}
+
+bool PluginProcessor::isParamGuiSuppressed(uint32_t param_id) const {
+  if (param_id >= kNumClapParams) return false;
+  return gui_suppress_[param_id].load(std::memory_order_acquire) > 0;
+}
+
+void PluginProcessor::tickParamGuiSuppress() {
+  for (uint32_t i = 0; i < kNumClapParams; ++i) {
+    int v = gui_suppress_[i].load(std::memory_order_relaxed);
+    if (v > 0) gui_suppress_[i].store(v - 1, std::memory_order_release);
+  }
 }
 
 void PluginProcessor::processParamUpdates(const std::vector<ParamSnapshot>& updates) {
- for (const auto& upd : updates) {
-  setParamValue(upd.param_id, upd.value);
- }
- ParamUpdateAction action = param_gate_.evaluate(updates);
- if (action == ParamUpdateAction::FlushAndReinit) {
-  flush_pending_.store(true, std::memory_order_release);
- }
+  for (const auto& upd : updates) {
+    if (upd.param_id < kNumClapParams && isParamGuiSuppressed(upd.param_id))
+      continue;
+    setParamValue(upd.param_id, upd.value);
+  }
+  ParamUpdateAction action = param_gate_.evaluate(updates);
+  if (action == ParamUpdateAction::FlushAndReinit) {
+    flush_pending_.store(true, std::memory_order_release);
+  }
 }
 
 void PluginProcessor::processParamUpdates(const ParamSnapshot* updates, uint32_t count) {
- for (uint32_t i = 0; i < count; ++i) {
-  setParamValue(updates[i].param_id, updates[i].value);
- }
- ParamUpdateAction action = param_gate_.evaluate(updates, count);
- if (action == ParamUpdateAction::FlushAndReinit) {
-  flush_pending_.store(true, std::memory_order_release);
- }
+  for (uint32_t i = 0; i < count; ++i) {
+    if (updates[i].param_id < kNumClapParams && isParamGuiSuppressed(updates[i].param_id))
+      continue;
+    setParamValue(updates[i].param_id, updates[i].value);
+  }
+  ParamUpdateAction action = param_gate_.evaluate(updates, count);
+  if (action == ParamUpdateAction::FlushAndReinit) {
+    flush_pending_.store(true, std::memory_order_release);
+  }
 }
 
 void PluginProcessor::updateSessionFromTransport(double bpm, double tsig_num, double tsig_denom, double pos,

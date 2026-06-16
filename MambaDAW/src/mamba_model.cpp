@@ -1,21 +1,63 @@
 #include "mamba_model.h"
+#include <cstring>
+#include <cmath>
 
 MambaModel::MambaModel(int64_t d_model, int64_t n_layers,
-                       int64_t d_state, int64_t d_conv, int64_t expand)
-    : d_model_(d_model), n_layers_(n_layers),
-      d_state_(d_state), d_conv_(d_conv), expand_(expand) {
-    layers_.reserve(n_layers_);
-    for (int64_t i = 0; i < n_layers_; ++i)
-        layers_.push_back(std::make_unique<MambaLayer>(d_model_, d_state, d_conv, expand));
+int64_t d_state, int64_t d_conv, int64_t expand)
+: d_model_(d_model), n_layers_(n_layers),
+d_state_(d_state), d_conv_(d_conv), expand_(expand),
+tmp_frame_(static_cast<size_t>(d_model), 0.f) {
+layers_.reserve(n_layers_);
+for (int64_t i = 0; i < n_layers_; ++i)
+layers_.push_back(std::make_unique<MambaLayer>(d_model_, d_state, d_conv, expand));
 }
 
 MambaModel::~MambaModel() = default;
 
 float MambaModel::processSample(float sample) {
-    float out = sample;
-    for (auto& layer : layers_)
-        out = layer->processSample(out);
-    return out;
+float out = sample;
+for (auto& layer : layers_)
+out = layer->processSample(out);
+if (!std::isfinite(out)) out = 0.f;
+return out;
+}
+
+// RT-Safety Justification: sanitizeOutput() runs on the audio thread.
+// - Pure computation on pre-allocated buffer, no heap allocation.
+// - No mutexes, locks, or I/O.
+// - std::isfinite() is branchless on most compilers; the fallback write
+//   ensures no NaN/Inf propagates to downstream DSP or the effect decoder.
+
+static void sanitizeOutput(float* buf, int64_t n) noexcept {
+for (int64_t i = 0; i < n; ++i) {
+if (!std::isfinite(buf[i])) buf[i] = 0.f;
+}
+}
+
+void MambaModel::processFrame(const float* input, float* output) noexcept {
+const size_t n = layers_.size();
+if (n == 0) {
+std::memcpy(output, input, static_cast<size_t>(d_model_) * sizeof(float));
+sanitizeOutput(output, d_model_);
+return;
+}
+if (n == 1) {
+layers_[0]->processVector(input, output);
+sanitizeOutput(output, d_model_);
+return;
+}
+
+layers_[0]->processVector(input, tmp_frame_.data());
+for (size_t i = 1; i < n; ++i) {
+if (i % 2 == 1)
+layers_[i]->processVector(tmp_frame_.data(), output);
+else
+layers_[i]->processVector(output, tmp_frame_.data());
+}
+if ((n - 1) % 2 == 0)
+std::memcpy(output, tmp_frame_.data(), static_cast<size_t>(d_model_) * sizeof(float));
+
+sanitizeOutput(output, d_model_);
 }
 
 void MambaModel::processBlock(const float* input, float* output, int64_t num_samples) {
@@ -29,9 +71,25 @@ void MambaModel::resetState() {
 }
 
 void MambaModel::copyStateFrom(const MambaModel& other) {
-    for (size_t i = 0; i < layers_.size(); ++i) {
-        layers_[i]->copy_state_from(*other.layers_[i]);
-    }
+  for (size_t i = 0; i < layers_.size(); ++i) {
+    layers_[i]->copy_state_from(*other.layers_[i]);
+  }
+}
+
+MambaModel::ModelState MambaModel::getState() const {
+  ModelState s;
+  s.layers.reserve(layers_.size());
+  for (const auto& layer : layers_)
+    s.layers.push_back(layer->getState());
+  return s;
+}
+
+bool MambaModel::setState(const ModelState& s) {
+  if (static_cast<int64_t>(s.layers.size()) != n_layers_) return false;
+  for (size_t i = 0; i < layers_.size(); ++i) {
+    if (!layers_[i]->setState(s.layers[i])) return false;
+  }
+  return true;
 }
 
 void MambaModel::setContextScale(float scale) {

@@ -1,6 +1,7 @@
 """
 Configuration module for the AI-Powered Audio Mastering Service.
 """
+
 import os
 from datetime import timedelta
 
@@ -9,100 +10,93 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     """Base configuration."""
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'app.db')
+
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        "DATABASE_URL", f"sqlite:///{os.path.join(basedir, 'app.db')}"
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-string'
-    MAX_CONCURRENT_JOBS = int(os.environ.get('MAX_CONCURRENT_JOBS', 5))
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-jwt-secret-change-in-production")
+    MAX_CONCURRENT_JOBS = int(os.environ.get("MAX_CONCURRENT_JOBS", 5))
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     JWT_TOKEN_BLACKLIST_ENABLED = True
     # Redis configuration for RQ
-    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
+    REDIS_URL = os.environ.get("REDIS_URL") or "redis://localhost:6379/0"
     # Object storage (S3) configuration
-    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "us-east-1")
     # Presigned URL expiration (in seconds)
-    PRESIGNED_URL_EXPIRY = int(os.environ.get('PRESIGNED_URL_EXPIRY', 900))  # 15 minutes
+    PRESIGNED_URL_EXPIRY = int(os.environ.get("PRESIGNED_URL_EXPIRY", 900))  # 15 minutes
     # Maximum file size (2GB)
     MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024
     # Allowed audio content types
-    ALLOWED_CONTENT_TYPES = {'audio/wav', 'audio/aiff', 'audio/flac'}
+    ALLOWED_CONTENT_TYPES = {"audio/wav", "audio/aiff", "audio/flac"}
     # Mastering presets
     PRESETS = {
-        'transparent': {
-            'name': 'Transparent',
-            'description': 'Minimal processing for clean, transparent masters',
-            'defaultIntensity': 50,
-            'parameters': {
-                'loudnessTarget': -16,
-                'stereoWidth': 100,
-                'saturation': 0
-            }
+        "transparent": {
+            "name": "Transparent",
+            "description": "Minimal processing for clean, transparent masters",
+            "defaultIntensity": 50,
+            "parameters": {"loudnessTarget": -16, "stereoWidth": 100, "saturation": 0},
         },
-        'warm': {
-            'name': 'Warm',
-            'description': 'Analog-style saturation for warmth and character',
-            'defaultIntensity': 60,
-            'parameters': {
-                'loudnessTarget': -14,
-                'stereoWidth': 100,
-                'saturation': 30
-            }
+        "warm": {
+            "name": "Warm",
+            "description": "Analog-style saturation for warmth and character",
+            "defaultIntensity": 60,
+            "parameters": {"loudnessTarget": -14, "stereoWidth": 100, "saturation": 30},
         },
-        'loud': {
-            'name': 'Loud',
-            'description': 'Competitive loudness for streaming platforms',
-            'defaultIntensity': 80,
-            'parameters': {
-                'loudnessTarget': -9,
-                'stereoWidth': 100,
-                'saturation': 10
-            }
-        }
+        "loud": {
+            "name": "Loud",
+            "description": "Competitive loudness for streaming platforms",
+            "defaultIntensity": 80,
+            "parameters": {"loudnessTarget": -9, "stereoWidth": 100, "saturation": 10},
+        },
     }
 
 
 class DevelopmentConfig(Config):
     """Development configuration."""
+
     DEBUG = True
     SQLALCHEMY_ECHO = True
 
 
 class TestingConfig(Config):
     """Testing configuration."""
+
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=5)  # Short expiry for tests
     PRESIGNED_URL_EXPIRY = 10  # Short expiry for tests
 
 
 class ProductionConfig(Config):
     """Production configuration - fails fast if secrets are missing."""
+
     DEBUG = False
     # Override ALL secrets to ensure they're fetched from env and validated
-    SECRET_KEY = os.environ.get('SECRET_KEY')
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    REDIS_URL = os.environ.get('REDIS_URL')
+    SECRET_KEY = os.environ.get("SECRET_KEY")
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    REDIS_URL = os.environ.get("REDIS_URL")
     # AWS credentials also required in production
-    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "us-east-1")
 
     def __init__(self):
         missing = []
         required_secrets = [
-            ('SECRET_KEY', self.SECRET_KEY),
-            ('JWT_SECRET_KEY', self.JWT_SECRET_KEY),
-            ('DATABASE_URL', self.SQLALCHEMY_DATABASE_URI),
-            ('REDIS_URL', self.REDIS_URL),
-            ('AWS_ACCESS_KEY_ID', self.AWS_ACCESS_KEY_ID),
-            ('AWS_SECRET_ACCESS_KEY', self.AWS_SECRET_ACCESS_KEY),
-            ('AWS_STORAGE_BUCKET_NAME', self.AWS_STORAGE_BUCKET_NAME),
+            ("SECRET_KEY", self.SECRET_KEY),
+            ("JWT_SECRET_KEY", self.JWT_SECRET_KEY),
+            ("DATABASE_URL", self.SQLALCHEMY_DATABASE_URI),
+            ("REDIS_URL", self.REDIS_URL),
+            ("AWS_ACCESS_KEY_ID", self.AWS_ACCESS_KEY_ID),
+            ("AWS_SECRET_ACCESS_KEY", self.AWS_SECRET_ACCESS_KEY),
+            ("AWS_STORAGE_BUCKET_NAME", self.AWS_STORAGE_BUCKET_NAME),
         ]
         for name, value in required_secrets:
             if not value:
@@ -112,8 +106,8 @@ class ProductionConfig(Config):
 
 
 config_dict = {
-    'development': DevelopmentConfig,
-    'testing': TestingConfig,
-    'production': ProductionConfig,
-    'default': DevelopmentConfig
+    "development": DevelopmentConfig,
+    "testing": TestingConfig,
+    "production": ProductionConfig,
+    "default": DevelopmentConfig,
 }

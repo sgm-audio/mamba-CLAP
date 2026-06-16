@@ -57,10 +57,16 @@ public:
     // param_id 11: Manual Rev Decay [0.1, 8.0] s
     // param_id 12: Effect Type [0=All,1=EQ,2=Comp,3=Sat,4=Rev] stepped
     // param_id 13: Reset Context [0, 1] trigger — fires flush, auto-resets to 0
-    void setParamValue(uint32_t param_id, double value);   // [Audio|Main] — writes atomics
-    double getParamValue(uint32_t param_id) const;         // [Any] — reads atomics
-    bool isBypassed() const;                               // [Any]
-    void setBypass(bool bypass);                           // [Audio|Main] — writes atomic
+  void setParamValue(uint32_t param_id, double value); // [Audio|Main] — writes atomics
+  double getParamValue(uint32_t param_id) const; // [Any] — reads atomics
+  bool isBypassed() const; // [Any]
+  void setBypass(bool bypass); // [Audio|Main] — writes atomic
+
+  // Mark a param as just-set-by-GUI so processParamUpdates (host round-trip)
+  // won't overwrite it for a few blocks. Thread-safe.
+  void markParamGuiOrigin(uint32_t param_id); // [Main]
+  bool isParamGuiSuppressed(uint32_t param_id) const; // [Any]
+  void tickParamGuiSuppress(); // [Main] — called from GUI timer
 
     void processParamUpdates(const std::vector<ParamSnapshot>& updates); // [Main]
     void processParamUpdates(const ParamSnapshot* updates, uint32_t count); // [Audio] — RT-safe overload
@@ -171,10 +177,15 @@ private:
     std::atomic<float> manual_rev_predelay_ms_{20.f};
     std::atomic<float> manual_rev_diffusion_{0.5f};
 
-    std::atomic<bool> flush_pending_{false};
-    std::atomic<bool> reinit_pending_{false};
-    std::atomic<bool> nan_reset_pending_{false};
-    std::atomic<bool> degraded_{false};
+  std::atomic<bool> flush_pending_{false};
+  std::atomic<bool> reinit_pending_{false};
+  std::atomic<bool> nan_reset_pending_{false};
+  std::atomic<bool> degraded_{false};
+
+  // Per-param GUI suppress counters — when >0, processParamUpdates skips
+  // that param so host round-trip doesn't overwrite a just-dragged slider.
+  static constexpr int kGuiSuppressMax = 10; // ~330ms at 30Hz timer
+  std::array<std::atomic<int>, kNumClapParams> gui_suppress_{};
 
     static constexpr int kNanThreshold = 4;
     int nan_count_{0};

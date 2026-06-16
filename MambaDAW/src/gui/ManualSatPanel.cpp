@@ -22,7 +22,7 @@ ManualSatPanel::ManualSatPanel(ParamCallback cb) : onParam_(std::move(cb)) {
     setupLabel(driveLabel_, "Drive");
     setupLabel(toneLabel_,  "Tone");
 
-    driveSlider_.setRange(0.0, 1.0, 0.0);
+    driveSlider_.setRange(0.0, 12.0, 0.01);
     driveSlider_.setValue(0.3, dontSendNotification);
     driveSlider_.setTextBoxStyle(Slider::TextBoxRight, false, 40, 18);
     driveSlider_.onValueChange = [this] {
@@ -49,13 +49,14 @@ void ManualSatPanel::updateToggleLabel() {
         enabled_ ? MambaColors::amber : MambaColors::textSecondary);
 }
 
-void ManualSatPanel::syncFromProcessor(bool enabled, double drive, double tone) {
-    if (enabled != enabled_) {
-        enabled_ = enabled;
-        updateToggleLabel();
-    }
-    driveSlider_.setValue(drive, dontSendNotification);
-    toneSlider_ .setValue(tone,  dontSendNotification);
+void ManualSatPanel::syncFromProcessor(bool enabled, double drive, double tone,
+  const int* paramSuppress) {
+  if (enabled != enabled_) {
+    enabled_ = enabled;
+    updateToggleLabel();
+  }
+  if (!(paramSuppress && paramSuppress[29] > 0) && !driveSlider_.isMouseButtonDown()) driveSlider_.setValue(drive, dontSendNotification);
+  if (!(paramSuppress && paramSuppress[30] > 0) && !toneSlider_.isMouseButtonDown()) toneSlider_ .setValue(tone, dontSendNotification);
 }
 
 void ManualSatPanel::paint(Graphics& g) {

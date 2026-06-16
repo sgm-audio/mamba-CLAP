@@ -529,13 +529,13 @@ the need for low-latency, deterministic behavior in audio plugins.
 TECHNICAL REQUIREMENTS:
 - Generate complete, compilable C++ code for a CLAP plugin using JUCE
 - Include proper header guards, namespaces, and include statements
-- Implement the required CLAP plugin callbacks (init, activate, deactivate, 
+- Implement the required CLAP plugin callbacks (init, activate, deactivate,
   start_processing, stop_processing, process)
 - Use JUCE's AudioProcessor and AudioProcessorEditor classes appropriately
 - Handle parameter automation and state preservation (get/setStateInformation)
 - Include proper constructor and destructor
 - Follow JUCE's threading rules: no blocking calls in the audio thread
-- Use atomic parameters or FIFO for thread-safe communication between 
+- Use atomic parameters or FIFO for thread-safe communication between
   GUI and audio threads
 - Include proper JUCE module declarations and dependencies
 - Generate code that follows the JUCE coding style and conventions
@@ -610,7 +610,7 @@ OUTPUT RULES:
                 return Vec::new();
             }
         };
-        
+
         // Get the "files" array
         let files = match json.get("files") {
             Some(serde_json::Value::Array(arr)) => arr,
@@ -619,7 +619,7 @@ OUTPUT RULES:
                 return Vec::new();
             }
         };
-        
+
         // Deserialize each file object
         files.iter()
             .filter_map(|file| {

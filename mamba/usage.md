@@ -39,5 +39,3 @@ PR or email us. We'd very much like to hear from you!
 - [AMD GPUs](https://rocm.blogs.amd.com/artificial-intelligence/mamba/README.html)
 
 - [AWS Trainium 2](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/nki/tutorials/fused_mamba.html)
-
-

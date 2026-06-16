@@ -9,7 +9,8 @@ public:
 
     explicit ManualSatPanel(ParamCallback cb);
 
-    void syncFromProcessor(bool enabled, double drive, double tone);
+    void syncFromProcessor(bool enabled, double drive, double tone,
+  const int* paramSuppress = nullptr);
 
     void paint(juce::Graphics&) override;
     void resized() override;

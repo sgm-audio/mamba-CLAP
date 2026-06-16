@@ -3,12 +3,14 @@
 import os
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
+
 from omegaconf import OmegaConf
 
 
 @dataclass
 class AudioConfig:
     """Audio processing parameters."""
+
     sample_rate: int = 44100
     n_fft: int = 2048
     hop_length: int = 512
@@ -20,6 +22,7 @@ class AudioConfig:
 @dataclass
 class MambaConfig:
     """Mamba SSM architecture parameters."""
+
     d_model: int = 256
     n_layers: int = 6
     d_state: int = 32
@@ -31,6 +34,7 @@ class MambaConfig:
 @dataclass
 class CompressorConfig:
     """Compressor parameter ranges."""
+
     min_gain_db: float = -40.0
     max_gain_db: float = 0.0
     min_attack_ms: float = 0.1
@@ -43,6 +47,7 @@ class CompressorConfig:
 @dataclass
 class LossConfig:
     """Loss function weights and parameters."""
+
     waveform_weight: float = 1.0
     spectral_weight: float = 1.0
     crest_factor_weight: float = 0.5
@@ -54,6 +59,7 @@ class LossConfig:
 @dataclass
 class TrainingConfig:
     """Training hyperparameters."""
+
     batch_size: int = 8
     num_workers: int = 4
     max_epochs: int = 100
@@ -68,6 +74,7 @@ class TrainingConfig:
 @dataclass
 class CheckpointConfig:
     """Checkpointing configuration."""
+
     dirpath: str = "checkpoints"
     save_top_k: int = 3
     monitor: str = "val_loss"
@@ -78,34 +85,35 @@ class CheckpointConfig:
 @dataclass
 class Config:
     """Main configuration container."""
+
     audio: AudioConfig = field(default_factory=AudioConfig)
     mamba: MambaConfig = field(default_factory=MambaConfig)
     compressor: CompressorConfig = field(default_factory=CompressorConfig)
     loss: LossConfig = field(default_factory=LossConfig)
     training: TrainingConfig = field(default_factory=TrainingConfig)
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
-    
+
     # Metadata
     project_name: str = "mamba-compressor"
     version: str = "0.1.0"
     seed: int = 42
     device: str = "cuda"
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary."""
         return OmegaConf.to_container(OmegaConf.structured(self), resolve=True)
-    
+
     def save(self, path: str) -> None:
         """Save configuration to YAML file."""
         os.makedirs(os.path.dirname(path), exist_ok=True)
         OmegaConf.save(OmegaConf.structured(self), path)
-    
+
     @classmethod
     def load(cls, path: str) -> "Config":
         """Load configuration from YAML file."""
         cfg = OmegaConf.load(path)
         return OmegaConf.to_object(cfg)
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "Config":
         """Create configuration from dictionary."""

@@ -11,7 +11,7 @@ Additionally, we need to define how ARA musical context (tempo, key, chords) is 
 ### Processing Modes
 We define two modes:
 
-**Mode A (Tiny)**: 
+**Mode A (Tiny)**:
 - Designed for very small Mamba models (e.g., ≤2M parameters) where per-sample or micro-block processing is feasible.
 - Processes audio in blocks of 4 to 16 samples (or even per-sample) to minimize latency.
 - The state is updated per sample or per micro-block. There is no significant state carryover between blocks that would require overlap-add.
@@ -41,7 +41,7 @@ This conditioning vector is then used to bias the SSM parameters Δ and B via le
 ## Implementation Notes
 - We define two processing functions in the SSM core: `process_tiny` (for Mode A) and `process_block` (for Mode B). The plugin selects which one to use based on the model size and user preference (or automatically).
 - The conditioning vector is stored in a struct that is aligned to 128 bits (16 bytes) to avoid false sharing and to allow atomic pointer swaps (if we use a double buffer and an atomic pointer to the struct).
-- The projections for Δ and B are applied as: 
+- The projections for Δ and B are applied as:
     Δ_effective = Δ_base + W_delta * cond
     B_effective = B_base + W_bias * cond
   where W_delta and W_bias are matrices (or vectors, if we output a scalar bias per layer) that are part of the weight file.

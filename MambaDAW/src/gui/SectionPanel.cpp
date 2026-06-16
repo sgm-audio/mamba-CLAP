@@ -4,22 +4,32 @@
 using namespace juce;
 
 SectionPanel::SectionPanel(const String& title,
-                           std::initializer_list<String> paramNames,
-                           std::initializer_list<String> unitSuffixes)
-    : title_(title)
-    , wetSlider_(Slider::LinearHorizontal, Slider::NoTextBox)
+ std::initializer_list<String> paramNames,
+ std::initializer_list<String> unitSuffixes,
+ uint32_t wetParamId,
+ ParamCallback cb)
+ : title_(title)
+ , wetSlider_(Slider::LinearHorizontal, Slider::NoTextBox)
+ , wetParamId_(wetParamId)
+ , onParam_(std::move(cb))
 {
-    auto unitIt = unitSuffixes.begin();
-    for (const auto& name : paramNames) {
-        const String unit = (unitIt != unitSuffixes.end()) ? *unitIt++ : String{};
-        auto knob = std::make_unique<MambaKnob>(name, unit);
-        knob->setRange(0.0, 1.0, 0.0);
-        addAndMakeVisible(*knob);
-        knobs_.push_back(std::move(knob));
-    }
+ auto unitIt = unitSuffixes.begin();
+ for (const auto& name : paramNames) {
+ const String unit = (unitIt != unitSuffixes.end()) ? *unitIt++ : String{};
+ auto knob = std::make_unique<MambaKnob>(name, unit);
+ knob->setRange(0.0, 1.0, 0.0);
+ knob->slider().setEnabled(false);
+ addAndMakeVisible(*knob);
+ knobs_.push_back(std::move(knob));
+ }
 
     wetSlider_.setRange(0.0, 1.0, 0.0);
     wetSlider_.getProperties().set("manualOverride", false);
+    if (onParam_) {
+        wetSlider_.onValueChange = [this]() {
+            onParam_(wetParamId_, wetSlider_.getValue());
+        };
+    }
     addAndMakeVisible(wetSlider_);
 
     wetLabel_.setText("Wet", dontSendNotification);
@@ -30,12 +40,11 @@ SectionPanel::SectionPanel(const String& title,
 }
 
 void SectionPanel::updateAIValues(const float* vals, int count, bool manualMode) {
-    for (int i = 0; i < static_cast<int>(knobs_.size()) && i < count; ++i) {
-        knobs_[i]->setAIValue(vals[i]);
-        knobs_[i]->setManualOverride(manualMode);
-    }
-    wetSlider_.getProperties().set("manualOverride", manualMode);
-    wetSlider_.repaint();
+ for (int i = 0; i < static_cast<int>(knobs_.size()) && i < count; ++i) {
+ knobs_[i]->setAIValue(vals[i]);
+ knobs_[i]->setManualOverride(manualMode);
+ }
+ wetSlider_.setEnabled(manualMode);
 }
 
 void SectionPanel::paint(Graphics& g) {
@@ -51,10 +60,10 @@ void SectionPanel::paint(Graphics& g) {
 }
 
 void SectionPanel::resized() {
-    const int titleH  = 17;
-    const int wetH    = 20;
+    const int titleH = 17;
+    const int wetH = 20;
     const int wetLblW = 22;
-    const int pad     = 4;
+    const int pad = 4;
 
     const int knobAreaH = getHeight() - titleH - wetH - pad * 2;
     const int knobAreaY = titleH;

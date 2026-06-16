@@ -9,9 +9,9 @@ public:
 
     explicit ManualCompPanel(ParamCallback cb);
 
-    void syncFromProcessor(bool enabled,
-                           double thresh, double ratio,
-                           double attack, double release, double makeup);
+  void syncFromProcessor(bool enabled, double thresh, double ratio,
+  double attack, double release, double makeup,
+  const int* paramSuppress = nullptr);
 
     void paint(juce::Graphics&) override;
     void resized() override;

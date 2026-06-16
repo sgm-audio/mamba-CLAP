@@ -10,11 +10,10 @@
 #include "ManualSatPanel.h"
 #include "ManualRevPanel.h"
 #include "MambaLookAndFeel.h"
+#include "../plugin_processor.h"
 #include <clap/clap.h>
 #include <clap/ext/params.h>
 #include <memory>
-
-class PluginProcessor;
 
 class PluginEditor : public juce::Component, private juce::Timer {
 public:
@@ -28,7 +27,7 @@ public:
 
     // Called by CLAP GUI bridge to start/stop the repaint timer.
     void startTimerHz(int hz) { juce::Timer::startTimerHz(hz); }
-    void stopTimer()          { juce::Timer::stopTimer(); }
+    void stopTimer() { juce::Timer::stopTimer(); }
 
 private:
     void timerCallback() override;
@@ -37,37 +36,46 @@ private:
     MambaLookAndFeel laf_;
 
     PluginProcessor& processor_;
-    const clap_host_t*        host_       = nullptr;
+    const clap_host_t* host_ = nullptr;
     const clap_host_params_t* hostParams_ = nullptr;
 
-    HeaderBar        headerBar_;
-    ContextMeter     contextMeter_;
-    ControlBar       controlBar_;
+    HeaderBar headerBar_;
+    ContextMeter contextMeter_;
+    ControlBar controlBar_;
 
     // AI read-only display panels (top section)
-    SectionPanel     eqPanel_;
-    SectionPanel     compPanel_;
-    SectionPanel     satPanel_;
-    SectionPanel     revPanel_;
+    SectionPanel eqPanel_;
+    SectionPanel compPanel_;
+    SectionPanel satPanel_;
+    SectionPanel revPanel_;
 
     // Manual controls section (always visible below AI display)
     ManualControlsBar manualBar_;
-    ManualEQPanel     manualEQ_;
-    ManualCompPanel   manualComp_;
-    ManualSatPanel    manualSat_;
-    ManualRevPanel    manualRev_;
+    ManualEQPanel manualEQ_;
+    ManualCompPanel manualComp_;
+    ManualSatPanel manualSat_;
+    ManualRevPanel manualRev_;
 
     // Bottom bar controls (inline — no separate class).
-    juce::Slider     ctxLenSlider_;
-    juce::Label      ctxLenLabel_;
+    juce::Slider ctxLenSlider_;
+    juce::Label ctxLenLabel_;
     juce::TextButton resetButton_{ "RESET" };
     juce::TextButton loadButton_{ "LOAD MODEL" };
 
     // Kept alive during async file-open dialog.
     std::unique_ptr<juce::FileChooser> chooser_;
 
-    // Clip flash timer (milliseconds remaining).
-    int clipFlashMs_{ 0 };
-    static constexpr int kClipFlashDurationMs = 500;
-    static constexpr int kTimerIntervalMs      = 33;  // ~30 Hz
+  // Model-not-loaded error overlay
+  bool showModelOverlay_{ false };
+
+  // Clip flash timer (milliseconds remaining).
+  int clipFlashMs_{ 0 };
+  static constexpr int kClipFlashDurationMs = 500;
+  static constexpr int kTimerIntervalMs = 33; // ~30 Hz
+
+  // Per-param "user just changed this" suppress counter.
+  // When setParam() is called by a UI control, we set a 3-frame suppress
+  // window so timerCallback won't overwrite the slider for ~100ms.
+  static constexpr int kSuppressFrames = 3;
+  int paramSuppress_[kNumClapParams] = {};
 };

@@ -66,7 +66,7 @@ Represents audio files stored in object storage (not stored in DB directly, but 
 - `cacheControl` (String): max-age=86400 (24 hours)
 - `expires` (Timestamp): 24 hours from upload
 - `serverSideEncryption` (String): AES256
-- `metadata` (Map): 
+- `metadata` (Map):
   - `originalFilename` (String): User-provided filename
   - `uploadedBy` (UUID): User ID
   - `jobId` (UUID): Associated job ID
@@ -172,7 +172,7 @@ CREATE TABLE jobs (
     startedAt TIMESTAMP WITH TIME ZONE NULL,
     completedAt TIMESTAMP WITH TIME ZONE NULL,
     loudnessMetrics JSONB NULL,
-    
+
     INDEX idx_jobs_userId (userId),
     INDEX idx_jobs_status (status),
     INDEX idx_jobs_createdAt (createdAt),
@@ -182,7 +182,7 @@ CREATE TABLE jobs (
 
 -- Insert default presets as reference data (could also be in code)
 INSERT INTO job_presets (id, name, description, defaultIntensity, loudnessTarget, stereoWidth, saturation)
-VALUES 
+VALUES
 ('transparent', 'Transparent', 'Minimal processing for clean, transparent masters', 50, -16, 100, 0),
 ('warm', 'Warm', 'Analog-style saturation for warmth and character', 60, -14, 100, 30),
 ('loud', 'Loud', 'Competitive loudness for streaming platforms', 80, -9, 100, 10);
@@ -194,7 +194,7 @@ VALUES
 3. **Never Change Column Types**: Add new column with new type, migrate data, then rename
 4. **Stored Procedures**: Treat as code; version separately if complex logic changes
 5. **Indexes**: Can be added freely; consider performance impact on writes
-6. **Constraints**: 
+6. **Constraints**:
    - Can add new constraints if existing data complies
    - For restrictive constraints, migrate data first or make nullable initially
 

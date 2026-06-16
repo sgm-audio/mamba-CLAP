@@ -2,14 +2,19 @@
 from typing import Optional
 
 import torch
-from torch import nn, Tensor
-
 from mamba_ssm.ops.triton.layer_norm import RMSNorm, layer_norm_fn
+from torch import Tensor, nn
 
 
 class Block(nn.Module):
     def __init__(
-        self, dim, mixer_cls, mlp_cls, norm_cls=nn.LayerNorm, fused_add_norm=False, residual_in_fp32=False
+        self,
+        dim,
+        mixer_cls,
+        mlp_cls,
+        norm_cls=nn.LayerNorm,
+        fused_add_norm=False,
+        residual_in_fp32=False,
     ):
         """
         Simple block wrapping a mixer class with LayerNorm/RMSNorm and residual connection"
@@ -40,7 +45,11 @@ class Block(nn.Module):
             ), "Only LayerNorm and RMSNorm are supported for fused_add_norm"
 
     def forward(
-            self, hidden_states: Tensor, residual: Optional[Tensor] = None, inference_params=None, **mixer_kwargs
+        self,
+        hidden_states: Tensor,
+        residual: Optional[Tensor] = None,
+        inference_params=None,
+        **mixer_kwargs
     ):
         r"""Pass the input through the encoder layer.
 
@@ -62,7 +71,7 @@ class Block(nn.Module):
                 prenorm=True,
                 residual_in_fp32=self.residual_in_fp32,
                 eps=self.norm.eps,
-                is_rms_norm=isinstance(self.norm, RMSNorm)
+                is_rms_norm=isinstance(self.norm, RMSNorm),
             )
         hidden_states = self.mixer(hidden_states, inference_params=inference_params, **mixer_kwargs)
 
@@ -81,7 +90,7 @@ class Block(nn.Module):
                     prenorm=True,
                     residual_in_fp32=self.residual_in_fp32,
                     eps=self.norm2.eps,
-                    is_rms_norm=isinstance(self.norm2, RMSNorm)
+                    is_rms_norm=isinstance(self.norm2, RMSNorm),
                 )
             hidden_states = self.mlp(hidden_states)
 

@@ -68,7 +68,7 @@ g++ -std=c++17 test_plugin_integration.cpp -I../include -I/usr/local/include -L/
    ```bash
    # User installation
    cp Release/libMambaClapPlugin.clap ~/.clap/
-   
+
    # System installation (may require sudo)
    # cp Release/libMambaClapPlugin.clap /usr/local/lib/clap/
    ```

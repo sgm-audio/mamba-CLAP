@@ -55,12 +55,12 @@ public:
     std::atomic<float> attackParam { 10.0f };       // ms
     std::atomic<float> releaseParam { 100.0f };     // ms
     std::atomic<float> makeupParam { 0.0f };        // dB
-    
+
     // Visualization parameters
     std::atomic<float> inputLevel { -60.0f };
     std::atomic<float> outputLevel { -60.0f };
     std::atomic<float> gainReduction { 0.0f };
-    
+
     // Reference to our CLAP plugin for actual processing
     std::unique_ptr<mamba_audio::MambaClapPlugin> clapPlugin;
 
@@ -68,10 +68,10 @@ private:
     // For level metering
     juce::dsp::AudioLevelMeter<float> inputMeter;
     juce::dsp::AudioLevelMeter<float> outputMeter;
-    
+
     // For gain reduction metering
     juce::dsp::AudioLevelMeter<float> grMeter;
-    
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MambaAudioProcessor)
 };
 

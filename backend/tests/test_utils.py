@@ -1,14 +1,17 @@
 """
 Unit tests for backend utilities: S3 circuit breaker and URI validation.
 """
-import pytest
+
 import time
+
+import pytest
+
 from backend.utils import (
     S3CircuitBreaker,
     S3CircuitOpenError,
-    validate_s3_uri,
-    retry_s3_operation,
     _global_s3_circuit_breaker,
+    retry_s3_operation,
+    validate_s3_uri,
 )
 
 
@@ -29,7 +32,7 @@ class TestS3CircuitBreaker:
 
     def test_initial_state_is_closed(self):
         cb = S3CircuitBreaker(failure_threshold=3, recovery_timeout=5)
-        assert cb.state == 'closed'
+        assert cb.state == "closed"
         assert cb.is_available() is True
 
     def test_record_success_resets_failure_count(self):
@@ -39,35 +42,35 @@ class TestS3CircuitBreaker:
         assert cb._consecutive_failures == 2
         cb.record_success()
         assert cb._consecutive_failures == 0
-        assert cb.state == 'closed'
+        assert cb.state == "closed"
 
     def test_opens_after_failure_threshold(self):
         cb = S3CircuitBreaker(failure_threshold=3, recovery_timeout=5)
         cb.record_failure()
-        assert cb.state == 'closed'
+        assert cb.state == "closed"
         cb.record_failure()
-        assert cb.state == 'closed'
+        assert cb.state == "closed"
         cb.record_failure()
-        assert cb.state == 'open'
+        assert cb.state == "open"
         assert cb.is_available() is False
 
     def test_half_open_after_recovery_timeout(self):
         cb = S3CircuitBreaker(failure_threshold=1, recovery_timeout=0.1)
         cb.record_failure()  # Opens immediately
-        assert cb.state == 'open'
+        assert cb.state == "open"
         time.sleep(0.15)
         # Accessing state should transition to half_open
-        assert cb.state == 'half_open'
+        assert cb.state == "half_open"
         assert cb.is_available() is True
 
     def test_half_open_to_closed_on_success(self):
         cb = S3CircuitBreaker(failure_threshold=1, recovery_timeout=0.05)
         cb.record_failure()
-        assert cb.state == 'open'
+        assert cb.state == "open"
         time.sleep(0.1)
         _ = cb.state  # Transition to half_open
         cb.record_success()
-        assert cb.state == 'closed'
+        assert cb.state == "closed"
 
     def test_half_open_to_open_on_failure(self):
         cb = S3CircuitBreaker(failure_threshold=1, recovery_timeout=0.05)
@@ -75,12 +78,12 @@ class TestS3CircuitBreaker:
         time.sleep(0.1)
         _ = cb.state  # Transition to half_open
         cb.record_failure()
-        assert cb.state == 'open'
+        assert cb.state == "open"
 
     def test_get_time_until_retry(self):
         cb = S3CircuitBreaker(failure_threshold=1, recovery_timeout=5)
         cb.record_failure()
-        assert cb.state == 'open'
+        assert cb.state == "open"
         remaining = cb.get_time_until_retry()
         assert 4.5 < remaining <= 5.0
 
@@ -92,20 +95,14 @@ class TestS3CircuitBreakerIntegration:
         # Trip the global circuit breaker (threshold is 5)
         for _ in range(5):
             _global_s3_circuit_breaker.record_failure()
-        assert _global_s3_circuit_breaker.state == 'open'
+        assert _global_s3_circuit_breaker.state == "open"
 
         with pytest.raises(S3CircuitOpenError):
-            retry_s3_operation(
-                lambda: None,
-                use_circuit_breaker=True
-            )
+            retry_s3_operation(lambda: None, use_circuit_breaker=True)
 
     def test_circuit_allows_request_when_closed(self):
         cb = S3CircuitBreaker(failure_threshold=5, recovery_timeout=30)
-        result = retry_s3_operation(
-            lambda: "success",
-            use_circuit_breaker=True
-        )
+        result = retry_s3_operation(lambda: "success", use_circuit_breaker=True)
         assert result == "success"
         assert cb._consecutive_failures == 0
 

@@ -1,22 +1,20 @@
 # Copyright (c) 2023, Albert Gu, Tri Dao.
 
-import math
-from functools import partial
-import json
-import os
 import copy
-
+import json
+import math
+import os
 from collections import namedtuple
+from functools import partial
 
 import torch
 import torch.nn as nn
-
 from mamba_ssm.models.config_mamba import MambaConfig
-from mamba_ssm.modules.mamba_simple import Mamba
+from mamba_ssm.modules.block import Block
 from mamba_ssm.modules.mamba2 import Mamba2
+from mamba_ssm.modules.mamba_simple import Mamba
 from mamba_ssm.modules.mha import MHA
 from mamba_ssm.modules.mlp import GatedMLP
-from mamba_ssm.modules.block import Block
 from mamba_ssm.utils.generation import GenerationMixin
 from mamba_ssm.utils.hf import load_config_hf, load_state_dict_hf
 
@@ -57,7 +55,7 @@ def create_block(
             Mamba2 if ssm_layer == "Mamba2" else Mamba,
             layer_idx=layer_idx,
             **ssm_cfg,
-            **factory_kwargs
+            **factory_kwargs,
         )
     else:
         mixer_cls = partial(MHA, layer_idx=layer_idx, **attn_cfg, **factory_kwargs)
@@ -207,7 +205,7 @@ class MixerModel(nn.Module):
                 residual=residual,
                 prenorm=False,
                 residual_in_fp32=self.residual_in_fp32,
-                is_rms_norm=isinstance(self.norm_f, RMSNorm)
+                is_rms_norm=isinstance(self.norm_f, RMSNorm),
             )
         return hidden_states
 
@@ -271,7 +269,9 @@ class MambaLMHeadModel(nn.Module, GenerationMixin):
     def allocate_inference_cache(self, batch_size, max_seqlen, dtype=None, **kwargs):
         return self.backbone.allocate_inference_cache(batch_size, max_seqlen, dtype=dtype, **kwargs)
 
-    def forward(self, input_ids, position_ids=None, inference_params=None, num_last_tokens=0, **mixer_kwargs):
+    def forward(
+        self, input_ids, position_ids=None, inference_params=None, num_last_tokens=0, **mixer_kwargs
+    ):
         """
         "position_ids" is just to be compatible with Transformer generation. We don't use it.
         num_last_tokens: if > 0, only return the logits for the last n tokens
@@ -300,10 +300,10 @@ class MambaLMHeadModel(nn.Module, GenerationMixin):
         os.makedirs(save_directory, exist_ok=True)
 
         # Save the model's state_dict
-        model_path = os.path.join(save_directory, 'pytorch_model.bin')
+        model_path = os.path.join(save_directory, "pytorch_model.bin")
         torch.save(self.state_dict(), model_path)
 
         # Save the configuration of the model
-        config_path = os.path.join(save_directory, 'config.json')
-        with open(config_path, 'w') as f:
+        config_path = os.path.join(save_directory, "config.json")
+        with open(config_path, "w") as f:
             json.dump(self.config.__dict__, f, indent=4)

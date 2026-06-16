@@ -16,7 +16,7 @@ MambaAudioProcessor::MambaAudioProcessor()
     // For simplicity, we'll initialize the CLAP plugin with a dummy host.
     // Note: This is a simplified approach. In practice, you might want to
     // refactor the CLAP plugin to be more independent of the host during initialization.
-    
+
     // Dummy descriptor and host (in a real scenario, these come from the host)
     static const clap_plugin_descriptor dummyDesc = {
         .clap_version = CLAP_VERSION,
@@ -35,7 +35,7 @@ MambaAudioProcessor::MambaAudioProcessor()
             nullptr
         }
     };
-    
+
     // We'll create a minimal host that just provides the necessary callbacks.
     // For now, we'll use a static dummy host and hope the CLAP plugin doesn't require much from it.
     // This is a hack for the sake of getting the GUI running. A better approach would be to
@@ -83,9 +83,9 @@ MambaAudioProcessor::MambaAudioProcessor()
         // We are missing many callbacks, but we hope the plugin doesn't use them during audio processing.
         // This is a temporary solution for the GUI to work.
     };
-    
+
     clapPlugin = std::make_unique<mamba_audio::MambaClapPlugin>(&dummyDesc, &dummyHost);
-    
+
     // Initialize the CLAP plugin (this will load models, etc.)
     // We'll use a sample rate of 44100.0 for initialization, but it will be updated in prepareToPlay.
     if (!clapPlugin->init()) {
@@ -111,7 +111,7 @@ void MambaAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     // This is not ideal, but for many plugins it's acceptable.
     clapPlugin->activate(sampleRate, 0.0, 0.0);
     clapPlugin->start_processing();
-    
+
     // Reset the level meters
     inputMeter.reset (sampleRate, juce::dsp::AudioLevelMeter<float>::LevelMeterType::peak);
     outputMeter.reset (sampleRate, juce::dsp::AudioLevelMeter<float>::LevelMeterType::peak);
@@ -163,44 +163,44 @@ void MambaAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     // The CLAP plugin uses a block size of 2048 samples internally.
     const int blockSize = 2048;
     const int numSamples = buffer.getNumSamples();
-    
+
     // We'll process the audio block by block.
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
         const float* inputChannel  = inputChannels[channel];
         float* outputChannel = outputChannels[channel];
-        
+
         // Process in blocks
         for (int offset = 0; offset < numSamples; offset += blockSize)
         {
             int blockEnd = std::min(offset + blockSize, numSamples);
             int blockSamples = blockEnd - offset;
-            
+
             // Copy the input block to a temporary buffer
             std::vector<float> blockInput(blockSamples);
             for (int i = 0; i < blockSamples; ++i)
             {
                 blockInput[i] = inputChannel[offset + i];
             }
-            
+
             // Convert to torch tensor
             auto inputTensor = torch::from_blob(blockInput.data(), {1, blockSamples}, torch::kFloat);
-            
+
             // Process through the CLAP plugin's internal pipeline
             // Note: We are bypassing the CLAP process function and calling the internal steps directly.
             // This is because the CLAP process function expects a clap_process_t structure.
             // Alternatively, we could create a clap_process_t structure, but that is more complex.
             // For simplicity, we'll reuse the internal steps from the CLAP plugin.
-            
+
             // Step 1: Convert to mel spectrogram
             auto mel_spec = clapPlugin->stft_processor_->forward(inputTensor.to(clapPlugin->device_));
-            
+
             // Step 2: Apply Mamba processing
             auto enhanced_mel = clapPlugin->mamba_wrapper_->process(mel_spec);
-            
+
             // Step 3: Convert back to waveform
             auto output_block = clapPlugin->stft_processor_->inverse(enhanced_mel);
-            
+
             // Copy the output back to the output channel
             auto output_data = output_block.cpu().contiguous().data_ptr<float>();
             for (int i = 0; i < blockSamples; ++i)
@@ -209,7 +209,7 @@ void MambaAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
             }
         }
     }
-    
+
     // Update the level meters for visualization
     // We'll update the meters once per block to avoid too frequent updates.
     // We'll use the first channel for metering (or we could do a mix).
@@ -227,20 +227,20 @@ void MambaAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         }
         inputRMS = std::sqrt(inputRMS / numSamples);
         outputRMS = std::sqrt(outputRMS / numSamples);
-        
+
         // Convert to dB
         float inputDB = juce::Decibels::gainToDecibels(inputRMS);
         float outputDB = juce::Decibels::gainToDecibels(outputRMS);
-        
+
         // Update the atomic variables for the GUI
         inputLevel.store (inputDB);
         outputLevel.store (outputDB);
-        
+
         // Calculate gain reduction (input - output) in dB
         // Note: This is a simplification. In a compressor, gain reduction is usually calculated differently.
         // But for our spectrogram enhancer, we can approximate it this way.
         gainReduction.store (inputDB - outputDB);
-        
+
         // Also update the level meters (optional, but we can use them for smoothing)
         inputMeter.pushSample (juce::jmax (0.0f, inputRMS));
         outputMeter.pushSample (juce::jmax (0.0f, outputRMS));

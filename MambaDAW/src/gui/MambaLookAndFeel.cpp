@@ -195,6 +195,18 @@ void MambaLookAndFeel::drawLinearSlider(Graphics& g,
     g.fillRoundedRectangle(trackLeft, trackY, sliderPos - trackLeft,
                            trackH, trackH * 0.5f);
 
+    // Ghost arc: AI target position (aiBlueHalf)
+    {
+        const float aiVal = static_cast<float>(
+            static_cast<double>(slider.getProperties().getWithDefault("aiValue", -1.0)));
+        if (aiVal >= 0.f && aiVal <= 1.f) {
+            const float range = trackRight - trackLeft;
+            const float aiPos = trackLeft + aiVal * range;
+            g.setColour(MambaColors::aiBlueHalf);
+            g.fillRect(static_cast<int>(aiPos) - 1, static_cast<int>(trackY) - 3, 2, static_cast<int>(trackH) + 6);
+        }
+    }
+
     // Thumb
     const float thumbW = 6.f;
     const float thumbH = 14.f;

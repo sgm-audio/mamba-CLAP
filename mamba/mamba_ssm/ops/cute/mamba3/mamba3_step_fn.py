@@ -3,20 +3,17 @@
 # Modified to optionally update state in place (state_out=None) or write to separate state_out.
 
 import math
-from typing import Optional, Type, List
-
-import torch
-import torch.nn.functional as F
-from torch import Tensor
+from typing import List, Optional, Type
 
 import cuda.bindings.driver as cuda
-
 import cutlass
 import cutlass.cute as cute
-from cutlass import Float32, Boolean, const_expr
-
+import torch
+import torch.nn.functional as F
+from cutlass import Boolean, Float32, const_expr
 from quack.compile_utils import make_fake_tensor
 from quack.cute_dsl_utils import torch2cute_dtype_map
+from torch import Tensor
 
 
 def transpose_view(a: cute.Tensor) -> cute.Tensor:
@@ -25,12 +22,14 @@ def transpose_view(a: cute.Tensor) -> cute.Tensor:
     order = (1, 0, *range(2, cute.rank(a)))
     return cute.composition(a, cute.make_ordered_layout(shape, order=order))
 
+
 def select(a: cute.Tensor, mode: List[int]) -> cute.Tensor:
     return cute.make_tensor(a.iterator, cute.select(a.layout, mode))
 
 
-
-def get_gmem_tiled_copy(dtype: Type[cutlass.Numeric], major_mode_size: int, num_threads: int, is_async: bool = True):
+def get_gmem_tiled_copy(
+    dtype: Type[cutlass.Numeric], major_mode_size: int, num_threads: int, is_async: bool = True
+):
     num_copy_bits = math.gcd(major_mode_size, 128 // dtype.width) * dtype.width
     copy_elems = num_copy_bits // dtype.width
     copy_op = cute.nvgpu.cpasync.CopyG2SOp() if is_async else cute.nvgpu.CopyUniversalOp()
@@ -45,10 +44,18 @@ def get_gmem_tiled_copy(dtype: Type[cutlass.Numeric], major_mode_size: int, num_
     return cute.make_tiled_copy_tv(copy_atom, thr_layout, val_layout)
 
 
-class Mamba3Step():
-    def __init__(self, tile_D: int, dstate: int, mimo: int = 1, num_warps: int = 4, remove_gate: bool = False, remove_outproj: bool = False):
+class Mamba3Step:
+    def __init__(
+        self,
+        tile_D: int,
+        dstate: int,
+        mimo: int = 1,
+        num_warps: int = 4,
+        remove_gate: bool = False,
+        remove_outproj: bool = False,
+    ):
         assert num_warps >= 2
-        assert dstate % 8 == 0, "dstate must be multiple of 8" # for vectorized load /store
+        assert dstate % 8 == 0, "dstate must be multiple of 8"  # for vectorized load /store
         self.tile_D = tile_D
         self.dstate = dstate
         self.mimo = mimo
@@ -63,7 +70,9 @@ class Mamba3Step():
         # We don't need any swizzling for Xproj, Zproj, Outproj
         self.sProj_layout = cute.make_ordered_layout((self.mimo, self.tile_D), order=(1, 0))
 
-    def _setup_gmem_tiled_copy(self, ):
+    def _setup_gmem_tiled_copy(
+        self,
+    ):
         num_threads = self.num_warps * cute.arch.WARP_SIZE
         self.gmem_tiled_copy_state = get_gmem_tiled_copy(self.dtype, self.dstate, num_threads)
         self.gmem_tiled_copy_BC = get_gmem_tiled_copy(self.b_dtype, self.dstate, num_threads)
@@ -76,11 +85,12 @@ class Mamba3Step():
             cute.nvgpu.CopyUniversalOp(), self.x_dtype, num_bits_per_copy=num_copy_bits_x
         )
         gmem_threads_per_row = self.tile_D // copy_elems_x
-        assert cute.arch.WARP_SIZE >= gmem_threads_per_row   # Only 1 warp loads X, Z
+        assert cute.arch.WARP_SIZE >= gmem_threads_per_row  # Only 1 warp loads X, Z
         self.gmem_tiled_copy_X = cute.make_tiled_copy_tv(
-            copy_atom_load_x, cute.make_layout(self.tile_D // copy_elems_x), cute.make_layout(copy_elems_x)
+            copy_atom_load_x,
+            cute.make_layout(self.tile_D // copy_elems_x),
+            cute.make_layout(copy_elems_x),
         )
-
 
     @cute.jit
     def __call__(
@@ -132,7 +142,9 @@ class Mamba3Step():
         assert self.tile_D % num_groups == 0
         lanes_per_D = self.tile_D // num_groups
         copy_atom_state_s2r = cute.make_copy_atom(
-            cute.nvgpu.CopyUniversalOp(), mState.element_type, num_bits_per_copy=vecsize_dstate * mState.element_type.width
+            cute.nvgpu.CopyUniversalOp(),
+            mState.element_type,
+            num_bits_per_copy=vecsize_dstate * mState.element_type.width,
         )
         tiled_copy_state_s2r = cute.make_tiled_copy_tv(
             copy_atom_state_s2r,
@@ -140,7 +152,9 @@ class Mamba3Step():
             cute.make_ordered_layout((lanes_per_D, vecsize_dstate), order=(1, 0)),
         )
         copy_atom_B_s2r = cute.make_copy_atom(
-            cute.nvgpu.CopyUniversalOp(), mB.element_type, num_bits_per_copy=vecsize_dstate * mB.element_type.width
+            cute.nvgpu.CopyUniversalOp(),
+            mB.element_type,
+            num_bits_per_copy=vecsize_dstate * mB.element_type.width,
         )
         tiled_copy_B_s2r = cute.make_tiled_copy_tv(
             copy_atom_B_s2r,
@@ -275,14 +289,15 @@ class Mamba3Step():
         ]
         # (tile_D,)
         gXstate, gX = [
-            cute.local_tile(t[bidb, bidh, None], (self.tile_D,), (bidd,))
-            for t in (mXstate, mX)
+            cute.local_tile(t[bidb, bidh, None], (self.tile_D,), (bidd,)) for t in (mXstate, mX)
         ]
         if const_expr(mOutproj is not None):
             # Output is (B, H, D), outproj reduces MIMO rank
             gOut = cute.local_tile(mOut[bidb, bidh, None], (self.tile_D,), (bidd,))
             gXproj = cute.local_tile(mXproj[None, bidh, None], (self.mimo, self.tile_D), (0, bidd))
-            gOutproj = cute.local_tile(mOutproj[None, bidh, None], (self.mimo, self.tile_D), (0, bidd))
+            gOutproj = cute.local_tile(
+                mOutproj[None, bidh, None], (self.mimo, self.tile_D), (0, bidd)
+            )
         else:
             # Output is (B, R, H, D), no outproj reduction
             gXproj = cute.local_tile(mXproj[None, bidh, None], (self.mimo, self.tile_D), (0, bidd))
@@ -303,7 +318,9 @@ class Mamba3Step():
         sC = storage.sC.get_tensor(sBC_layout)
         sXproj = storage.sXproj.get_tensor(sProj_layout)
         sZproj = storage.sZproj.get_tensor(sProj_layout) if const_expr(mZ is not None) else None
-        sOutproj = storage.sOutproj.get_tensor(sProj_layout) if const_expr(mOutproj is not None) else None
+        sOutproj = (
+            storage.sOutproj.get_tensor(sProj_layout) if const_expr(mOutproj is not None) else None
+        )
         sXstate = storage.sXstate.get_tensor(cute.make_layout(self.tile_D))
         sX = storage.sX.get_tensor(cute.make_layout(self.tile_D))
         sXgamma = storage.sXgamma.get_tensor(cute.make_layout(self.tile_D))
@@ -476,9 +493,13 @@ class Mamba3Step():
         for m in cutlass.range(cute.size(tPcProj.shape[1]), unroll_full=True):
             if tPcProj[0, m, 0][0] < self.mimo:
                 if const_expr(mZ is not None):
-                    cute.copy(gmem_tiled_copy_Proj, tPgZproj[None, m, None], tPsZproj[None, m, None])
+                    cute.copy(
+                        gmem_tiled_copy_Proj, tPgZproj[None, m, None], tPsZproj[None, m, None]
+                    )
                 if const_expr(mOutproj is not None):
-                    cute.copy(gmem_tiled_copy_Proj, tPgOutproj[None, m, None], tPsOutproj[None, m, None])
+                    cute.copy(
+                        gmem_tiled_copy_Proj, tPgOutproj[None, m, None], tPsOutproj[None, m, None]
+                    )
         cute.arch.cp_async_commit_group()
 
         # Write state back to StateOut (may be same memory as State for in-place)
@@ -497,7 +518,9 @@ class Mamba3Step():
         # tSrS_f32 has shape ((vecsize_dstate, 1), lanes_per_D, 1)
         # tSrC has shape ((vecsize_dstate, 1), mimo)
         out_expanded.store(
-            (tSrS_f32.load() * tSrC_f32.load()).reduce(cute.ReductionOp.ADD, init_val=0.0, reduction_profile=(0, None, None))
+            (tSrS_f32.load() * tSrC_f32.load()).reduce(
+                cute.ReductionOp.ADD, init_val=0.0, reduction_profile=(0, None, None)
+            )
         )
         assert lanes_per_D <= threads_per_dstate
         for d in cutlass.range(lanes_per_D, unroll_full=True):
@@ -652,7 +675,9 @@ def mamba3_step_fn(
         has_outproj,
     )
     if compile_key not in mamba3_step_fn.compile_cache:
-        mamba3_step_op = Mamba3Step(tile_D, dstate, mimo, num_warps, remove_gate=not has_z, remove_outproj=not has_outproj)
+        mamba3_step_op = Mamba3Step(
+            tile_D, dstate, mimo, num_warps, remove_gate=not has_z, remove_outproj=not has_outproj
+        )
 
         # Create symbolic dimensions for batch and nheads
         batch_sym = cute.sym_int()
@@ -669,7 +694,9 @@ def mamba3_step_fn(
         div_trap = 128 // trap_cute_dtype.width
 
         # Create fake tensors with symbolic batch/nheads dimensions
-        state_fake = make_fake_tensor(state_cute_dtype, (batch_sym, nheads_sym, hdim, dstate), div_state)
+        state_fake = make_fake_tensor(
+            state_cute_dtype, (batch_sym, nheads_sym, hdim, dstate), div_state
+        )
         Bstate_fake = make_fake_tensor(b_cute_dtype, (batch_sym, mimo, nheads_sym, dstate), div_b)
         Xstate_fake = make_fake_tensor(x_cute_dtype, (batch_sym, nheads_sym, hdim), div_x)
         A_fake = make_fake_tensor(a_cute_dtype, (batch_sym, nheads_sym), div_a)
@@ -680,14 +707,24 @@ def mamba3_step_fn(
         dt_fake = make_fake_tensor(dt_cute_dtype, (batch_sym, nheads_sym), div_dt)
         trap_fake = make_fake_tensor(trap_cute_dtype, (batch_sym, nheads_sym), div_trap)
         xproj_fake = make_fake_tensor(proj_cute_dtype, (mimo, nheads_sym, hdim), div_proj)
-        outproj_fake = make_fake_tensor(proj_cute_dtype, (mimo, nheads_sym, hdim), div_proj) if has_outproj else None
-        state_out_fake = make_fake_tensor(state_cute_dtype, (batch_sym, nheads_sym, hdim, dstate), div_state)
+        outproj_fake = (
+            make_fake_tensor(proj_cute_dtype, (mimo, nheads_sym, hdim), div_proj)
+            if has_outproj
+            else None
+        )
+        state_out_fake = make_fake_tensor(
+            state_cute_dtype, (batch_sym, nheads_sym, hdim, dstate), div_state
+        )
         if has_outproj:
             out_fake = make_fake_tensor(x_cute_dtype, (batch_sym, nheads_sym, hdim), div_x)
         else:
             out_fake = make_fake_tensor(x_cute_dtype, (batch_sym, mimo, nheads_sym, hdim), div_x)
-        z_fake = make_fake_tensor(x_cute_dtype, (batch_sym, nheads_sym, hdim), div_x) if has_z else None
-        zproj_fake = make_fake_tensor(proj_cute_dtype, (mimo, nheads_sym, hdim), div_proj) if has_z else None
+        z_fake = (
+            make_fake_tensor(x_cute_dtype, (batch_sym, nheads_sym, hdim), div_x) if has_z else None
+        )
+        zproj_fake = (
+            make_fake_tensor(proj_cute_dtype, (mimo, nheads_sym, hdim), div_proj) if has_z else None
+        )
 
         fake_stream = cute.runtime.make_fake_stream(use_tvm_ffi_env_stream=True)
 
@@ -739,8 +776,21 @@ mamba3_step_fn.compile_cache = {}
 
 
 def selective_state_update_fused_ref_v2(
-    state, A, B, C, xproj, x, zproj, z, dt, B_state, x_state, trap, D, outproj,
-    compute_dtype=torch.float32
+    state,
+    A,
+    B,
+    C,
+    xproj,
+    x,
+    zproj,
+    z,
+    dt,
+    B_state,
+    x_state,
+    trap,
+    D,
+    outproj,
+    compute_dtype=torch.float32,
 ):
     """
     Reference to match the new fused kernel API.
@@ -770,45 +820,45 @@ def selective_state_update_fused_ref_v2(
 
     # Dtypes for numerics (match kernel's fp32 accum)
     og_dtype = state.dtype
-    A_f    = A.to(compute_dtype)       # (B, N)
-    dt_f   = dt.to(compute_dtype)      # (B, N)
-    trap_f = trap.to(compute_dtype)    # (B, N)
-    D_f    = D.to(compute_dtype)       # (N,)
-    x_f    = x.to(compute_dtype)       # (B, N, H)
-    xst_f  = x_state.to(compute_dtype) # (B, N, H)
-    B_f    = B.to(compute_dtype)       # (B, R, N, S)
-    C_f    = C.to(compute_dtype)       # (B, R, N, S)
-    Bst_f  = B_state.to(compute_dtype) # (B, R, N, S)
-    Xp_f   = xproj.to(compute_dtype)   # (R, N, H)
-    st_f   = state.to(compute_dtype)   # (B, N, H, S)
+    A_f = A.to(compute_dtype)  # (B, N)
+    dt_f = dt.to(compute_dtype)  # (B, N)
+    trap_f = trap.to(compute_dtype)  # (B, N)
+    D_f = D.to(compute_dtype)  # (N,)
+    x_f = x.to(compute_dtype)  # (B, N, H)
+    xst_f = x_state.to(compute_dtype)  # (B, N, H)
+    B_f = B.to(compute_dtype)  # (B, R, N, S)
+    C_f = C.to(compute_dtype)  # (B, R, N, S)
+    Bst_f = B_state.to(compute_dtype)  # (B, R, N, S)
+    Xp_f = xproj.to(compute_dtype)  # (R, N, H)
+    st_f = state.to(compute_dtype)  # (B, N, H, S)
 
-    alpha = torch.exp(A_f * dt_f)                 # (B, N)
-    beta  = (1.0 - trap_f) * dt_f * alpha        # (B, N)
-    gamma = trap_f * dt_f                         # (B, N)
+    alpha = torch.exp(A_f * dt_f)  # (B, N)
+    beta = (1.0 - trap_f) * dt_f * alpha  # (B, N)
+    gamma = trap_f * dt_f  # (B, N)
 
-    x_vals   = (x_f[:, None, :, :] * Xp_f[None, :, :, :])    # (B, R, N, H)
-    xs_vals  = (xst_f[:, None, :, :] * Xp_f[None, :, :, :])  # (B, R, N, H)
+    x_vals = x_f[:, None, :, :] * Xp_f[None, :, :, :]  # (B, R, N, H)
+    xs_vals = xst_f[:, None, :, :] * Xp_f[None, :, :, :]  # (B, R, N, H)
 
-    xBt_state = torch.einsum('brnh,brns->bnhs', x_vals * gamma.unsqueeze(-1).unsqueeze(1),  B_f)
-    xBt_prev  = torch.einsum('brnh,brns->bnhs', xs_vals * beta.unsqueeze(-1).unsqueeze(1), Bst_f)
+    xBt_state = torch.einsum("brnh,brns->bnhs", x_vals * gamma.unsqueeze(-1).unsqueeze(1), B_f)
+    xBt_prev = torch.einsum("brnh,brns->bnhs", xs_vals * beta.unsqueeze(-1).unsqueeze(1), Bst_f)
 
-    new_state = st_f * alpha[:, :, None, None] + xBt_state + xBt_prev   # (B, N, H, S)
+    new_state = st_f * alpha[:, :, None, None] + xBt_state + xBt_prev  # (B, N, H, S)
 
-    out_r = torch.einsum('bnhs,brns->brnh', new_state, C_f)  # (B, R, N, H)
+    out_r = torch.einsum("bnhs,brns->brnh", new_state, C_f)  # (B, R, N, H)
 
-    out_r = out_r + (x_vals * D_f[None, :, None])            # (B, R, N, H)
+    out_r = out_r + (x_vals * D_f[None, :, None])  # (B, R, N, H)
 
     if z is not None:
-        z_f    = z.to(compute_dtype)       # (B, N, H)
-        Zp_f   = zproj.to(compute_dtype)   # (R, N, H)
-        z_vals = (z_f[:, None, :, :] * Zp_f[None, :, :, :])      # (B, R, N, H)
-        out_r  = out_r * z_vals * torch.sigmoid(z_vals)          # (B, R, N, H)
+        z_f = z.to(compute_dtype)  # (B, N, H)
+        Zp_f = zproj.to(compute_dtype)  # (R, N, H)
+        z_vals = z_f[:, None, :, :] * Zp_f[None, :, :, :]  # (B, R, N, H)
+        out_r = out_r * z_vals * torch.sigmoid(z_vals)  # (B, R, N, H)
 
     if outproj is not None:
-        Op_f   = outproj.to(compute_dtype) # (R, N, H)
-        out = torch.einsum('brnh,rnh->bnh', out_r, Op_f)         # (B, N, H)
+        Op_f = outproj.to(compute_dtype)  # (R, N, H)
+        out = torch.einsum("brnh,rnh->bnh", out_r, Op_f)  # (B, N, H)
     else:
-        out = out_r                                               # (B, R, N, H)
+        out = out_r  # (B, R, N, H)
 
     return out.to(og_dtype), new_state.to(og_dtype)
 
@@ -832,7 +882,9 @@ if __name__ == "__main__":
     D = torch.randn(nheads, device=device, dtype=dtype)
     x = torch.randn(batch, nheads, hdim, device=device, dtype=dtype)
     z = torch.randn(batch, nheads, hdim, device=device, dtype=dtype)
-    dt = torch.exp(torch.rand(nheads, device=device) * (math.log(0.1) - math.log(0.001)) + math.log(0.001))
+    dt = torch.exp(
+        torch.rand(nheads, device=device) * (math.log(0.1) - math.log(0.001)) + math.log(0.001)
+    )
     dt = torch.clamp(dt, min=1e-4)
     dt_bias = dt + torch.log(-torch.expm1(-dt))
     dt = F.softplus(torch.randn(batch, nheads, device=device) + dt_bias)  # (B, H)
@@ -847,6 +899,7 @@ if __name__ == "__main__":
     # =========================================================================
     print("=== Out-of-place test ===")
     state_out = torch.zeros_like(state)
+
     def fn_oop():
         return mamba3_step_fn(
             state,
@@ -870,8 +923,40 @@ if __name__ == "__main__":
         )
 
     fn_oop()
-    out_ref, state_out_ref = selective_state_update_fused_ref_v2(state, A, B, C, xproj, x, zproj, z, dt, Bstate, Xstate, trap, D, outproj, compute_dtype=torch.float64)
-    out_pt, state_out_pt = selective_state_update_fused_ref_v2(state, A, B, C, xproj, x, zproj, z, dt, Bstate, Xstate, trap, D, outproj, compute_dtype=torch.float32)
+    out_ref, state_out_ref = selective_state_update_fused_ref_v2(
+        state,
+        A,
+        B,
+        C,
+        xproj,
+        x,
+        zproj,
+        z,
+        dt,
+        Bstate,
+        Xstate,
+        trap,
+        D,
+        outproj,
+        compute_dtype=torch.float64,
+    )
+    out_pt, state_out_pt = selective_state_update_fused_ref_v2(
+        state,
+        A,
+        B,
+        C,
+        xproj,
+        x,
+        zproj,
+        z,
+        dt,
+        Bstate,
+        Xstate,
+        trap,
+        D,
+        outproj,
+        compute_dtype=torch.float32,
+    )
     print(f"state_out vs ref (f64): {(state_out - state_out_ref).abs().max()}")
     print(f"state_out_pt vs ref (f64): {(state_out_pt - state_out_ref).abs().max()}")
     print(f"out vs ref (f64): {(out - out_ref).abs().max()}")
@@ -884,6 +969,7 @@ if __name__ == "__main__":
     # Fresh state for in-place test
     state_ip = state.clone()
     out_ip = torch.zeros_like(x)
+
     def fn_ip():
         return mamba3_step_fn(
             state_ip,
@@ -918,18 +1004,27 @@ if __name__ == "__main__":
     # Benchmark (out-of-place)
     # =========================================================================
     read_bytes = (
-        _bytes_of(state) + _bytes_of(A) + _bytes_of(B)
+        _bytes_of(state)
+        + _bytes_of(A)
+        + _bytes_of(B)
         + _bytes_of(C)
-        + _bytes_of(xproj) + _bytes_of(x)
-        + _bytes_of(zproj) + _bytes_of(z)
-        + _bytes_of(dt) + _bytes_of(Bstate) + _bytes_of(Xstate)
-        + _bytes_of(trap) + _bytes_of(D) + _bytes_of(outproj)
+        + _bytes_of(xproj)
+        + _bytes_of(x)
+        + _bytes_of(zproj)
+        + _bytes_of(z)
+        + _bytes_of(dt)
+        + _bytes_of(Bstate)
+        + _bytes_of(Xstate)
+        + _bytes_of(trap)
+        + _bytes_of(D)
+        + _bytes_of(outproj)
     )
-    out_bytes       = _bytes_of(out)
+    out_bytes = _bytes_of(out)
     new_state_bytes = _bytes_of(state)
     total_bytes = read_bytes + out_bytes + new_state_bytes
 
     from triton.testing import do_bench_cudagraph
+
     ms = do_bench_cudagraph(fn_oop, rep=30)
     bandwidth = (total_bytes) / ms * 1e-6
     print(f"\nMamba3 step (out-of-place): {ms:.3f} ms, {bandwidth:.1f} GB/s")

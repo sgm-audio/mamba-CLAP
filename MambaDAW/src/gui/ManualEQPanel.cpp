@@ -10,13 +10,13 @@ struct EQRowCfg {
     const char* suffix;
 };
 static const EQRowCfg kCfg[7] = {
-    { -12.0, 12.0,  0.0, " dB" },   // lo_gain   param 18
-    {  60.0, 500.0, 200.0, " Hz" },  // lo_hz     param 19
-    { -12.0, 12.0,  0.0, " dB" },   // mid_gain   param 20
-    { 250.0, 4000.0, 1000.0, " Hz" },// mid_hz    param 21
-    {  0.3,  8.0,   1.0, ""    },    // mid_q      param 22
-    { -12.0, 12.0,  0.0, " dB" },   // hi_gain    param 23
-    { 2000.0,16000.0,8000.0," Hz"},  // hi_hz      param 24
+    { -12.0, 12.0, 0.0, " dB" },     // lo_gain param 18
+    { 80.0, 320.0, 200.0, " Hz" },    // lo_hz param 19
+    { -12.0, 12.0, 0.0, " dB" },     // mid_gain param 20
+    { 250.0, 4000.0, 1000.0, " Hz" }, // mid_hz param 21
+    { 0.3, 8.0, 1.0, "" },           // mid_q param 22
+    { -12.0, 12.0, 0.0, " dB" },     // hi_gain param 23
+    { 2000.0, 8000.0, 8000.0, " Hz" },// hi_hz param 24
 };
 static constexpr uint32_t kParamBase = 18; // lo_gain is param 18
 
@@ -60,16 +60,21 @@ void ManualEQPanel::updateToggleLabel() {
 }
 
 void ManualEQPanel::syncFromProcessor(bool enabled,
-                                      double loGain, double loHz,
-                                      double midGain, double midHz, double midQ,
-                                      double hiGain, double hiHz) {
-    if (enabled != enabled_) {
-        enabled_ = enabled;
-        updateToggleLabel();
-    }
-    const double vals[7] = { loGain, loHz, midGain, midHz, midQ, hiGain, hiHz };
-    for (int i = 0; i < 7; ++i)
-        rows_[i].slider.setValue(vals[i], dontSendNotification);
+  double loGain, double loHz,
+  double midGain, double midHz, double midQ,
+  double hiGain, double hiHz,
+  const int* paramSuppress) {
+  if (enabled != enabled_) {
+    enabled_ = enabled;
+    updateToggleLabel();
+  }
+  const double vals[7] = { loGain, loHz, midGain, midHz, midQ, hiGain, hiHz };
+  for (int i = 0; i < 7; ++i) {
+    const uint32_t pid = kParamBase + static_cast<uint32_t>(i);
+    if (paramSuppress && pid < 33 && paramSuppress[pid] > 0) continue;
+    if (!rows_[i].slider.isMouseButtonDown())
+      rows_[i].slider.setValue(vals[i], dontSendNotification);
+  }
 }
 
 void ManualEQPanel::paint(Graphics& g) {

@@ -68,7 +68,7 @@
 - **Staging**: Mirror of production with reduced scale
 - **Production**:
   - **Regions**: Primary (us-east-1) with optional failover (eu-west-1)
-  - **Compute**: 
+  - **Compute**:
     - API Gateway: 2+ instances behind ALB (AWS) or LB (K8s Ingress)
     - Job Queue: Redis Cluster (3 nodes) or RabbitMQ HA cluster
     - Workers: Managed GPU node group (AWS EKS with node autoscaling, GKE, or Azure AKS)
@@ -133,7 +133,7 @@
 - **Object Storage (S3)**: Eventually consistent for overwrites; we use versioning + unique UUID keys (no overwrites). Read-after-write consistency for new objects (AWS S3 guarantee).
 - **Database (PostgreSQL)**: Strong consistency (READ COMMITTED default). Jobs table uses SELECT FOR UPDATE on status transitions to prevent race conditions.
 - **Cache (Redis, if used)**: For transient data (e.g., session tokens); TTL-based eviction; read-through/write-behind not required.
-- **Consistency Guarantees**: 
+- **Consistency Guarantees**:
   - User sees their own writes (read-after-write) via sticky sessions or session store.
   - Cross-region replication lag <5s; reads routed to primary region for strong consistency.
 
@@ -187,7 +187,7 @@
 - **Status**: Accepted
 - **Context**: Need to scale GPU-intensive mastering jobs independently from API request handling.
 - **Decision**: Implement a job queue (Redis/RabbitMQ) with stateless GPU workers pulling jobs.
-- **Consequences**: 
+- **Consequences**:
   - + Scalable, fault-tolerant, enables spot/preemptible instances for cost savings
   - - Increased system complexity, eventual consistency for job status (mitigated via WebSocket polling)
 - **Status**: Accepted
@@ -196,7 +196,7 @@
 - **Status**: Accepted
 - **Context**: Audio files are large (MB to GB), numerous, and temporary.
 - **Decision**: Use S3-compatible object storage with presigned URLs for transfer; store only metadata (URI, checksum) in DB.
-- **Consequences**: 
+- **Consequences**:
   - + Scalable, cost-effective (pay-per-storage), enables CDN caching, simplifies worker statelessness
   - - Requires handling of eventual consistency (mitigated by UUID keys and short TTL)
 - **Status**: Accepted
@@ -205,7 +205,7 @@
 - **Status**: Accepted
 - **Context**: Need strong consistency for job states, user accounts, and payments.
 - **Decision**: Use managed PostgreSQL (RDS/Aurora) with multi-AZ replication.
-- **Consequences**: 
+- **Consequences**:
   - + ACID transactions, rich querying, mature tooling, familiar to team
   - - Higher cost than NoSQL; vertical scaling limits (mitigated with read replicas and caching)
 - **Status**: Accepted
@@ -214,7 +214,7 @@
 - **Status**: Accepted
 - **Context**: ARA plugin needs low-latency inference for interactive use.
 - **Decision**: Bundle LibTorch with plugin to run PyTorch Mamba models directly.
-- **Consequences**: 
+- **Consequences**:
   - + Best performance, no conversion loss, full PyTorch feature support
   - - Increases plugin size (~40-60MB), longer initial load (~1s) mitigated by caching
 - **Status**: Accepted
@@ -223,7 +223,7 @@
 - **Status**: Accepted
 - **Context**: Avoid API server becoming bandwidth bottleneck for file transfers.
 - **Decision**: Generate time-limited (5-15min) presigned GET/POST URLs for S3 operations.
-- **Consequences**: 
+- **Consequences**:
   - + Offloads bandwidth, leverages CDN edge, reduces API complexity
   - - Requires client to handle URL expiry; mitigated by short-lived UI elements and auto-refresh
 - **Status**: Accepted
@@ -232,7 +232,7 @@
 - **Status**: Accepted
 - **Context**: Privacy expectations and cost minimization for transient mastering jobs.
 - **Decision**: Automatically delete input/output objects after 24 hours unless user explicitly saves.
-- **Consequences**: 
+- **Consequences**:
   - + Reduces storage costs (~90% savings), aligns with GDPR data minimization, reduces attack surface
   - - Requires user education; mitigated by clear UI warnings and "Save to Library" feature (future)
 - **Status**: Accepted
@@ -240,7 +240,7 @@
 ## Risks & Prototyping Needs
 
 ### High-Risk Items Requiring Spike/Prototype
-1. **Model Inference Latency on Target GPU** 
+1. **Model Inference Latency on Target GPU**
    - Spike: Benchmark Mamba-based CLAP inference on g5.xlarge with various audio lengths; optimize batching, TensorRT if needed.
 2. **ARA Plugin Real-Time Audio Transfer**
    - Spike: Implement prototype VST3 plugin using LibTorch; measure round-trip latency with DAWs (Pro Tools, Logic) under various buffer sizes.

@@ -2,61 +2,57 @@
 #include <algorithm>
 #include <cmath>
 
-ParameterGate::ParameterGate() : per_param_epsilon_{0.02, 0.02, 0.02, 0.02} {
-    reset();
-}
-
-ParameterGate::ParameterGate(std::array<double, 4> per_param_epsilon)
-    : per_param_epsilon_(per_param_epsilon) {
+ParameterGate::ParameterGate() {
+    per_param_epsilon_.fill(0.02);
     reset();
 }
 
 ParamUpdateAction ParameterGate::evaluate(const std::vector<ParamSnapshot>& updates) {
-    if (updates.empty()) {
-        return ParamUpdateAction::NoChange;
-    }
+ if (updates.empty()) {
+  return ParamUpdateAction::NoChange;
+ }
+ return evaluate(updates.data(), static_cast<uint32_t>(updates.size()));
+}
 
-    // Check for any uninitialized parameters (first-time set) - treat as significant change
-    for (const auto& upd : updates) {
-        if (upd.param_id < MAX_PARAMS && !initialized_[upd.param_id]) {
-            // Commit all values
-            for (const auto& u2 : updates) {
-                if (u2.param_id < MAX_PARAMS) {
-                    last_values_[u2.param_id] = u2.value;
-                    initialized_[u2.param_id] = true;
-                }
-            }
-            return ParamUpdateAction::FlushAndReinit;
-        }
-    }
+ParamUpdateAction ParameterGate::evaluate(const ParamSnapshot* updates, uint32_t count) {
+ if (!updates || count == 0) {
+  return ParamUpdateAction::NoChange;
+ }
 
-    // All parameters are initialized, compute max delta
-    double max_delta = 0.0;
-    for (const auto& upd : updates) {
-        if (upd.param_id >= MAX_PARAMS)
-            continue;
-        double delta = std::abs(upd.value - last_values_[upd.param_id]);
-        max_delta = std::max(max_delta, delta);
+ for (uint32_t i = 0; i < count; ++i) {
+  if (updates[i].param_id < MAX_PARAMS && !initialized_[updates[i].param_id]) {
+   for (uint32_t j = 0; j < count; ++j) {
+    if (updates[j].param_id < MAX_PARAMS) {
+     last_values_[updates[j].param_id] = updates[j].value;
+     initialized_[updates[j].param_id] = true;
     }
+   }
+   return ParamUpdateAction::FlushAndReinit;
+  }
+ }
 
-    // Commit all values
-    for (const auto& upd : updates) {
-        if (upd.param_id < MAX_PARAMS) {
-            last_values_[upd.param_id] = upd.value;
-            initialized_[upd.param_id] = true;
-        }
-    }
+ double max_delta = 0.0;
+ for (uint32_t i = 0; i < count; ++i) {
+  if (updates[i].param_id >= MAX_PARAMS) continue;
+  double delta = std::abs(updates[i].value - last_values_[updates[i].param_id]);
+  max_delta = std::max(max_delta, delta);
+ }
 
-    // Check if max delta exceeds ANY parameter's epsilon
-    for (const auto& upd : updates) {
-        if (upd.param_id >= MAX_PARAMS)
-            continue;
-        if (max_delta > per_param_epsilon_[upd.param_id]) {
-            return ParamUpdateAction::FlushAndReinit;
-        }
-    }
+ for (uint32_t i = 0; i < count; ++i) {
+  if (updates[i].param_id < MAX_PARAMS) {
+   last_values_[updates[i].param_id] = updates[i].value;
+   initialized_[updates[i].param_id] = true;
+  }
+ }
 
-    return ParamUpdateAction::UpdatePromptOnly;
+ for (uint32_t i = 0; i < count; ++i) {
+  if (updates[i].param_id >= MAX_PARAMS) continue;
+  if (max_delta > per_param_epsilon_[updates[i].param_id]) {
+   return ParamUpdateAction::FlushAndReinit;
+  }
+ }
+
+ return ParamUpdateAction::UpdatePromptOnly;
 }
 
 void ParameterGate::reset() {

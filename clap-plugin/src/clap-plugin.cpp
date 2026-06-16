@@ -342,14 +342,14 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
 
 STFTProcessor::STFTProcessor(int n_fft, int hop_length, int n_mels, double sample_rate)
     : n_fft_(n_fft), hop_length_(hop_length), n_mels_(n_mels), sample_rate_(sample_rate) {
-    std::cerr << "[INFO] Creating STFTProcessor: n_fft=" << n_fft_ 
-              << ", hop_length=" << hop_length_ 
-              << ", n_mels=" << n_mels_ 
+    std::cerr << "[INFO] Creating STFTProcessor: n_fft=" << n_fft_
+              << ", hop_length=" << hop_length_
+              << ", n_mels=" << n_mels_
               << ", sample_rate=" << sample_rate_ << std::endl;
-    
+
     freq_bins_ = n_fft_ / 2 + 1;
     pad_ = n_fft_ / 2;
-    
+
     // Create Hann window (tensor and host copy)
     window_func_ = torch::hann_window(n_fft_, true);
     window_host_ = static_cast<float*>(fftwf_malloc(n_fft_ * sizeof(float)));
@@ -357,13 +357,13 @@ STFTProcessor::STFTProcessor(int n_fft, int hop_length, int n_mels, double sampl
     for (int i = 0; i < n_fft_; ++i) {
         window_host_[i] = window_access[i];
     }
-    
+
     // Precompute mel basis and its pseudo-inverse
     std::vector<float> mel_basis_data = mel_scale(n_mels, n_fft, sample_rate);
     mel_basis_ = torch::from_blob(mel_basis_data.data(), {n_mels, freq_bins_}, torch::kFloat32).clone();
     // Compute pseudo-inverse of mel basis
     inv_mel_basis_ = compute_mel_pinverse(mel_basis_);
-    
+
     // Allocate FFTW buffers
     fftw_real_buffer_ = static_cast<float*>(fftwf_malloc(n_fft_ * sizeof(float)));
     fftw_complex_buffer_ = static_cast<fftwf_complex*>(fftwf_malloc(freq_bins_ * sizeof(fftwf_complex)));
@@ -387,7 +387,7 @@ STFTProcessor::STFTProcessor(int n_fft, int hop_length, int n_mels, double sampl
             throw;
         }
     }
-    
+
     // Pre-allocate padded buffer for center padding
     // Set to a large value to cover all expected DAW block sizes (up to 32768 samples)
     // Can be overridden via MAMBA_MAX_BLOCK_SIZE environment variable
@@ -396,14 +396,14 @@ STFTProcessor::STFTProcessor(int n_fft, int hop_length, int n_mels, double sampl
     if (max_block_size_ <= 0) max_block_size_ = 32768; // fallback
     padded_buffer_capacity_ = max_block_size_ + n_fft_;
     padded_buffer_ = static_cast<float*>(fftwf_malloc(padded_buffer_capacity_ * sizeof(float)));
-    
+
     // Compute sum of squared window for overlap-add compensation
     window_energy_sum_ = 0.0f;
     for (int i = 0; i < n_fft_; ++i) {
         float w = window_host_[i];
         window_energy_sum_ += w * w;
     }
-    
+
     last_input_len_ = 0;
 }
 
@@ -442,16 +442,16 @@ torch::Tensor STFTProcessor::forward(const torch::Tensor& waveform) {
     }
     int L = waveform_1d.size(0);
     last_input_len_ = L; // Store for inverse
-    
+
     float* input_data = waveform_1d.data_ptr<float>();
-    
+
     // Center padding: pad with n_fft/2 zeros on both sides
     int pad = pad_;
     int padded_len = L + n_fft_; // total length after padding
-    
+
     // Ensure pre-allocated buffer is large enough (real-time safe)
     if (padded_len > static_cast<int>(padded_buffer_capacity_)) {
-        throw std::runtime_error("STFTProcessor::forward: block size exceeds maximum supported size (" + 
+        throw std::runtime_error("STFTProcessor::forward: block size exceeds maximum supported size (" +
                                  std::to_string(padded_len) + " > " + std::to_string(padded_buffer_capacity_) + ")");
     }
     float* padded = padded_buffer_;
@@ -459,17 +459,17 @@ torch::Tensor STFTProcessor::forward(const torch::Tensor& waveform) {
     std::fill(padded, padded + padded_len, 0.0f);
     // Copy input into padded buffer starting at offset pad
     std::memcpy(padded + pad, input_data, L * sizeof(float));
-    
+
     // Number of frames: 1 + floor(L / hop_length_)
     int num_frames = L / hop_length_ + 1;
     if (L % hop_length_ == 0) {
-        // If L is exactly divisible by hop, we still get floor(L/hop) + 1, but torch might produce extra frame? 
+        // If L is exactly divisible by hop, we still get floor(L/hop) + 1, but torch might produce extra frame?
         // We'll stick to this formula.
     }
     // Prepare output magnitude matrix (freq_bins_ x num_frames) in a torch tensor
     torch::Tensor mag_tensor = torch::zeros({freq_bins_, num_frames}, torch::kFloat32);
     float* mag_data = mag_tensor.data_ptr<float>();
-    
+
     // Process each frame
     for (int t = 0; t < num_frames; ++t) {
         int frame_offset = t * hop_length_;
@@ -490,18 +490,18 @@ torch::Tensor STFTProcessor::forward(const torch::Tensor& waveform) {
             mag_data[i * num_frames + t] = mag;
         }
     }
-    
+
     // If we allocated temporary padded buffer, free it
     if (padded != padded_buffer_) {
         delete[] padded;
     }
-    
+
     // Apply mel filter bank: (n_mels, freq_bins) * (freq_bins, num_frames) -> (n_mels, num_frames)
     torch::Tensor mel = torch::mm(mel_basis_, mag_tensor);
-    
+
     // Log compression
     torch::Tensor log_mel = torch::log(torch::clamp(mel, 1e-5, 1e5));
-    
+
     // Transpose to [time, n_mels]
     return log_mel.transpose(0, 1);
 }
@@ -512,18 +512,18 @@ torch::Tensor STFTProcessor::inverse(const torch::Tensor& mel_spectrogram) {
     if (T == 0) {
         return torch::zeros({0}, torch::kFloat32);
     }
-    
+
     // Linear-scale mel: [time, mel_bins] -> [mel_bins, time]
     auto mel_linear = torch::exp(mel_spectrogram.transpose(0, 1));
-    
+
     // Inverse mel to magnitude spectrogram: [n_fft/2+1, time]
     torch::Tensor mag = torch::mm(inv_mel_basis_, mel_linear);
-    
+
     // Prepare magnitude data pointer
     float* mag_data = mag.data_ptr<float>();
     int mag_rows = mag.size(0); // freq_bins_
     int mag_cols = mag.size(1); // T
-    
+
     // Allocate buffer for full overlap-added signal
     int full_len = (T - 1) * hop_length_ + n_fft_;
     // Ensure pre-allocated buffer is large enough (real-time safe)
@@ -532,7 +532,7 @@ torch::Tensor STFTProcessor::inverse(const torch::Tensor& mel_spectrogram) {
     }
     float* full_signal = padded_buffer_;
     std::fill(full_signal, full_signal + full_len, 0.0f);
-    
+
     // Process each frame: overlap-add windowed inverse FFT
     for (int t = 0; t < T; ++t) {
         // Set complex spectrum from magnitude (zero phase)
@@ -550,13 +550,13 @@ torch::Tensor STFTProcessor::inverse(const torch::Tensor& mel_spectrogram) {
             full_signal[offset + i] += fftw_real_buffer_[i] * scale * window_host_[i];
         }
     }
-    
+
     // Apply overlap-add compensation: divide by sum of squared windows
     float inv_window_energy = 1.0f / window_energy_sum_;
     for (int i = 0; i < full_len; ++i) {
         full_signal[i] *= inv_window_energy;
     }
-    
+
     // Determine cropping: original length is last_input_len_ (set during forward)
     // With center padding, the original signal is located at samples [pad_ : pad_ + last_input_len_]
     // But we must ensure full_len is at least pad_ + last_input_len_
@@ -567,7 +567,7 @@ torch::Tensor STFTProcessor::inverse(const torch::Tensor& mel_spectrogram) {
     int end = std::min(static_cast<int>(full_len), start + static_cast<int>(original_len));
     int copy_len = end - start;
     if (copy_len < 0) copy_len = 0;
-    
+
     torch::Tensor output = torch::zeros({static_cast<int64_t>(original_len)}, torch::kFloat32);
     float* output_data = output.data_ptr<float>();
     if (copy_len > 0) {
@@ -577,13 +577,13 @@ torch::Tensor STFTProcessor::inverse(const torch::Tensor& mel_spectrogram) {
         // Zero-fill remaining (should not happen)
         std::fill(output_data + copy_len, output_data + original_len, 0.0f);
     }
-    
+
     return output;
 }
 
 MambaWrapper::MambaWrapper(const std::string& model_path, int n_mels, torch::Device device)
     : device_(device), n_mels_(n_mels) {
-    std::cerr << "[INFO] Creating MambaWrapper: n_mels=" << n_mels_ 
+    std::cerr << "[INFO] Creating MambaWrapper: n_mels=" << n_mels_
               << ", device=" << (device_.is_cuda() ? "cuda" : "cpu") << std::endl;
     if (fs::exists(model_path)) {
         try {
@@ -600,7 +600,7 @@ MambaWrapper::MambaWrapper(const std::string& model_path, int n_mels, torch::Dev
         std::cerr << "[ERROR] Model not found at: " << model_path << std::endl;
         throw std::runtime_error("Model file not found: " + model_path);
     }
-    
+
     // Initialize effect decoders (simple linear layers for now)
     // In a real implementation, these would be trained or loaded from the model
     reverb_decoder_ = torch::nn::Linear(n_mels, 4);
@@ -616,7 +616,7 @@ MambaWrapper::MambaWrapper(const std::string& model_path, int n_mels, torch::Dev
     torch::nn::init::constant_(saturation_decoder_->bias, 0.0);
     torch::nn::init::normal_(eq_decoder_->weight, 0.0, 0.1);
     torch::nn::init::constant_(eq_decoder_->bias, 0.0);
-    
+
     std::cerr << "[INFO] Effect decoders initialized" << std::endl;
 }
 
@@ -632,7 +632,7 @@ std::vector<torch::Tensor> MambaWrapper::getInitialState(int batch_size) {
 torch::Tensor MambaWrapper::step(const torch::Tensor& input, std::vector<torch::Tensor>& state) {
     // Input format: [batch, n_mels]
     torch::Tensor x = input.to(device_);
-    
+
     // Add sequence dimension if needed [batch, 1, n_mels]
     if (x.dim() == 2) {
         x = x.unsqueeze(1);
@@ -641,7 +641,7 @@ torch::Tensor MambaWrapper::step(const torch::Tensor& input, std::vector<torch::
     // Prepare inputs for the model
     std::vector<torch::jit::IValue> inputs;
     inputs.push_back(x);
-    
+
     // Add state if we have it from previous processing
     for (const auto& state_tensor : state) {
         inputs.push_back(state_tensor);
@@ -649,11 +649,11 @@ torch::Tensor MambaWrapper::step(const torch::Tensor& input, std::vector<torch::
 
     // Run model inference
     torch::jit::IValue result = module_.forward(inputs);
-    
+
     // Extract output and updated state
     torch::Tensor output;
     std::vector<torch::jit::IValue> new_state;
-    
+
     if (result.isTuple()) {
         auto tuple = result.toTuple();
         output = tuple->elements()[0].toTensor();
@@ -685,10 +685,10 @@ torch::Tensor MambaWrapper::step(const torch::Tensor& input, std::vector<torch::
 torch::Tensor MambaWrapper::processEffect(const torch::Tensor& input, int effect_type, std::vector<torch::Tensor>& state) {
     // Input format: [batch, n_mels]
     torch::Tensor x = input.to(device_);
-    
+
     // Get the Mamba output for this step
     auto mamba_output = step(x, state);
-    
+
     // Apply effect-specific decoder
     torch::Tensor effect_params;
     switch (effect_type) {
@@ -709,7 +709,7 @@ torch::Tensor MambaWrapper::processEffect(const torch::Tensor& input, int effect
             effect_params = mamba_output;
             break;
     }
-    
+
     return effect_params;
 }
 
@@ -720,20 +720,25 @@ void MambaWrapper::resetState() {
 
 } // namespace mamba_audio
 
-static clap_plugin_t createPlugin(const clap_plugin_descriptor* desc, const clap_host_t* host) {
-    auto plugin = new mamba_audio::MambaClapPlugin(desc, host);
-    return {
-        .desc = plugin->get_descriptor(),
-        .plugin_data = plugin,
+// Heap-allocates a clap_plugin_t; destroy frees both the plugin object and the struct.
+static const clap_plugin_t* factory_create_plugin(
+        const clap_plugin_factory_t*, const clap_host_t* host, const char* plugin_id) {
+    if (std::strcmp(plugin_id, mamba_audio::kDescriptor.id) != 0)
+        return nullptr;
+    auto* obj = new mamba_audio::MambaClapPlugin(&mamba_audio::kDescriptor, host);
+    auto* p = new clap_plugin_t{
+        .desc        = &mamba_audio::kDescriptor,
+        .plugin_data = obj,
         .init = [](const clap_plugin_t* p) -> bool {
             return static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->init();
         },
         .destroy = [](const clap_plugin_t* p) {
             delete static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data);
+            delete const_cast<clap_plugin_t*>(p);
         },
-        .activate = [](const clap_plugin_t* p, double sample_rate, uint32_t min_frames, uint32_t max_frames) -> bool {
+        .activate = [](const clap_plugin_t* p, double sr, uint32_t min_f, uint32_t max_f) -> bool {
             return static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->activate(
-                sample_rate, static_cast<double>(min_frames), static_cast<double>(max_frames));
+                sr, static_cast<double>(min_f), static_cast<double>(max_f));
         },
         .deactivate = [](const clap_plugin_t* p) {
             static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->deactivate();
@@ -744,27 +749,35 @@ static clap_plugin_t createPlugin(const clap_plugin_descriptor* desc, const clap
         .stop_processing = [](const clap_plugin_t* p) {
             static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->stop_processing();
         },
-        .reset = nullptr,
+        .reset      = nullptr,
         .process = [](const clap_plugin_t* p, const clap_process_t* process) -> clap_process_status {
             static_cast<mamba_audio::MambaClapPlugin*>(p->plugin_data)->process(process);
             return CLAP_PROCESS_CONTINUE;
         },
-        .get_extension = [](const clap_plugin_t* p, const char* id) -> const void* {
-            return nullptr;
-        },
+        .get_extension = [](const clap_plugin_t*, const char*) -> const void* { return nullptr; },
         .on_main_thread = nullptr,
     };
+    return p;
 }
+
+static const clap_plugin_factory_t kFactory = {
+    .get_plugin_count = [](const clap_plugin_factory_t*) -> uint32_t { return 1; },
+    .get_plugin_descriptor = [](const clap_plugin_factory_t*, uint32_t index)
+            -> const clap_plugin_descriptor_t* {
+        return index == 0 ? &mamba_audio::kDescriptor : nullptr;
+    },
+    .create_plugin = factory_create_plugin,
+};
 
 extern "C" {
 extern const clap_plugin_entry_t clap_entry = {
     .clap_version = CLAP_VERSION,
-    .init = [](const char* plugin_path) -> bool {
-        return true;
-    },
-    .deinit = []() {},
-    .get_factory = [](const char* factory_id) -> const void* {
+    .init         = [](const char*) -> bool { return true; },
+    .deinit       = []() {},
+    .get_factory  = [](const char* factory_id) -> const void* {
+        if (std::strcmp(factory_id, CLAP_PLUGIN_FACTORY_ID) == 0)
+            return &kFactory;
         return nullptr;
-    }
+    },
 };
 } // extern "C"

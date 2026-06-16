@@ -125,7 +125,7 @@ This document verifies that the MambaFX CLAP plugin implementation meets all req
 
 ### ✅ Configuration via Environment (12-Factor)
 - `CLAP_PATH`: CLAP installation directory
-- `TORCH_INSTALL_PATH`: LibTorch installation directory  
+- `TORCH_INSTALL_PATH`: LibTorch installation directory
 - `MAMBA_MODEL_PATH`: Path to TorchScript model (defaults to ./models/mamba3_audio_effects.pt)
 - All configuration externalized, no hardcoded paths
 

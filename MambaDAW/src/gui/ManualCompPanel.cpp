@@ -11,11 +11,11 @@ struct CompRowCfg {
     uint32_t paramId;
 };
 static const CompRowCfg kCfg[5] = {
-    { -60.0, 0.0,   -20.0, " dB", 10  },   // thresh  (param 10)
-    {   1.0, 20.0,    2.0, ":1",  25  },   // ratio   (param 25)
-    {   1.0, 200.0, 10.0,  " ms", 26  },   // attack  (param 26)
-    {  10.0, 1000.0,100.0, " ms", 27  },   // release (param 27)
-    { -12.0, 12.0,   0.0,  " dB", 28  },   // makeup  (param 28)
+    { -40.0, 0.0, -20.0, " dB", 10 },  // thresh (param 10)
+    { 1.0, 10.0, 2.0, ":1", 25 },      // ratio (param 25)
+    { 0.5, 50.0, 10.0, " ms", 26 },    // attack (param 26)
+    { 20.0, 500.0, 100.0, " ms", 27 }, // release (param 27)
+    { -2.0, 12.0, 0.0, " dB", 28 },    // makeup (param 28)
 };
 
 ManualCompPanel::ManualCompPanel(ParamCallback cb) : onParam_(std::move(cb)) {
@@ -56,16 +56,20 @@ void ManualCompPanel::updateToggleLabel() {
         enabled_ ? MambaColors::amber : MambaColors::textSecondary);
 }
 
-void ManualCompPanel::syncFromProcessor(bool enabled,
-                                        double thresh, double ratio,
-                                        double attack, double release, double makeup) {
-    if (enabled != enabled_) {
-        enabled_ = enabled;
-        updateToggleLabel();
-    }
-    const double vals[5] = { thresh, ratio, attack, release, makeup };
-    for (int i = 0; i < 5; ++i)
-        rows_[i].slider.setValue(vals[i], dontSendNotification);
+void ManualCompPanel::syncFromProcessor(bool enabled, double thresh, double ratio,
+  double attack, double release, double makeup,
+  const int* paramSuppress) {
+  if (enabled != enabled_) {
+    enabled_ = enabled;
+    updateToggleLabel();
+  }
+  const double vals[5] = { thresh, ratio, attack, release, makeup };
+  for (int i = 0; i < 5; ++i) {
+    const uint32_t pid = kCfg[i].paramId;
+    if (paramSuppress && pid < 33 && paramSuppress[pid] > 0) continue;
+    if (!rows_[i].slider.isMouseButtonDown())
+      rows_[i].slider.setValue(vals[i], dontSendNotification);
+  }
 }
 
 void ManualCompPanel::paint(Graphics& g) {

@@ -1,3 +1,3 @@
-from backend.app import db, create_app
+from backend.app import create_app, db
 
-__all__ = ['db', 'create_app']
+__all__ = ["db", "create_app"]

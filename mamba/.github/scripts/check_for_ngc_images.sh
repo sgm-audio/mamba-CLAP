@@ -16,10 +16,10 @@ for i in $(seq 0 $((MONTHS_TO_CHECK - 1))); do
     # Calculate Year and Month for the tag
     CURRENT_YEAR=$(date +%Y)
     CURRENT_MONTH=$(date +%m)
-    
+
     # Calculate target month and year
     TARGET_DATE=$(date -d "$CURRENT_YEAR-$CURRENT_MONTH-01 -$i months" +%y.%m)
-    
+
     # Construct the full image tag and the tag-only string
     IMAGE_TAG="${TARGET_DATE}${TAG_SUFFIX}"
     FULL_IMAGE="${BASE_IMAGE}:${IMAGE_TAG}"
@@ -48,10 +48,10 @@ TAGS_NL_SEP=$(printf "%s\n" "${EXISTING_TAGS[@]}")
 # . | split("\n") | .[:-1] reads the input, splits it by newline, and removes the trailing empty element.
 if command -v jq &> /dev/null; then
     JSON_STRING=$(echo -e "${TAGS_NL_SEP}" | jq -R -s 'split("\n") | .[:-1]')
-    
+
     echo "Generated JSON String of Existing Tags:"
     echo "${JSON_STRING}"
-    
+
     # Optional: Save the JSON string to a variable for further use
     # echo "JSON_STRING is now available in the shell if you source this script."
 else

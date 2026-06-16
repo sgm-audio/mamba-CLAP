@@ -22,20 +22,15 @@ case "$TEST_TARGET" in
             echo "No tests found in mamba/tests"
         fi
         ;;
-    dsp)
-        echo "Running DSP system tests..."
-        if [ -d "dsp_system" ]; then
-            if [ -f "dsp_system/test_tube_dsp.py" ]; then
-                python dsp_system/test_tube_dsp.py
-            else
-                echo "Running pytest in dsp_system..."
-                cd dsp_system && python -m pytest -v
-                cd ..
-            fi
-        else
-            echo "DSP system directory not found"
-        fi
-        ;;
+  dsp)
+    echo "Running DSP system tests..."
+    if [ -d "emotion-aware-dsp" ]; then
+      cd emotion-aware-dsp && python -m pytest -v
+      cd ..
+    else
+      echo "emotion-aware-dsp directory not found"
+    fi
+    ;;
     *)
         echo "Unknown test target: $TEST_TARGET"
         echo "Available targets: all, basic, mamba, dsp"

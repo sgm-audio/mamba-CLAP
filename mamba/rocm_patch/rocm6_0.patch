@@ -17,7 +17,7 @@
 +__HOST_DEVICE__ static inline float2 __bfloat1622float2(const __hip_bfloat162 a) {
    return float2{__bfloat162float(a.x), __bfloat162float(a.y)};
  }
- 
+
 @@ -209,7 +209,7 @@
   * \ingroup HIP_INTRINSIC_BFLOAT162_CONV
   * \brief Convert double to __hip_bfloat16
@@ -26,7 +26,7 @@
 +__HOST_DEVICE__ static inline __hip_bfloat16 __double2bfloat16(const double a) {
    return __float2bfloat16((float)a);
  }
- 
+
 @@ -217,7 +217,7 @@
   * \ingroup HIP_INTRINSIC_BFLOAT162_CONV
   * \brief Convert float2 to __hip_bfloat162
@@ -35,14 +35,14 @@
 +__HOST_DEVICE__ static inline __hip_bfloat162 __float22bfloat162_rn(const float2 a) {
    return __hip_bfloat162{__float2bfloat16(a.x), __float2bfloat16(a.y)};
  }
- 
+
 @@ -247,7 +247,7 @@
   * \ingroup HIP_INTRINSIC_BFLOAT162_CONV
   * \brief Converts high 16 bits of __hip_bfloat162 to float and returns the result
   */
 -__HOST_DEVICE__ float __high2float(const __hip_bfloat162 a) { return __bfloat162float(a.y); }
 +__HOST_DEVICE__ static inline float __high2float(const __hip_bfloat162 a) { return __bfloat162float(a.y); }
- 
+
  /**
   * \ingroup HIP_INTRINSIC_BFLOAT162_CONV
 @@ -275,7 +275,7 @@
@@ -51,6 +51,6 @@
   */
 -__HOST_DEVICE__ float __low2float(const __hip_bfloat162 a) { return __bfloat162float(a.x); }
 +__HOST_DEVICE__ static inline float __low2float(const __hip_bfloat162 a) { return __bfloat162float(a.x); }
- 
+
  /**
   * \ingroup HIP_INTRINSIC_BFLOAT162_CONV

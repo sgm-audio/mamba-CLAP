@@ -92,17 +92,17 @@ MambaDAW/
 
 ## Known Limitations
 1. **Mamba Implementation**: Uses sequential scanning instead of parallel scan, limiting context length for real-time use
-2. **Audio Frontend**: 
+2. **Audio Frontend**:
    - Approximate Mel filterbank (not perfect inversion)
    - Uses input phase for reconstruction (no Griffin-Lim iteration)
    - Simplified STFT/iSTFT using torch FFT (could be optimized)
-3. **Model Export**: 
+3. **Model Export**:
    - Traced model may not support all TorchScript features
    - Fixed input shape requirements
-4. **Processing**: 
+4. **Processing**:
    - Synchronous block processing (could cause dropouts with large models)
    - Single-channel processing in current implementation
-5. **Training**: 
+5. **Training**:
    - Synthetic dataset only (no real data loaders implemented)
    - Simplified architecture compared to State Space Models paper
 

@@ -5,12 +5,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
-from torch.distributed import ProcessGroup
-from mamba_ssm.utils.torch import custom_bwd, custom_fwd
-
 from einops import rearrange
-
 from mamba_ssm.distributed.distributed_utils import (
     all_gather_raw,
     all_reduce,
@@ -18,6 +13,9 @@ from mamba_ssm.distributed.distributed_utils import (
     reduce_scatter,
     reduce_scatter_raw,
 )
+from mamba_ssm.utils.torch import custom_bwd, custom_fwd
+from torch import Tensor
+from torch.distributed import ProcessGroup
 
 
 class ParallelLinearFunc(torch.autograd.Function):

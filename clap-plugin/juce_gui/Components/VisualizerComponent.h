@@ -26,11 +26,11 @@ public:
 
 private:
     juce::OpenGLContext openGLContext;
-    
+
     // Shader programs and buffers for spectrogram
     std::unique_ptr<juce::OpenGLShaderProgram> shader;
     GLuint vertexBuffer, indexBuffer;
-    
+
     // Abstract pulsing state visualizer
     float statePulseIntensity = 0.0f;
     juce::LinearSmoothedValue<float> smoothedPulse;

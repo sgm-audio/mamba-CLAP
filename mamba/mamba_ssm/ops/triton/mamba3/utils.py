@@ -10,6 +10,7 @@ import triton.language as tl
 # We use PTX approximations instead of triton built-in functions
 # to trade off a bit of accuracy for much faster speed.
 
+
 @triton.jit
 def cos_approx(x):
     """
@@ -49,6 +50,7 @@ def sin_approx(x):
         pack=1,
     )
 
+
 @triton.jit
 def tanh_approx(x):
     """
@@ -67,6 +69,7 @@ def tanh_approx(x):
         is_pure=True,
         pack=1,
     )
+
 
 @triton.jit
 def sech2_approx(x):
@@ -87,6 +90,7 @@ def sech2_approx(x):
         pack=1,
     )
     return 1.0 - tanh_x * tanh_x
+
 
 @triton.jit
 def sigmoid_approx(x):
@@ -113,6 +117,7 @@ def sigmoid_approx(x):
     # NOTE: We ended up using the built-in sigmoid for better performance, as the PTX approximation was not faster in this case.
     return tl.sigmoid(x)
 
+
 @triton.jit
 def silu(x):
     """
@@ -120,14 +125,14 @@ def silu(x):
 
     Formula: silu(x) = 0.5*x * (1 + tanh(0.5*x)) + 0.5*x.
     Leverages fast tanh_approx for speed.
-    
+
     Args:
         x: Input triton tensor (any shape) in float32
-    
+
     Returns:
         SiLU activation output in float32
     """
     # x_half = 0.5 * x
     # return x_half * tanh_approx(x_half) + x_half
     # NOTE: We ended up using the built-in sigmoid for better performance, as the PTX approximation was not faster in this case.
-    return x*tl.sigmoid(x)
+    return x * tl.sigmoid(x)

@@ -45,7 +45,7 @@ isort src/ scripts/
 - **Type Hints**: Required for all function signatures
 - **Docstrings**: Google style for all public classes/functions
 - **Formatting**: Black (line length 100), isort for imports
-- **Naming**: 
+- **Naming**:
   - Classes: PascalCase
   - Functions/variables: snake_case
   - Constants: UPPER_SNAKE_CASE

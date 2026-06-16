@@ -11,12 +11,10 @@ import warnings
 
 import torch
 import torch.nn.functional as F
-from mamba_ssm.utils.torch import custom_bwd, custom_fwd
-
 import triton
 import triton.language as tl
-
 from mamba_ssm.utils.determinism import autotune_configs
+from mamba_ssm.utils.torch import custom_bwd, custom_fwd
 
 
 def layer_norm_ref(
@@ -127,11 +125,12 @@ def rms_norm_ref(
         )
         return (out, out1) if not prenorm else (out, out1, x)
 
+
 def config_prune(configs):
 
     if torch.version.hip:
         try:
-            # set warp size based on gcn architecure 
+            # set warp size based on gcn architecure
             gcn_arch_name = torch.cuda.get_device_properties(0).gcnArchName
             if "gfx10" in gcn_arch_name or "gfx11" in gcn_arch_name:
                 # radeon
@@ -142,31 +141,36 @@ def config_prune(configs):
         except AttributeError as e:
             # fall back to crude method to set warp size
             device_name = torch.cuda.get_device_properties(0).name
-            if 'instinct' in device_name.lower():
+            if "instinct" in device_name.lower():
                 warp_size = 64
             else:
                 warp_size = 32
-            warnings.warn(f"{e}, warp size set to {warp_size} based on device name: {device_name}", UserWarning)
+            warnings.warn(
+                f"{e}, warp size set to {warp_size} based on device name: {device_name}",
+                UserWarning,
+            )
 
     else:
-        # cuda 
-        warp_size = 32    
+        # cuda
+        warp_size = 32
 
     max_block_sz = 1024
     max_num_warps = max_block_sz // warp_size
     pruned_configs = [config for config in configs if config.num_warps <= max_num_warps]
     return pruned_configs
 
+
 configs_autotune = [
-        triton.Config({}, num_warps=1),
-        triton.Config({}, num_warps=2),
-        triton.Config({}, num_warps=4),
-        triton.Config({}, num_warps=8),
-        triton.Config({}, num_warps=16),
-        triton.Config({}, num_warps=32),
-        ]
+    triton.Config({}, num_warps=1),
+    triton.Config({}, num_warps=2),
+    triton.Config({}, num_warps=4),
+    triton.Config({}, num_warps=8),
+    triton.Config({}, num_warps=16),
+    triton.Config({}, num_warps=32),
+]
 
 pruned_configs_autotune = config_prune(configs_autotune)
+
 
 @triton.autotune(
     configs=autotune_configs(pruned_configs_autotune),

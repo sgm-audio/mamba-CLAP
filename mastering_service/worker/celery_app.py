@@ -1,4 +1,5 @@
 from celery import Celery
+
 from mastering_service.core.config import settings
 
 celery_app = Celery("mastering_worker", broker=settings.CELERY_BROKER_URL)

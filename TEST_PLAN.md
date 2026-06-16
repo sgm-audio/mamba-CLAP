@@ -4,7 +4,7 @@
 
 ### Unit Testing
 - **Scope**: Individual components (models, utility functions, worker tasks) in isolation.
-- **Tools**: 
+- **Tools**:
   - pytest for test framework
   - unittest.mock for patching external dependencies (boto3, redis, database)
   - Factory Boy or manual object creation for test data
@@ -214,11 +214,11 @@ def test_validate_audio_file_valid_wav():
         wav_header += b'\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00data\x00\x00\x00\x00'
         f.write(wav_header)
         f.flush()
-        
+
         is_valid, msg = validate_audio_file(f.name, 'audio/wav')
         assert is_valid == True
         assert msg == ""
-        
+
         os.unlink(f.name)
 
 def test_validate_audio_file_invalid_extension():
@@ -226,11 +226,11 @@ def test_validate_audio_file_invalid_extension():
     with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as f:
         f.write(b'not audio')
         f.flush()
-        
+
         is_valid, msg = validate_audio_file(f.name, 'audio/wav')
         assert is_valid == False
         assert "File extension" in msg
-        
+
         os.unlink(f.name)
 
 def test_get_content_type_from_filename():
@@ -261,7 +261,7 @@ def test_create_job_success(client, app, db, s3):
     # Set up test user
     from backend.models import User
     from werkzeug.security import generate_password_hash
-    
+
     test_user = User(
         email='test@example.com',
         fullName='Test User',
@@ -270,11 +270,11 @@ def test_create_job_success(client, app, db, s3):
     )
     db.session.add(test_user)
     db.session.commit()
-    
+
     # Get auth token
     access_token = create_access_token(identity=test_user.id)
     headers = {'Authorization': f'Bearer {access_token}'}
-    
+
     # Job creation request
     job_data = {
         'fileName': 'test.wav',
@@ -286,19 +286,19 @@ def test_create_job_success(client, app, db, s3):
         'stereoWidth': 110,
         'enableTruePeakLimiting': True
     }
-    
-    response = client.post('/api/v1/jobs', 
+
+    response = client.post('/api/v1/jobs',
                           data=json.dumps(job_data),
                           content_type='application/json',
                           headers=headers)
-    
+
     assert response.status_code == 202
     data = json.loads(response.data)
     assert 'id' in data
     job_id = data['id']
     assert data['status'] == 'pending'
     assert data['fileName'] == 'test.wav'
-    
+
     # Verify job in database
     from backend.models import Job
     job = Job.query.get(uuid.UUID(job_id))
@@ -307,7 +307,7 @@ def test_create_job_success(client, app, db, s3):
     assert job.status == 'pending'
     assert job.inputFileUri is not None
     assert job.outputFileUri is None
-    
+
     # Verify credit was deducted
     user = User.query.get(test_user.id)
     assert user.credits == 9
@@ -318,7 +318,7 @@ def test_get_job_result_after_processing(client, app, db, s3):
     from backend.models import User, Job
     from werkzeug.security import generate_password_hash
     import tempfile
-    
+
     test_user = User(
         email='test2@example.com',
         fullName='Test User 2',
@@ -327,10 +327,10 @@ def test_get_job_result_after_processing(client, app, db, s3):
     )
     db.session.add(test_user)
     db.session.commit()
-    
+
     access_token = create_access_token(identity=test_user.id)
     headers = {'Authorization': f'Bearer {access_token}'}
-    
+
     # Create job
     job_data = {
         'fileName': 'test.wav',
@@ -338,15 +338,15 @@ def test_get_job_result_after_processing(client, app, db, s3):
         'presetId': 'transparent',
         'contentType': 'audio/wav'
     }
-    
-    response = client.post('/api/v1/jobs', 
+
+    response = client.post('/api/v1/jobs',
                           data=json.dumps(job_data),
                           content_type='application/json',
                           headers=headers)
-    
+
     assert response.status_code == 202
     job_id = json.loads(response.data)['id']
-    
+
     # Mock the worker processing by directly updating the job
     # In a real test, we would trigger the worker and wait, but for unit test we simulate
     with app.app_context():
@@ -364,10 +364,10 @@ def test_get_job_result_after_processing(client, app, db, s3):
         job.sampleRate = 44100
         job.bitDepth = 24
         db.session.commit()
-    
+
     # Get job result
     response = client.get(f'/api/v1/jobs/{job_id}/result', headers=headers)
-    
+
     assert response.status_code == 200
     data = json.loads(response.data)
     assert 'downloadUrl' in data
@@ -387,7 +387,7 @@ def test_job_near_silent_input(client, app, db, s3):
     # Set up test user
     from backend.models import User
     from werkzeug.security import generate_password_hash
-    
+
     test_user = User(
         email='test3@example.com',
         fullName='Test User 3',
@@ -396,10 +396,10 @@ def test_job_near_silent_input(client, app, db, s3):
     )
     db.session.add(test_user)
     db.session.commit()
-    
+
     access_token = create_access_token(identity=test_user.id)
     headers = {'Authorization': f'Bearer {access_token}'}
-    
+
     # Create job with near-silent file (we'll simulate by creating a job with
     # a file that we know is silent - in reality we'd upload an actual silent file)
     job_data = {
@@ -409,15 +409,15 @@ def test_job_near_silent_input(client, app, db, s3):
         'contentType': 'audio/wav',
         'intensity': 50
     }
-    
-    response = client.post('/api/v1/jobs', 
+
+    response = client.post('/api/v1/jobs',
                           data=json.dumps(job_data),
                           content_type='application/json',
                           headers=headers)
-    
+
     assert response.status_code == 202
     job_id = json.loads(response.data)['id']
-    
+
     # Simulate worker processing for near-silent input
     # In a real implementation, the worker would detect low RMS and apply minimal processing
     with app.app_context():
@@ -437,10 +437,10 @@ def test_job_near_silent_input(client, app, db, s3):
         job.sampleRate = 44100
         job.bitDepth = 16
         db.session.commit()
-    
+
     # Get job result
     response = client.get(f'/api/v1/jobs/{job_id}/result', headers=headers)
-    
+
     assert response.status_code == 200
     data = json.loads(response.data)
     # Verify minimal processing was applied (in a real test, we'd check the audio)
@@ -455,14 +455,14 @@ from locust import HttpUser, task, between
 
 class MasteringUser(HttpUser):
     wait_time = between(1, 3)
-    
+
     def on_start(self):
         """Log in before starting tasks"""
-        response = self.client.post("/api/v1/auth/login", 
+        response = self.client.post("/api/v1/auth/login",
                                    json={"email": "test@example.com", "password": "password"})
         self.access_token = response.json()["accessToken"]
         self.headers = {"Authorization": f"Bearer {self.access_token}"}
-    
+
     @task(3)
     def create_and_check_job(self):
         """Create a job and periodically check its status"""
@@ -477,13 +477,13 @@ class MasteringUser(HttpUser):
                                    json=job_data,
                                    headers=self.headers)
         job_id = response.json()["id"]
-        
+
         # Check status a few times
         for _ in range(3):
             self.client.get(f"/api/v1/jobs/{job_id}", headers=self.headers)
             # In a real test, we would wait for completion, but for load test
             # we just check status a few times to simulate user behavior
-    
+
     @task(1)
     def get_presets(self):
         """Occasionally check available presets"""
@@ -516,10 +516,10 @@ class MasteringUser(HttpUser):
    ```bash
    # Unit and integration tests
    pytest backend/tests/ -v
-   
+
    # With coverage
    pytest --cov=backend --cov-report=html backend/tests/
-   
+
    # Load test (example)
    locust -f locustfile.py --host=http://localhost:5000
    ```

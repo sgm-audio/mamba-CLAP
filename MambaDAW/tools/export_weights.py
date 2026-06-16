@@ -49,7 +49,6 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
-import os
 import struct
 import sys
 from pathlib import Path
@@ -59,19 +58,19 @@ import torch
 # ---------------------------------------------------------------------------
 # Add repo root to path so we can import simple_mamba regardless of CWD.
 # ---------------------------------------------------------------------------
-_TOOLS_DIR  = Path(__file__).resolve().parent
-_REPO_ROOT  = _TOOLS_DIR.parent
+_TOOLS_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _TOOLS_DIR.parent
 sys.path.insert(0, str(_TOOLS_DIR))
 
-from simple_mamba import SimpleMambaModel, SimpleMambaLayer  # noqa: E402
+from simple_mamba import SimpleMambaModel  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Format constants (must match mamba_weight_loader.h)
 # ---------------------------------------------------------------------------
-MAGIC   = b"MMBW"
+MAGIC = 0x574D424D  # little-endian bytes: 4D 42 4D 57 — matches C++ constexpr MAGIC
 VERSION = 1
-HEADER_FORMAT  = "<4sIIIIIII"     # magic[4], version, n_layers, d_model, d_state, d_conv, expand, reserved
-HEADER_SIZE    = struct.calcsize(HEADER_FORMAT)  # must be 32 bytes
+HEADER_FORMAT = "<IIIIIIII"  # 8 × uint32_t little-endian
+HEADER_SIZE = struct.calcsize(HEADER_FORMAT)  # 32 bytes
 
 assert HEADER_SIZE == 32, f"Header size mismatch: got {HEADER_SIZE}, expected 32"
 
@@ -80,32 +79,23 @@ assert HEADER_SIZE == 32, f"Header size mismatch: got {HEADER_SIZE}, expected 32
 # Header helpers
 # =============================================================================
 
-def pack_header(n_layers: int, d_model: int, d_state: int,
-                d_conv: int, expand: int) -> bytes:
-    return struct.pack(
-        HEADER_FORMAT,
-        MAGIC,
-        VERSION,
-        n_layers,
-        d_model,
-        d_state,
-        d_conv,
-        expand,
-        0,  # reserved
-    )
+
+def pack_header(n_layers: int, d_model: int, d_state: int, d_conv: int, expand: int) -> bytes:
+    return struct.pack(HEADER_FORMAT, MAGIC, VERSION, n_layers, d_model, d_state, d_conv, expand, 0)
 
 
 def unpack_header(data: bytes) -> dict:
-    magic, version, n_layers, d_model, d_state, d_conv, expand, reserved = \
-        struct.unpack(HEADER_FORMAT, data[:HEADER_SIZE])
+    magic, version, n_layers, d_model, d_state, d_conv, expand, reserved = struct.unpack(
+        HEADER_FORMAT, data[:HEADER_SIZE]
+    )
     return {
-        "magic":    magic,
-        "version":  version,
+        "magic": magic,
+        "version": version,
         "n_layers": n_layers,
-        "d_model":  d_model,
-        "d_state":  d_state,
-        "d_conv":   d_conv,
-        "expand":   expand,
+        "d_model": d_model,
+        "d_state": d_state,
+        "d_conv": d_conv,
+        "expand": expand,
         "reserved": reserved,
     }
 
@@ -113,6 +103,7 @@ def unpack_header(data: bytes) -> dict:
 # =============================================================================
 # Quantization utilities
 # =============================================================================
+
 
 def quantize_int8_symmetric(tensor: torch.Tensor) -> tuple[torch.Tensor, float]:
     """
@@ -168,8 +159,10 @@ def export_float32(
                 f.write(data)
                 total_floats += w.numel()
                 if verbose:
-                    print(f"  Layer {i:2d} | {key:10s} : {w.numel():8,d} floats  "
-                          f"({w.numel() * 4 / 1024:.1f} KB)")
+                    print(
+                        f"  Layer {i:2d} | {key:10s} : {w.numel():8,d} floats  "
+                        f"({w.numel() * 4 / 1024:.1f} KB)"
+                    )
 
     file_size = out_path.stat().st_size
     if verbose:
@@ -206,8 +199,43 @@ def export_int8(
 
 
 # =============================================================================
+# Projection section V2 — matrix head, no encoder (d_model = N_MEL)
+# =============================================================================
+
+PROJ_MAGIC_V2 = 0x324F5250  # 'PRO2' little-endian — must match C++ PROJ_MAGIC_V2
+PROJ_V2_HEADER_FORMAT = "<III"  # proj_magic_v2, d_model_in, head_out
+
+
+def write_proj_section(
+    f,
+    head_weight: torch.Tensor,  # shape [N_MAMBA_OUT, N_MEL]  (nn.Linear(N_MEL, N_MAMBA_OUT).weight)
+    head_bias: torch.Tensor,  # shape [N_MAMBA_OUT]
+    verbose: bool = True,
+) -> None:
+    """Append a PROJ V2 section to an already-opened .mambaweights file.
+
+    Layout: PRO2_MAGIC | d_model_in | head_out | head_w[head_out*d_model_in] | head_b[head_out]
+    head_w is row-major: row i = weights for output logit i.
+    """
+    head_w = head_weight.detach().float().contiguous()  # [N_MAMBA_OUT, N_MEL]
+    head_b = head_bias.detach().float()  # [N_MAMBA_OUT]
+
+    head_out, d_model_in = head_w.shape
+
+    f.write(struct.pack(PROJ_V2_HEADER_FORMAT, PROJ_MAGIC_V2, d_model_in, head_out))
+    f.write(head_w.numpy().tobytes())  # row-major [head_out * d_model_in] floats
+    f.write(head_b.numpy().tobytes())
+
+    if verbose:
+        print(f"\n  [PROJ V2] head  : head_w[{head_out}, {d_model_in}] + head_b[{head_out}]")
+        proj_bytes = struct.calcsize(PROJ_V2_HEADER_FORMAT) + (head_out * d_model_in + head_out) * 4
+        print(f"  [PROJ V2] section size: {proj_bytes / 1024:.1f} KB")
+
+
+# =============================================================================
 # Verification
 # =============================================================================
+
 
 def verify_file(path: Path) -> bool:
     """Read back a .mamba_weights file and verify its integrity."""
@@ -220,13 +248,13 @@ def verify_file(path: Path) -> bool:
 
         hdr = unpack_header(raw_header)
         if hdr["magic"] != MAGIC:
-            print(f"❌ Invalid magic bytes: {hdr['magic']!r} (expected {MAGIC!r})")
+            print(f"❌ Invalid magic: {hdr['magic']:#010x} (expected {MAGIC:#010x})")
             return False
         if hdr["version"] != VERSION:
             print(f"❌ Unsupported version: {hdr['version']} (expected {VERSION})")
             return False
 
-        print(f"  Architecture:")
+        print("  Architecture:")
         print(f"    n_layers : {hdr['n_layers']}")
         print(f"    d_model  : {hdr['d_model']}")
         print(f"    d_state  : {hdr['d_state']}")
@@ -235,13 +263,13 @@ def verify_file(path: Path) -> bool:
 
         d_inner = hdr["expand"] * hdr["d_model"]
         per_layer_sizes = {
-            "in_proj":  hdr["d_model"] * 2 * d_inner,
-            "out_proj": d_inner,
-            "conv1d":   d_inner * hdr["d_conv"],
-            "dA":       d_inner * hdr["d_state"],
-            "dB":       d_inner * hdr["d_state"],
-            "C":        d_inner * hdr["d_state"],
-            "D":        d_inner,
+            "in_proj": hdr["d_model"] * 2 * d_inner,
+            "out_proj": hdr["d_model"] * d_inner,  # [d_model, d_inner] full matrix
+            "conv1d": d_inner * hdr["d_conv"],
+            "dA": d_inner * hdr["d_state"],
+            "dB": d_inner * hdr["d_state"],
+            "C": d_inner * hdr["d_state"],
+            "D": d_inner,
         }
         per_layer_floats = sum(per_layer_sizes.values())
 
@@ -249,39 +277,59 @@ def verify_file(path: Path) -> bool:
         for layer_idx in range(hdr["n_layers"]):
             layer_data = f.read(per_layer_floats * 4)
             if len(layer_data) < per_layer_floats * 4:
-                print(f"❌ Unexpected EOF at layer {layer_idx} "
-                      f"(got {len(layer_data)} bytes, expected {per_layer_floats * 4})")
+                print(
+                    f"❌ Unexpected EOF at layer {layer_idx} "
+                    f"(got {len(layer_data)} bytes, expected {per_layer_floats * 4})"
+                )
                 all_ok = False
                 break
 
             # Deserialise and basic sanity check (no NaN/Inf)
             import struct as st
+
             floats_flat = list(st.unpack(f"<{per_layer_floats}f", layer_data))
-            nan_count = sum(1 for v in floats_flat if v != v)           # NaN test
+            nan_count = sum(1 for v in floats_flat if v != v)  # NaN test
             inf_count = sum(1 for v in floats_flat if v == float("inf") or v == float("-inf"))
             status = "✅" if (nan_count == 0 and inf_count == 0) else "⚠️"
-            print(f"  Layer {layer_idx:2d}: {status}  "
-                  f"NaN={nan_count}, Inf={inf_count}, "
-                  f"floats={per_layer_floats:,}")
+            print(
+                f"  Layer {layer_idx:2d}: {status}  "
+                f"NaN={nan_count}, Inf={inf_count}, "
+                f"floats={per_layer_floats:,}"
+            )
             if nan_count > 0 or inf_count > 0:
                 all_ok = False
 
-        # Check no trailing bytes
-        remaining = f.read(1)
-        if remaining:
-            print(f"⚠️  Trailing bytes found after last layer — file may be corrupt.")
+        # Check for optional PROJ V2 section.
+        proj_peek = f.read(12)  # magic(4) + d_model_in(4) + head_out(4)
+        if len(proj_peek) == 12:
+            import struct as st2
+
+            pm, d_model_in, head_out = st2.unpack("<III", proj_peek)
+            if pm == PROJ_MAGIC_V2:
+                proj_floats = head_out * d_model_in + head_out  # head_w matrix + head_b
+                proj_data = f.read(proj_floats * 4)
+                if len(proj_data) == proj_floats * 4:
+                    print(f"  [PROJ V2] ✅  head({d_model_in}→{head_out}) matrix found")
+                else:
+                    print("  [PROJ V2] ⚠️  Section header found but data truncated")
+                remaining = f.read(1)
+                if remaining:
+                    print("⚠️  Trailing bytes after PROJ section — file may be corrupt.")
+            elif proj_peek:
+                print("⚠️  Unexpected bytes after layer data — file may be corrupt.")
 
     if all_ok:
         stat = path.stat()
         print(f"\n✅ Verification passed — {stat.st_size / 1024:.1f} KB")
     else:
-        print(f"\n❌ Verification FAILED")
+        print("\n❌ Verification FAILED")
     return all_ok
 
 
 # =============================================================================
 # Checkpoint loading
 # =============================================================================
+
 
 def load_checkpoint(checkpoint_path: Path, arch: dict) -> SimpleMambaModel:
     """
@@ -330,11 +378,11 @@ def detect_arch_from_state_dict(state: dict) -> dict | None:
         expand = d_inner // d_model
 
         return {
-            "d_model":  d_model,
+            "d_model": d_model,
             "n_layers": max(layer_indices) + 1,
-            "d_state":  d_state,
-            "d_conv":   d_conv,
-            "expand":   expand,
+            "d_state": d_state,
+            "d_conv": d_conv,
+            "expand": expand,
         }
     except (KeyError, IndexError, ValueError):
         return None
@@ -343,6 +391,7 @@ def detect_arch_from_state_dict(state: dict) -> dict | None:
 # =============================================================================
 # CLI
 # =============================================================================
+
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -354,35 +403,38 @@ def build_parser() -> argparse.ArgumentParser:
 
     # --- export ---
     e = sub.add_parser("export", help="Export a checkpoint to .mamba_weights")
-    e.add_argument("--checkpoint", required=True,  type=Path,
-                   help="Path to .pt state_dict checkpoint")
-    e.add_argument("--out",        required=True,  type=Path,
-                   help="Output path for .mamba_weights file")
-    e.add_argument("--quantize",   default="fp32",
-                   choices=["fp32", "int8"],
-                   help="Weight precision (default: fp32)")
-    e.add_argument("--quiet",      action="store_true",
-                   help="Suppress per-layer progress")
+    e.add_argument(
+        "--checkpoint", required=True, type=Path, help="Path to .pt state_dict checkpoint"
+    )
+    e.add_argument("--out", required=True, type=Path, help="Output path for .mamba_weights file")
+    e.add_argument(
+        "--quantize",
+        default="fp32",
+        choices=["fp32", "int8"],
+        help="Weight precision (default: fp32)",
+    )
+    e.add_argument("--quiet", action="store_true", help="Suppress per-layer progress")
     # Architecture overrides (auto-detected from checkpoint if not provided)
-    e.add_argument("--d_model",  type=int, default=None)
+    e.add_argument("--d_model", type=int, default=None)
     e.add_argument("--n_layers", type=int, default=None)
-    e.add_argument("--d_state",  type=int, default=None)
-    e.add_argument("--d_conv",   type=int, default=None)
-    e.add_argument("--expand",   type=int, default=None)
+    e.add_argument("--d_state", type=int, default=None)
+    e.add_argument("--d_conv", type=int, default=None)
+    e.add_argument("--expand", type=int, default=None)
 
     # --- verify ---
     v = sub.add_parser("verify", help="Verify a .mamba_weights file")
     v.add_argument("file", type=Path, help="Path to .mamba_weights file")
 
     # --- init ---
-    i = sub.add_parser("init",
-        help="Initialise a random model and export (useful for testing the plugin)")
-    i.add_argument("--out",      required=True, type=Path)
-    i.add_argument("--d_model",  type=int, default=1)
+    i = sub.add_parser(
+        "init", help="Initialise a random model and export (useful for testing the plugin)"
+    )
+    i.add_argument("--out", required=True, type=Path)
+    i.add_argument("--d_model", type=int, default=1)
     i.add_argument("--n_layers", type=int, default=4)
-    i.add_argument("--d_state",  type=int, default=16)
-    i.add_argument("--d_conv",   type=int, default=4)
-    i.add_argument("--expand",   type=int, default=2)
+    i.add_argument("--d_state", type=int, default=16)
+    i.add_argument("--d_conv", type=int, default=4)
+    i.add_argument("--expand", type=int, default=2)
 
     return p
 
@@ -394,21 +446,57 @@ def cmd_export(args: argparse.Namespace) -> None:
     print(f"Loading checkpoint: {args.checkpoint}")
     state = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
 
+    # Detect backend type before doing anything else.
+    is_gru = any(k.startswith("gru.") or k.startswith("proj.") for k in state)
+    if is_gru:
+        sys.exit(
+            "❌  This checkpoint was saved from --backend gru.\n"
+            "   GRU models cannot be exported to .mambaweights (no Mamba SSM layers).\n"
+            "\n"
+            "   Retrain with --backend mamba, then export:\n"
+            "     python train_effect_controller.py --backend mamba --data dsp \\\n"
+            "         --epochs 20 --dataset-size 1024 --device cpu\n"
+            "     python tools/export_weights.py export \\\n"
+            "         --checkpoint python_training/resources/effect_controller_best.pt \\\n"
+            "         --out resources/effect_controller.mambaweights"
+        )
+
     # Auto-detect architecture unless overrides provided
     detected = detect_arch_from_state_dict(state)
     arch = {
-        "d_model":  args.d_model  or (detected and detected["d_model"])  or 1,
+        "d_model": args.d_model or (detected and detected["d_model"]) or 1,
         "n_layers": args.n_layers or (detected and detected["n_layers"]) or 4,
-        "d_state":  args.d_state  or (detected and detected["d_state"])  or 16,
-        "d_conv":   args.d_conv   or (detected and detected["d_conv"])   or 4,
-        "expand":   args.expand   or (detected and detected["expand"])   or 2,
+        "d_state": args.d_state or (detected and detected["d_state"]) or 16,
+        "d_conv": args.d_conv or (detected and detected["d_conv"]) or 4,
+        "expand": args.expand or (detected and detected["expand"]) or 2,
     }
     if detected:
         print(f"Auto-detected architecture: {detected}")
     else:
         print(f"Using architecture overrides: {arch}")
 
-    model = load_checkpoint(args.checkpoint, arch)
+    # Detect full EffectControllerMamba checkpoint (has head key; no encoder in V2 model).
+    has_proj = "head.weight" in state and "head.bias" in state
+    if has_proj:
+        print("Detected full EffectControllerMamba checkpoint — will export PROJ V2 section.")
+        # Extract Mamba backbone sub-state.
+        mamba_state = {k[len("mamba.") :]: v for k, v in state.items() if k.startswith("mamba.")}
+        # Re-detect arch from mamba sub-state.
+        detected = detect_arch_from_state_dict(mamba_state) or detected
+        arch = {
+            "d_model": args.d_model or (detected and detected["d_model"]) or 80,
+            "n_layers": args.n_layers or (detected and detected["n_layers"]) or 4,
+            "d_state": args.d_state or (detected and detected["d_state"]) or 16,
+            "d_conv": args.d_conv or (detected and detected["d_conv"]) or 4,
+            "expand": args.expand or (detected and detected["expand"]) or 2,
+        }
+        backbone = SimpleMambaModel(**arch)
+        backbone.load_state_dict(mamba_state, strict=True)
+        backbone.eval()
+        model = backbone
+    else:
+        model = load_checkpoint(args.checkpoint, arch)
+
     print(f"Model loaded — {sum(p.numel() for p in model.parameters()):,} parameters")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -418,6 +506,17 @@ def cmd_export(args: argparse.Namespace) -> None:
         export_int8(model, args.out, verbose)
     else:
         export_float32(model, args.out, verbose)
+
+    # Append PROJ V2 section if exporting a full controller checkpoint.
+    if has_proj:
+        with open(args.out, "ab") as f:
+            write_proj_section(
+                f,
+                head_weight=state["head.weight"],
+                head_bias=state["head.bias"],
+                verbose=verbose,
+            )
+        print(f"✅ PROJ V2 section appended to {args.out}")
 
 
 def cmd_verify(args: argparse.Namespace) -> None:
@@ -439,9 +538,11 @@ def cmd_init(args: argparse.Namespace) -> None:
     model.eval()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     export_float32(model, args.out, verbose=True)
-    print(f"\nℹ️  This model has random (untrained) weights.")
+    print("\nℹ️  This model has random (untrained) weights.")
     print("   Train with: python tools/train_audio_mamba.py --out resources/")
-    print(f"   Then export: python tools/export_weights.py export --checkpoint resources/mamba_final.pt --out {args.out}")
+    print(
+        f"   Then export: python tools/export_weights.py export --checkpoint resources/mamba_final.pt --out {args.out}"
+    )
 
 
 def main() -> None:

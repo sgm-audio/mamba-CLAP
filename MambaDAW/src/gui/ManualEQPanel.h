@@ -9,10 +9,11 @@ public:
 
     explicit ManualEQPanel(ParamCallback cb);
 
-    void syncFromProcessor(bool enabled,
-                           double loGain, double loHz,
-                           double midGain, double midHz, double midQ,
-                           double hiGain, double hiHz);
+  void syncFromProcessor(bool enabled,
+  double loGain, double loHz,
+  double midGain, double midHz, double midQ,
+  double hiGain, double hiHz,
+  const int* paramSuppress = nullptr);
 
     void paint(juce::Graphics&) override;
     void resized() override;

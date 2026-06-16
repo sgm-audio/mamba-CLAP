@@ -28,23 +28,23 @@ impl<T: Clone> RingBuffer<T> {
             closed: AtomicBool::new(false),
         }
     }
-    
+
     /// Push an item into the buffer (producer side)
     /// Returns Ok(()) if successful, Err(item) if buffer is full
     pub fn push(&mut self, item: T) -> Result<(), T> {
         if self.closed.load(Ordering::Acquire) {
             return Err(item);
         }
-        
+
         let mut head = self.head.load(Ordering::Relaxed);
         loop {
             let next_head = (head + 1) % self.capacity;
-            
+
             // Check if buffer is full
             if next_head == self.tail.load(Ordering::Acquire) {
                 return Err(item);
             }
-            
+
             // Try to claim the slot
             if self.head
                 .compare_exchange_weak(head, next_head, Ordering::Release, Ordering::Relaxed)
@@ -54,20 +54,20 @@ impl<T: Clone> RingBuffer<T> {
                 self.buffer[head] = Some(item);
                 return Ok(());
             }
-            
+
             // Failed to claim, retry with updated head
             head = self.head.load(Ordering::Relaxed);
         }
     }
-    
+
     /// Pop an item from the buffer (consumer side)
     /// Returns Some(item) if available, None if buffer is empty or closed
     pub fn pop(&mut self) -> Option<T> {
-        if self.tail.load(Ordering::Acquire) == self.head.load(Ordering::Acquire) 
+        if self.tail.load(Ordering::Acquire) == self.head.load(Ordering::Acquire)
             && self.closed.load(Ordering::Acquire) {
             return None; // Buffer is empty and closed
         }
-        
+
         let mut tail = self.tail.load(Ordering::Relaxed);
         loop {
             // Check if buffer is empty
@@ -79,9 +79,9 @@ impl<T: Clone> RingBuffer<T> {
                 // Buffer is empty but not closed - keep trying
                 return None;
             }
-            
+
             let next_tail = (tail + 1) % self.capacity;
-            
+
             // Try to claim the slot
             if self.tail
                 .compare_exchange_weak(tail, next_tail, Ordering::Release, Ordering::Relaxed)
@@ -90,22 +90,22 @@ impl<T: Clone> RingBuffer<T> {
                 // Successfully claimed the slot
                 return self.buffer[tail].take();
             }
-            
+
             // Failed to claim, retry with updated tail
             tail = self.tail.load(Ordering::Relaxed);
         }
     }
-    
+
     /// Try to pop an item without blocking
     /// Returns Some(item) if available, None if buffer is empty
     pub fn try_pop(&mut self) -> Option<T> {
         if self.tail.load(Ordering::Acquire) == self.head.load(Ordering::Acquire) {
             return None; // Buffer is empty
         }
-        
+
         let tail = self.tail.load(Ordering::Relaxed);
         let next_tail = (tail + 1) % self.capacity;
-        
+
         // Check if another thread is trying to pop the same item
         if self.tail
             .compare_exchange(tail, next_tail, Ordering::Release, Ordering::Relaxed)
@@ -114,37 +114,37 @@ impl<T: Clone> RingBuffer<T> {
             // Successfully claimed the slot
             return self.buffer[tail].take();
         }
-        
+
         None
     }
-    
+
     /// Close the buffer (no more items will be pushed)
     pub fn close(&mut self) {
         self.closed.store(true, Ordering::Release);
     }
-    
+
     /// Check if the buffer is closed
     pub fn is_closed(&self) -> bool {
         self.closed.load(Ordering::Acquire)
     }
-    
+
     /// Get the current number of items in the buffer
     pub fn len(&self) -> usize {
         let head = self.head.load(Ordering::Acquire);
         let tail = self.tail.load(Ordering::Acquire);
-        
+
         if head >= tail {
             head - tail
         } else {
             self.capacity - tail + head
         }
     }
-    
+
     /// Check if the buffer is empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-    
+
     /// Check if the buffer is full
     pub fn is_full(&self) -> bool {
         let head = self.head.load(Ordering::Acquire);
@@ -171,11 +171,11 @@ mod tests {
     use std::sync::mpsc;
     use std::thread;
     use std::time::Duration;
-    
+
     #[test]
     fn test_ring_buffer_basic() {
         let mut rb = RingBuffer::<i32>::new(4);
-        
+
         // Test push and pop
         assert_eq!(rb.push(1), Ok(()));
         assert_eq!(rb.push(2), Ok(()));
@@ -183,72 +183,72 @@ mod tests {
         assert_eq!(rb.pop(), Some(2));
         assert_eq!(rb.pop(), None);
     }
-    
+
     #[test]
     fn test_ring_buffer_full() {
         let mut rb = RingBuffer::<i32>::new(2);
-        
+
         // Fill the buffer
         assert_eq!(rb.push(1), Ok(()));
         assert_eq!(rb.push(2), Ok(()));
-        
+
         // Buffer should be full
         assert!(rb.is_full());
-        
+
         // Next push should fail
         assert_eq!(rb.push(3), Err(3));
-        
+
         // After popping, should be able to push again
         assert_eq!(rb.pop(), Some(1));
         assert_eq!(rb.push(3), Ok(()));
     }
-    
+
     #[test]
     fn test_ring_buffer_try_pop() {
         let mut rb = RingBuffer::<i32>::new(2);
-        
+
         // Should be empty initially
         assert_eq!(rb.try_pop(), None);
-        
+
         // Add an item
         rb.push(42).unwrap();
-        
+
         // Should be able to try pop it
         assert_eq!(rb.try_pop(), Some(42));
         assert_eq!(rb.try_pop(), None);
     }
-    
+
     #[test]
     fn test_ring_buffer_close() {
         let mut rb = RingBuffer::<i32>::new(2);
-        
+
         // Push some items
         rb.push(1).unwrap();
         rb.push(2).unwrap();
-        
+
         // Close the buffer
         rb.close();
         assert!(rb.is_closed());
-        
+
         // Should still be able to pop existing items
         assert_eq!(rb.pop(), Some(1));
         assert_eq!(rb.pop(), Some(2));
-        
+
         // Should return None when empty and closed
         assert_eq!(rb.pop(), None);
-        
+
         // Push should fail when closed
         assert_eq!(rb.push(3), Err(3));
     }
-    
+
     #[test]
     fn test_ring_buffer_producer_consumer() {
         let rb = Arc::new(Mutex::new(RingBuffer::<i32>::new(10)));
         let rb_consumer = Arc::clone(&rb);
-        
+
         let (tx1, rx1) = mpsc::channel();
         let (tx2, rx2) = mpsc::channel();
-        
+
         // Producer thread
         let producer = thread::spawn(move || {
             let mut rb_lock = rb.lock().unwrap();
@@ -264,7 +264,7 @@ mod tests {
             drop(rb_lock);
             tx1.send(()).unwrap();
         });
-        
+
         // Consumer thread
         let consumer = thread::spawn(move || {
             let mut received = Vec::new();
@@ -284,14 +284,14 @@ mod tests {
             // Send the received data back through the channel
             let _ = tx2.send(received);
         });
-        
+
         // Wait for producer to finish
         producer.join().unwrap();
         rx1.recv().unwrap(); // Wait for producer signal
-        
+
         // Wait for consumer to finish and get results
         let received = rx2.recv().unwrap();
-        
+
         // Check that we received all 20 items in order
         assert_eq!(received.len(), 20);
         for i in 0..20 {

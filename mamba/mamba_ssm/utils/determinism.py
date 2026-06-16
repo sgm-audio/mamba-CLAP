@@ -2,12 +2,13 @@
 
 import os
 import warnings
-from packaging import version
 
 import torch
+from packaging import version
 
 try:
     import triton
+
     TRITON_VERSION = version.parse(triton.__version__)
 except ImportError:
     TRITON_VERSION = version.parse("0.0.0")
@@ -21,9 +22,9 @@ _deterministic_override = None
 def use_deterministic_mode():
     if _deterministic_override is not None:
         return _deterministic_override
-    env = os.environ.get('MAMBA_DETERMINISTIC')
+    env = os.environ.get("MAMBA_DETERMINISTIC")
     if env:
-        return env[0] == '1'
+        return env[0] == "1"
     return torch.are_deterministic_algorithms_enabled()
 
 
@@ -36,18 +37,18 @@ def _estimate_config_cost(cfg):
     """Estimate shared memory cost of a config. Lower is cheaper."""
     block_product = 1
     for key, val in cfg.kwargs.items():
-        if key.startswith('BLOCK_SIZE_'):
+        if key.startswith("BLOCK_SIZE_"):
             block_product *= val
-    return block_product * (getattr(cfg, 'num_stages', 1) or 1)
+    return block_product * (getattr(cfg, "num_stages", 1) or 1)
 
 
 def _filter_configs_by_block_sizes(configs):
     """Filter configs by TRITON_AUTOTUNE_BLOCK_SIZE_* env vars."""
     env_filters = {}
-    for suffix in ('M', 'N', 'K', 'DSTATE'):
+    for suffix in ("M", "N", "K", "DSTATE"):
         env_val = os.environ.get(f"TRITON_AUTOTUNE_BLOCK_SIZE_{suffix}")
         if env_val is not None:
-            env_filters[f'BLOCK_SIZE_{suffix}'] = int(env_val)
+            env_filters[f"BLOCK_SIZE_{suffix}"] = int(env_val)
     if not env_filters:
         return None
     matching = configs
@@ -58,7 +59,7 @@ def _filter_configs_by_block_sizes(configs):
 
 def autotune_configs(configs):
     """Select autotune configs for deterministic mode.
-    
+
     Uses cached autotuning (TRITON_CACHE_AUTOTUNING=1) if Triton >= 3.4.0,
     otherwise auto-selects the cheapest config by block size * stages.
     """
@@ -69,7 +70,11 @@ def autotune_configs(configs):
     global _autotune_warning_issued
     if not _autotune_warning_issued:
         _autotune_warning_issued = True
-        msg = "Deterministic mode: set TRITON_CACHE_AUTOTUNING=1 for cached autotuning." if TRITON_HAS_CACHE_RESULTS else "Deterministic mode: upgrade to Triton >= 3.4.0 for cached autotuning."
+        msg = (
+            "Deterministic mode: set TRITON_CACHE_AUTOTUNING=1 for cached autotuning."
+            if TRITON_HAS_CACHE_RESULTS
+            else "Deterministic mode: upgrade to Triton >= 3.4.0 for cached autotuning."
+        )
         warnings.warn(msg)
     filtered = _filter_configs_by_block_sizes(configs)
     if filtered:

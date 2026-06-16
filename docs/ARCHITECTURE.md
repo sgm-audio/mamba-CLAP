@@ -37,17 +37,17 @@
 ### Data Flow
 
 ```
-[Audio Input] 
+[Audio Input]
        ↓
 [Host Audio Buffer] → (CLAP process() callback)
        ↓
 [Pre-processing: Gain, Silence Detection]
        ↓
-[STFTProcessor: Forward] 
+[STFTProcessor: Forward]
        ↓
 [Mel-Spectrogram: [1, T, 80]]
        ↓
-[MambaWrapper: Process] 
+[MambaWrapper: Process]
        ↓
 [Processed Mel-Spectrogram: [1, T, 80]]
        ↓
@@ -69,7 +69,7 @@
 ### Control Flow
 
 ```
-[Host] 
+[Host]
        ↓
 [CLAP: init() → activate() → start_processing()]
        ↓
@@ -142,7 +142,7 @@
 ## Reliability Plan
 
 ### Error Handling and Timeouts
-- **Model Loading**: 
+- **Model Loading**:
   - Timeout: 5 seconds for model loading
   - Retry: None (fast failure preferred)
   - Fallback: Bypass processing with error indication in UI
@@ -156,16 +156,16 @@
 
 ### Idempotency and State Management
 - **Plugin Instance**: Each insertion creates independent state
-- **Host Transport**: 
+- **Host Transport**:
   - Play/Stop: Maintain processing state (context continues)
   - Seek: Reset context to avoid temporal discontinuities
   - Loop: Continue context accumulation across loop boundaries
-- **Parameter Changes**: 
+- **Parameter Changes**:
   - Smooth transitions for continuous parameters (mix, gain)
   - Immediate effect for discrete parameters (effect type)
 
 ### Backpressure and Rate Limiting
-- **Audio Buffer**: 
+- **Audio Buffer**:
   - Host guarantees buffer size compliance
   - Plugin processes exactly what host provides
 - **Model Inference**:
@@ -174,7 +174,7 @@
   - Mitigation: Profiling to ensure real-time capability; reduce model complexity if needed
 
 ### Resource Management
-- **Memory**: 
+- **Memory**:
   - Pre-allocate buffers during activation
   - Free all resources in deactivate()
   - Use RAII (smart pointers) for automatic cleanup
@@ -186,7 +186,7 @@
 ## Storage Choices and Consistency Model
 
 ### Storage Requirements
-- **Model Files**: 
+- **Model Files**:
   - Location: User-configurable path (environment variable or plugin parameter)
   - Format: TorchScript (.pt) or native PyTorch checkpoint
   - Size: 100MB-1GB depending on Mamba-3 variant
@@ -194,33 +194,33 @@
   - Location: Host-managed via CLAP state mechanism
   - Content: Last-used parameters (effect type, mix values, etc.)
   - Size: <1KB
-- **Cache/Temporary**: 
+- **Cache/Temporary**:
   - Location: In-memory only
   - Content: Audio processing buffers, intermediate tensors
   - Size: <50MB per instance
 
 ### Consistency Model
-- **Single-Writer Principle**: 
+- **Single-Writer Principle**:
   - Only audio processing thread modifies internal state
   - UI thread only reads parameters (via host's atomic parameter updates)
-- **No External Dependencies**: 
+- **No External Dependencies**:
   - Plugin is self-contained; no network or shared storage during operation
-- **Durability**: 
+- **Durability**:
   - No persistence requirements beyond host session
   - Model files treated as read-only assets
 
 ## Observability Plan
 
 ### Logging
-- **Levels**: 
+- **Levels**:
   - ERROR: Fatal issues requiring host notification
   - WARN: Recoverable issues (fallback activated)
   - INFO: Operational milestones (activation, model load)
   - DEBUG: Detailed processing information (conditionally enabled)
-- **Configuration**: 
+- **Configuration**:
   - Environment variable `MAMBA_PLUGIN_LOG_LEVEL`
   - Output: stdout/stderr (captured by DAW or debug console)
-- **Content**: 
+- **Content**:
   - Model loading status
   - Resource allocation/deallocation
   - Error conditions and fallbacks
@@ -233,28 +233,28 @@
   - Model inference time vs. audio block duration
   - Parameter change frequency
   - Error/fallback occurrence rate
-- **Exposure**: 
+- **Exposure**:
   - Debug mode: Real-time display in plugin UI
   - Log file: Periodic summary on deactivation
   - No external telemetry (privacy-first)
 
 ### Tracing
-- **Not Applicable**: 
+- **Not Applicable**:
   - Single-threaded audio processing pipeline
   - No distributed components
   - Simple cause-effect relationships observable via logging
-- **Debugging Alternative**: 
+- **Debugging Alternative**:
   - Cycle-accurate profiling with tools like VTune or Perf
   - GPU profiling with NVIDIA Nsight (when GPU enabled)
 
 ### Service Level Objectives (SLOs)
-- **Latency SLO**: 
+- **Latency SLO**:
   - 95% of audio blocks processed within deadline (block size / sample rate)
   - Measurement: Host-reported audio glitches or plugin self-monitoring
-- **Availability SLO**: 
+- **Availability SLO**:
   - <0.1% chance of silent failure (no audio output when input present)
   - Measurement: Automated test with known input/output
-- **Reliability SLO**: 
+- **Reliability SLO**:
   - Mean Time Between Failures (MTBF) > 100 hours of continuous operation
   - Measurement: Long-duration soak testing with audio signals
 
@@ -279,13 +279,13 @@
 - **Status**: Accepted
 - **Context**: Need to support multiple DAWs with a single codebase
 - **Decision**: Implement as CLAP 1.0 plugin with potential wrappers for VST3/AU
-- **Consequences**: 
+- **Consequences**:
   - ✅ Modern, open standard
   - ✅ Good Reaper support (primary target)
   - ✅ Avoids vendor-specific complexities
   - ❌ Requires explanation to users unfamiliar with CLAP
   - ❌ May need wrapper for broader DAW compatibility
-- **Implementation**: 
+- **Implementation**:
   - Direct CLAP implementation
   - Evaluate JUCE CLAP wrapper or standalone implementation
   - Provide build options for wrappers if needed
@@ -294,14 +294,14 @@
 - **Status**: Accepted
 - **Context**: Requirement for long-term context (60+ seconds) in audio effects
 - **Decision**: Use Mamba-3 SSM architecture from mamba_ssm library
-- **Consequences**: 
+- **Consequences**:
   - ✅ O(N) complexity enables long context
   - ✅ State-of-the-art sequence modeling
   - ✅ Efficient inference suitable for real-time
   - ✅ Access to pretrained models via Hugging Face
   - ❌ Newer architecture with limited audio-specific pretraining
   - ❌ Requires adaptation from language modeling to audio domain
-- **Implementation**: 
+- **Implementation**:
   - Integrate mamba_ssm as submodule or dependency
   - Load Mamba-3 checkpoints via torch::jit::load or native loading
   - Create audio-specific processing wrapper around Mamba-3 block
@@ -310,14 +310,14 @@
 - **Status**: Accepted
 - **Context**: Need to represent audio for sequential processing by Mamba
 - **Decision**: Convert audio to log-mel spectrogram via STFT
-- **Consequences**: 
+- **Consequences**:
   - �| Compact representation reduces sequence length
   - ✓ Perceptually relevant frequency scale
   - ✓ Enables use of established audio ML techniques
   - ✗ Phase information discarded
   - ✗ STFT/ISTFT computational overhead
   - ✗ Windowing artifacts possible
-- **Implementation**: 
+- **Implementation**:
   - STFT with Hann window, 50% overlap
   - 80 mel bins covering 20Hz-20kHz range
   - Log compression with epsilon for numerical stability
@@ -327,14 +327,14 @@
 - **Status**: Accepted
 - **Context**: Real-time audio processing requires bounded latency
 - **Decision**: Process in fixed-size blocks with recurrent state maintenance
-- **Consequences**: 
+- **Consequences**:
   - ✅ Predictable latency (block duration + processing time)
   - ✅ Matches STFT natural processing grain
   - ✅ Enables true temporal context across blocks
   - ❌ Potential block boundary artifacts
   - ❌ State management complexity
   - ❌ Delay equals at least one block size
-- **Implementation**: 
+- **Implementation**:
   - Block size: 2048 samples (~46ms at 44.1kHz)
   - Hop size: 1024 samples (50% overlap)
   - Maintain Mamba hidden state between blocks
@@ -345,7 +345,7 @@
 - **Status**: Accepted
 - **Context**: Variable hardware availability in audio production environments
 - **Decision**: Prioritize robust CPU implementation with CUDA acceleration option
-- **Consequences**: 
+- **Consequences**:
   - ✅ Broad compatibility (works on any modern PC)
   - ✅ Simpler debugging and profiling
   - ✅ Avoids GPU dependency issues
@@ -353,7 +353,7 @@
   - ❌ Higher latency than pure GPU solution
   - ❌ Increased code complexity (dual-code paths)
   - ❌ Suboptimal performance on high-end GPU systems
-- **Implementation**: 
+- **Implementation**:
   - Core audio processing in CPU-native C++/libtorch
   - CUDA kernels for performance-critical operations (if beneficial)
   - Runtime device selection based on availability and benchmarking
@@ -363,7 +363,7 @@
 - **Status**: Accepted
 - **Context**: Multiple effect types sharing contextual understanding
 - **Decision**: Single Mamba-3 backbone with multiple lightweight decoder heads
-- **Consequences**: 
+- **Consequences**:
   - ✅ Efficient parameter sharing
   - ✅ Consistent contextual understanding across effects
   - ✅ Easy to add new effect types
@@ -371,7 +371,7 @@
   - ❌ Potential task interference during training
   - ❌ Requires careful decoder design to avoid bottlenecks
   - ❌ Training complexity for multi-task learning
-- **Implementation**: 
+- **Implementation**:
   - Frozen or fine-tuned Mamba-3 backbone
   - Lightweight MLPs or transformers as effect heads
   - Shared preprocessing (normalization) and postprocessing (denormalization)
@@ -403,17 +403,17 @@
 
 ### Mitigation Strategies for Unmitigable Risks
 
-- **DAW Compatibility Issues**: 
+- **DAW Compatibility Issues**:
   - Maintain strict CLAP 1.0 compliance
   - Provide validation suite using clap-validator
   - Offer technical support for host-specific issues
 
-- **User Expectation Mismatch**: 
+- **User Expectation Mismatch**:
   - Clear documentation about what the plugin does and doesn't do
   - Preset system demonstrating obvious use cases
   - Bypass switch for easy A/B comparison
 
-- **Future Mamba Architecture Changes**: 
+- **Future Mamba Architecture Changes**:
   - Abstract Mamba interface behind wrapper class
   - Version pinning in dependencies
   - Isolation of Mamba-specific code to minimal files

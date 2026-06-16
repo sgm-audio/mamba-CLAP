@@ -7,7 +7,7 @@
 **Draft**:
 I’ve been working on a new approach to audio dynamic range processing that moves away from heuristic attack/release settings and toward learned musical intelligence.
 
-The core idea: Traditional compressors are context-blind. They react to a 10ms window of amplitude, but they don't know if they're in a sparse verse or a dense chorus. 
+The core idea: Traditional compressors are context-blind. They react to a 10ms window of amplitude, but they don't know if they're in a sparse verse or a dense chorus.
 
 MambaCompressor uses Selective State Space Models (Mamba) to maintain a hidden state of the last 60+ seconds of audio. This allows it to:
 - Anticipate transitions (e.g., gain reduction *before* a drop).

@@ -6,7 +6,7 @@
 
 #ifndef USE_ROCM
     #include <cub/config.cuh>
-    
+
     #include <cub/util_ptx.cuh>
     #include <cub/util_type.cuh>
     #include <cub/block/block_raking_layout.cuh>
@@ -51,7 +51,7 @@ __device__ __forceinline__ T ThreadReverseScanInclusive(
         inclusive = scan_op(inclusive, input[i]);
         output[i] = inclusive;
     }
-    return inclusive; 
+    return inclusive;
 }
 
 /**

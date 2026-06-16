@@ -7,11 +7,10 @@
 /**
  * @brief Gating mechanism for parameter changes to control SSM state flushes.
  *
- * Runs on the main (non-RT) thread. Evaluates a batch of parameter updates
- * and determines whether the changes are significant enough to warrant a
- * full SSM state reset (flush) or if only the parameter values need updating.
- *
- * Uses per-parameter epsilon thresholds.
+ * Thread-domain per ADR-002:
+ *   evaluate(vector) — [Main] (allocates via std::vector)
+ *   evaluate(ptr,count) — [Audio] (RT-safe, no allocation)
+ *   reset(), get_last_value() — [Audio|Main]
  */
 
 enum class ParamUpdateAction {
@@ -28,29 +27,17 @@ struct ParamSnapshot {
 class ParameterGate {
 public:
     explicit ParameterGate();
-    explicit ParameterGate(std::array<double, 4> per_param_epsilon);
 
-    /**
-     * @brief Feed a batch of parameter updates.
-     *
-     * @param updates Vector of param_id/value changes.
-     * @return Action indicating whether to flush SSM state.
-     */
-    ParamUpdateAction evaluate(const std::vector<ParamSnapshot>& updates);
+    ParamUpdateAction evaluate(const std::vector<ParamSnapshot>& updates); // [Main] — allocates
 
-    /**
-     * @brief Reset gate state (e.g., after SSM flush or plugin init).
-     */
-    void reset();
+    ParamUpdateAction evaluate(const ParamSnapshot* updates, uint32_t count); // [Audio] — RT-safe
 
-    /**
-     * @brief Get last committed value for a parameter (for testing/debug).
-     */
-    double get_last_value(uint32_t param_id) const;
+    void reset();                                  // [Audio|Main]
+    double get_last_value(uint32_t param_id) const; // [Audio|Main]
 
 private:
-    static constexpr uint32_t MAX_PARAMS = 4;
-    std::array<double, MAX_PARAMS> per_param_epsilon_;
-    std::array<double, MAX_PARAMS> last_values_;
-    std::array<bool, MAX_PARAMS> initialized_;
+    static constexpr uint32_t MAX_PARAMS = 13;
+    std::array<double, MAX_PARAMS> per_param_epsilon_{};
+    std::array<double, MAX_PARAMS> last_values_{};
+    std::array<bool, MAX_PARAMS> initialized_{};
 };

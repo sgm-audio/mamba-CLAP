@@ -22,15 +22,15 @@ pytest -q -s -p no:warnings tests/ops/tilelang/test_mamba3_mimo.py -k "smoke_for
 # (Remove the -s flag for less verbose output).
 """
 
-from types import SimpleNamespace
 import math
+from types import SimpleNamespace
 from typing import Optional, Tuple
-from einops import rearrange, repeat
-
 
 import pytest
 import torch
+from einops import rearrange, repeat
 from torch import Tensor
+
 F = torch.nn.functional
 
 
@@ -152,9 +152,7 @@ def build_inputs(
     mimo_z = torch.randn_like(mimo_v) if has_z else None
     d = torch.randn((h,), device="cuda", dtype=torch.float32) if has_d else None
 
-    angles = torch.rand(
-        (b, s, h, n // rotary_dim_divisor), device="cuda", dtype=torch.float32
-    )
+    angles = torch.rand((b, s, h, n // rotary_dim_divisor), device="cuda", dtype=torch.float32)
     dt = F.softplus(-3.0 + torch.randn((b, h, s), device="cuda", dtype=torch.float32))
     a = torch.rand((b, h, s), device="cuda", dtype=torch.float32)
     dA = (-dt * a).detach()
@@ -184,6 +182,7 @@ def build_inputs(
         "chunk_size": chunk_size,
         "rotary_dim_divisor": rotary_dim_divisor,
     }
+
 
 def make_smoke_inputs(
     *,
@@ -218,29 +217,39 @@ def make_smoke_inputs(
         requires_grad=True,
     )
 
-    import torch.nn.functional as F
     import math
-    DT = F.softplus(
-        -3.0
-        + torch.randn(
-            batch,
-            nheads,
-            seqlen,
-            device=device,
-            dtype=torch.float,
+
+    import torch.nn.functional as F
+
+    DT = (
+        F.softplus(
+            -3.0
+            + torch.randn(
+                batch,
+                nheads,
+                seqlen,
+                device=device,
+                dtype=torch.float,
+            )
         )
-    ).detach().requires_grad_(True)
+        .detach()
+        .requires_grad_(True)
+    )
     # Make ADT a leaf so .grad is populated without retain_grad().
     ADT = (-DT.detach() * math.log2(math.e)).clone().detach().requires_grad_(True)
-    
+
     Trap = (
-        torch.rand(
-            (batch, nheads, seqlen),
-            device=device,
-            dtype=dtype,
+        (
+            torch.rand(
+                (batch, nheads, seqlen),
+                device=device,
+                dtype=dtype,
+            )
+            * 0.5
         )
-        * 0.5
-    ).detach().requires_grad_(True)
+        .detach()
+        .requires_grad_(True)
+    )
 
     Q_bias = torch.randn(
         (nheads, mimo_rank, headdim_qk),
@@ -296,6 +305,7 @@ def make_smoke_inputs(
         dtype=dtype,
     )
 
+
 def grads_to_dA(grad_dA_cs: Tensor, grad_dA_cs_rev: Tensor, chunk_size: int) -> Tensor:
     b, h, s = grad_dA_cs.shape
     assert s % chunk_size == 0
@@ -308,7 +318,6 @@ def grads_to_dA(grad_dA_cs: Tensor, grad_dA_cs_rev: Tensor, chunk_size: int) -> 
     prefix = torch.cumsum(g_r, dim=-1)
     grad_from_r = torch.cat([torch.zeros_like(prefix[..., :1]), prefix[..., :-1]], dim=-1)
     return (grad_from_f + grad_from_r).view(b, h, s)
-
 
 
 def mamba3_MIMO_step_ref(
@@ -373,8 +382,12 @@ def mamba3_MIMO_step_ref(
         K_State = K_State.clone()
         V_State = V_State.clone()
     else:
-        Angle_State = torch.zeros((batch, nheads, headdim_angles), dtype=torch.float32, device=device)
-        SSM_State = torch.zeros((batch, nheads, headdim_v, headdim_qk), dtype=torch.float32, device=device)
+        Angle_State = torch.zeros(
+            (batch, nheads, headdim_angles), dtype=torch.float32, device=device
+        )
+        SSM_State = torch.zeros(
+            (batch, nheads, headdim_v, headdim_qk), dtype=torch.float32, device=device
+        )
         K_State = torch.zeros((batch, nheads, mimo_rank, headdim_qk), dtype=Q.dtype, device=device)
         V_State = torch.zeros((batch, nheads, mimo_rank, headdim_v), dtype=V.dtype, device=device)
 
@@ -392,14 +405,14 @@ def mamba3_MIMO_step_ref(
     for idx in range(seqlen):
         q = Q[:, idx, :, :, :] + q_bias.unsqueeze(0)
         k = K[:, idx, :, :, :] + k_bias.unsqueeze(0)
-        v = v_proj[:, idx, :, :, :] # (B R H P)
+        v = v_proj[:, idx, :, :, :]  # (B R H P)
         adt = ADT[:, :, idx]
         dt = DT[:, :, idx]
         trap = torch.nn.functional.sigmoid(Trap[:, :, idx])
         z = z_proj[:, idx, :, :, :] if z_proj is not None else None
-        angles = Angles[:, idx, :, :] # (B H N)
+        angles = Angles[:, idx, :, :]  # (B H N)
 
-        q = q.permute(0, 2, 1, 3) # (B H R N)
+        q = q.permute(0, 2, 1, 3)  # (B H R N)
         k = k.permute(0, 2, 1, 3)
         v = v.permute(0, 2, 1, 3)
         if z is not None:
@@ -410,9 +423,8 @@ def mamba3_MIMO_step_ref(
         # Angle_State = Angle_State - TWO_PI * torch.floor(Angle_State / TWO_PI)
         Angle_State = Angle_State + torch.tanh(angles) * dt.unsqueeze(-1) * math.pi
 
-
         # Apply rotary embeddings to Q and K using cumulative angles
-        cos_angles = torch.cos(Angle_State).unsqueeze(2) # (B H 1 N)
+        cos_angles = torch.cos(Angle_State).unsqueeze(2)  # (B H 1 N)
         sin_angles = torch.sin(Angle_State).unsqueeze(2)
         q_rot = apply_rotary_emb(q, cos_angles, sin_angles)
         k_rot = apply_rotary_emb(k, cos_angles, sin_angles)
@@ -451,7 +463,7 @@ def mamba3_MIMO_step_ref(
 
 def apply_angle_dt_reference(
     angle: Tensor,  # (batch, seqlen, nheads, dim)
-    dt: Tensor,     # (batch, seqlen, nheads)
+    dt: Tensor,  # (batch, seqlen, nheads)
 ) -> Tensor:
     # Match debug_mimo_step.py preprocessing for chunk reference path.
     base_vals = angle.to(torch.float32)
@@ -496,16 +508,25 @@ def mamba3_MIMO_chunk_ref(
             end = int(cu_seqlens[i + 1].item())
             seq_len = end - start
             out_i, _, _ = mamba3_MIMO_chunk_ref(
-                q[:, start:end], k[:, start:end], v[:, start:end],
-                q_bias, k_bias, mimo_v, mimo_o,
-                z[:, start:end] if z is not None else None, mimo_z,
+                q[:, start:end],
+                k[:, start:end],
+                v[:, start:end],
+                q_bias,
+                k_bias,
+                mimo_v,
+                mimo_o,
+                z[:, start:end] if z is not None else None,
+                mimo_z,
                 angles[:, start:end],
-                dA_cs[:, :, start:end], dA_cs_rev[:, :, start:end],
-                dt[:, :, start:end], trap[:, :, start:end],
+                dA_cs[:, :, start:end],
+                dA_cs_rev[:, :, start:end],
+                dt[:, :, start:end],
+                trap[:, :, start:end],
                 D,
                 chunk_size=chunk_size,
                 rotary_dim_divisor=rotary_dim_divisor,
-                return_final_state=False, dtype=dtype,
+                return_final_state=False,
+                dtype=dtype,
                 rotate_pairwise=rotate_pairwise,
                 contract_mimo_out=contract_mimo_out,
                 cu_seqlens=None,
@@ -519,15 +540,15 @@ def mamba3_MIMO_chunk_ref(
     orig_seqlen = q.shape[1]
     pad_len = (chunk_size - orig_seqlen % chunk_size) % chunk_size
     if pad_len > 0:
-        q         = _pad_zeros(q,         pad_len, dim=1)
-        k         = _pad_zeros(k,         pad_len, dim=1)
-        v         = _pad_zeros(v,         pad_len, dim=1)
-        angles    = _pad_zeros(angles,    pad_len, dim=1)
-        z         = _pad_zeros(z,         pad_len, dim=1)
-        dA_cs     = _pad_zeros(dA_cs,     pad_len, dim=2)
+        q = _pad_zeros(q, pad_len, dim=1)
+        k = _pad_zeros(k, pad_len, dim=1)
+        v = _pad_zeros(v, pad_len, dim=1)
+        angles = _pad_zeros(angles, pad_len, dim=1)
+        z = _pad_zeros(z, pad_len, dim=1)
+        dA_cs = _pad_zeros(dA_cs, pad_len, dim=2)
         dA_cs_rev = _pad_zeros(dA_cs_rev, pad_len, dim=2)
-        dt        = _pad_zeros(dt,        pad_len, dim=2)
-        trap      = _pad_zeros(trap,      pad_len, dim=2)
+        dt = _pad_zeros(dt, pad_len, dim=2)
+        trap = _pad_zeros(trap, pad_len, dim=2)
 
     nchunks = q.shape[1] // chunk_size
     q, k, v = q.to(dtype), k.to(dtype), v.to(dtype)
@@ -628,7 +649,9 @@ def mamba3_MIMO_chunk_ref(
 
     def segsum_unstable(x: Tensor) -> Tensor:
         x_segsum = x[..., :, None] - x[..., None, :]
-        mask = torch.tril(torch.ones(x.size(-1), x.size(-1), device=x.device, dtype=torch.bool), diagonal=0)
+        mask = torch.tril(
+            torch.ones(x.size(-1), x.size(-1), device=x.device, dtype=torch.bool), diagonal=0
+        )
         return x_segsum.masked_fill(~mask, -torch.inf)
 
     mimo_mask_outer = segsum_unstable(dA_cs)
@@ -702,15 +725,9 @@ def run_ref_backward_fp32(
     k_bias = inputs["k_bias"].detach().to(ref_dtype).requires_grad_(True)
     mimo_v = inputs["mimo_v"].detach().to(ref_dtype).requires_grad_(True)
     mimo_o = (
-        inputs["mimo_o"].detach().to(ref_dtype).requires_grad_(True)
-        if contract_mimo_out
-        else None
+        inputs["mimo_o"].detach().to(ref_dtype).requires_grad_(True) if contract_mimo_out else None
     )
-    z = (
-        inputs["z"].detach().to(ref_dtype).requires_grad_(True)
-        if inputs["z"] is not None
-        else None
-    )
+    z = inputs["z"].detach().to(ref_dtype).requires_grad_(True) if inputs["z"] is not None else None
     mimo_z = (
         inputs["mimo_z"].detach().to(ref_dtype).requires_grad_(True)
         if inputs["mimo_z"] is not None
@@ -1312,6 +1329,7 @@ def test_mamba_mimo_smoke_forward_backward_varlen(mods: SimpleNamespace) -> None
     correct output shape and all 14 leaf gradients are populated and finite.
     """
     import math
+
     chunk_size = 16
     mimo_rank = 4
     nheads_qk = FIXED_G
@@ -1324,67 +1342,107 @@ def test_mamba_mimo_smoke_forward_backward_varlen(mods: SimpleNamespace) -> None
     s_total = sum(seqlens)
     cu_seqlens = torch.tensor(
         [0] + list(torch.cumsum(torch.tensor(seqlens, dtype=torch.int32), dim=0).tolist()),
-        device="cuda", dtype=torch.int32,
+        device="cuda",
+        dtype=torch.int32,
     )
 
     torch.manual_seed(42)
     torch.cuda.manual_seed_all(42)
 
     Q = torch.randn(
-        (1, s_total, mimo_rank, nheads_qk, headdim_qk), device="cuda",
-        dtype=FIXED_DTYPE, requires_grad=True,
+        (1, s_total, mimo_rank, nheads_qk, headdim_qk),
+        device="cuda",
+        dtype=FIXED_DTYPE,
+        requires_grad=True,
     )
     K = torch.randn_like(Q, requires_grad=True)
     V = torch.randn(
-        (1, s_total, nheads, headdim_v), device="cuda",
-        dtype=FIXED_DTYPE, requires_grad=True,
+        (1, s_total, nheads, headdim_v),
+        device="cuda",
+        dtype=FIXED_DTYPE,
+        requires_grad=True,
     )
-    DT = F.softplus(
-        -3.0 + torch.randn(1, nheads, s_total, device="cuda", dtype=torch.float)
-    ).detach().requires_grad_(True)
+    DT = (
+        F.softplus(-3.0 + torch.randn(1, nheads, s_total, device="cuda", dtype=torch.float))
+        .detach()
+        .requires_grad_(True)
+    )
     ADT = (-DT.detach() * math.log2(math.e)).clone().detach().requires_grad_(True)
     Trap = (
-        torch.rand((1, nheads, s_total), device="cuda", dtype=FIXED_DTYPE) * 0.5
-    ).detach().requires_grad_(True)
+        (torch.rand((1, nheads, s_total), device="cuda", dtype=FIXED_DTYPE) * 0.5)
+        .detach()
+        .requires_grad_(True)
+    )
     Q_bias = torch.randn(
-        (nheads, mimo_rank, headdim_qk), device="cuda",
-        dtype=torch.float32, requires_grad=True,
+        (nheads, mimo_rank, headdim_qk),
+        device="cuda",
+        dtype=torch.float32,
+        requires_grad=True,
     )
     K_bias = torch.randn_like(Q_bias, requires_grad=True)
     MIMO_V = (
-        torch.randn((nheads, mimo_rank, headdim_v), device="cuda", dtype=torch.float32) / mimo_rank
-    ).detach().requires_grad_(True)
+        (
+            torch.randn((nheads, mimo_rank, headdim_v), device="cuda", dtype=torch.float32)
+            / mimo_rank
+        )
+        .detach()
+        .requires_grad_(True)
+    )
     MIMO_Z = (torch.randn_like(MIMO_V) / mimo_rank).detach().requires_grad_(True)
     MIMO_Out = (torch.randn_like(MIMO_V) / mimo_rank).detach().requires_grad_(True)
     Angles = torch.rand(
-        (1, s_total, nheads, headdim_qk // rotary_dim_divisor), device="cuda",
-        dtype=torch.float32, requires_grad=True,
+        (1, s_total, nheads, headdim_qk // rotary_dim_divisor),
+        device="cuda",
+        dtype=torch.float32,
+        requires_grad=True,
     )
     D = torch.randn((nheads,), device="cuda", dtype=torch.float32, requires_grad=True)
     Z = torch.randn(
-        (1, s_total, nheads, headdim_v), device="cuda",
-        dtype=FIXED_DTYPE, requires_grad=True,
+        (1, s_total, nheads, headdim_v),
+        device="cuda",
+        dtype=FIXED_DTYPE,
+        requires_grad=True,
     )
 
     out = mods.top.mamba3_mimo(
-        Q, K, V, ADT, DT, Trap,
-        Q_bias, K_bias, MIMO_V, MIMO_Z, MIMO_Out,
-        Angles, D, Z,
+        Q,
+        K,
+        V,
+        ADT,
+        DT,
+        Trap,
+        Q_bias,
+        K_bias,
+        MIMO_V,
+        MIMO_Z,
+        MIMO_Out,
+        Angles,
+        D,
+        Z,
         chunk_size=chunk_size,
         rotary_dim_divisor=rotary_dim_divisor,
         dtype=FIXED_DTYPE,
         cu_seqlens=cu_seqlens,
     )
-    assert out.shape == (1, s_total, nheads, headdim_v), \
-        f"unexpected output shape {out.shape}"
+    assert out.shape == (1, s_total, nheads, headdim_v), f"unexpected output shape {out.shape}"
 
     out.float().sum().backward()
 
     leaf_tensors = {
-        "Q": Q, "K": K, "V": V, "ADT": ADT, "DT": DT, "Trap": Trap,
-        "Q_bias": Q_bias, "K_bias": K_bias,
-        "MIMO_V": MIMO_V, "MIMO_Z": MIMO_Z, "MIMO_Out": MIMO_Out,
-        "Angles": Angles, "D": D, "Z": Z,
+        "Q": Q,
+        "K": K,
+        "V": V,
+        "ADT": ADT,
+        "DT": DT,
+        "Trap": Trap,
+        "Q_bias": Q_bias,
+        "K_bias": K_bias,
+        "MIMO_V": MIMO_V,
+        "MIMO_Z": MIMO_Z,
+        "MIMO_Out": MIMO_Out,
+        "Angles": Angles,
+        "D": D,
+        "Z": Z,
     }
     for name, tensor in leaf_tensors.items():
         assert tensor.grad is not None, f"Missing gradient for {name}"
@@ -1395,11 +1453,12 @@ def test_mamba_mimo_smoke_forward_backward_varlen(mods: SimpleNamespace) -> None
 # Varlen fixtures and helpers
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def mods_varlen() -> SimpleNamespace:
     _require_cuda_and_kernel_deps()
-    import mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_fwd_varlen as fwd_varlen
     import mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_bwd_varlen as bwd_varlen
+    import mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_fwd_varlen as fwd_varlen
     import mamba_ssm.ops.triton.mamba3.mamba3_mimo_utils as utils_varlen
 
     return SimpleNamespace(
@@ -1458,9 +1517,7 @@ def build_inputs_varlen(
     len(seqlens)
     s_total = sum(seqlens)
     cu_seqlens = torch.tensor(
-        [0] + list(
-            torch.cumsum(torch.tensor(seqlens, dtype=torch.int32), dim=0).tolist()
-        ),
+        [0] + list(torch.cumsum(torch.tensor(seqlens, dtype=torch.int32), dim=0).tolist()),
         device="cuda",
         dtype=torch.int32,
     )
@@ -1487,21 +1544,34 @@ def build_inputs_varlen(
 
     # Varlen cumsum / segsum: per-sequence prefix sums respecting sequence boundaries.
     dA_cs, dA_cs_rev, segsum = mods_varlen.utils_varlen.compute_dacs_segsum_triton_varlen(
-        dA, chunk_size, cu_seqlens,
+        dA,
+        chunk_size,
+        cu_seqlens,
     )
     trap = torch.rand((b, h, s_total), device="cuda", dtype=dtype)
     dout = torch.randn_like(v)
 
     return {
-        "q": q, "k": k, "v": v,
-        "q_bias": q_bias, "k_bias": k_bias,
-        "mimo_v": mimo_v, "mimo_o": mimo_o,
-        "z": z, "mimo_z": mimo_z, "D": d,
-        "angles": angles, "dt": dt,
+        "q": q,
+        "k": k,
+        "v": v,
+        "q_bias": q_bias,
+        "k_bias": k_bias,
+        "mimo_v": mimo_v,
+        "mimo_o": mimo_o,
+        "z": z,
+        "mimo_z": mimo_z,
+        "D": d,
+        "angles": angles,
+        "dt": dt,
         "dA": dA,
-        "dA_cs": dA_cs, "dA_cs_rev": dA_cs_rev,
-        "segsum": segsum, "trap": trap, "dout": dout,
-        "cu_seqlens": cu_seqlens, "seqlens": seqlens,
+        "dA_cs": dA_cs,
+        "dA_cs_rev": dA_cs_rev,
+        "segsum": segsum,
+        "trap": trap,
+        "dout": dout,
+        "cu_seqlens": cu_seqlens,
+        "seqlens": seqlens,
         "chunk_size": chunk_size,
         "rotary_dim_divisor": rotary_dim_divisor,
     }
@@ -1530,17 +1600,9 @@ def run_ref_backward_fp32_varlen(
     q_bias_base = inputs["q_bias"].detach().to(ref_dtype)
     k_bias_base = inputs["k_bias"].detach().to(ref_dtype)
     mimo_v_base = inputs["mimo_v"].detach().to(ref_dtype)
-    mimo_o_base = (
-        inputs["mimo_o"].detach().to(ref_dtype) if contract_mimo_out else None
-    )
-    z_base = (
-        inputs["z"].detach().to(ref_dtype) if inputs["z"] is not None else None
-    )
-    mimo_z_base = (
-        inputs["mimo_z"].detach().to(ref_dtype)
-        if inputs["mimo_z"] is not None
-        else None
-    )
+    mimo_o_base = inputs["mimo_o"].detach().to(ref_dtype) if contract_mimo_out else None
+    z_base = inputs["z"].detach().to(ref_dtype) if inputs["z"] is not None else None
+    mimo_z_base = inputs["mimo_z"].detach().to(ref_dtype) if inputs["mimo_z"] is not None else None
     d_base = inputs["D"].detach().to(ref_dtype)
     angles_base = inputs["angles"].detach().to(ref_dtype)
     dt_base = inputs["dt"].detach().to(ref_dtype)
@@ -1576,31 +1638,38 @@ def run_ref_backward_fp32_varlen(
         # --- Leaf tensors: only the VALID slice is differentiable ---
         # mamba3_MIMO_chunk_ref handles padding internally and returns outputs
         # already sliced back to seq_len, so no explicit _pad_zeros needed here.
-        q_i_leaf   = q_base[:, start:end].detach().requires_grad_()
-        k_i_leaf   = k_base[:, start:end].detach().requires_grad_()
-        v_i_leaf   = v_base[:, start:end].detach().requires_grad_()
-        qb_i       = q_bias_base.clone().requires_grad_()
-        kb_i       = k_bias_base.clone().requires_grad_()
-        mv_i       = mimo_v_base.clone().requires_grad_()
-        mo_i       = mimo_o_base.clone().requires_grad_() if contract_mimo_out else None
-        z_i_leaf   = (
-            z_base[:, start:end].detach().requires_grad_()
-            if z_base is not None else None
-        )
-        mz_i       = (
-            mimo_z_base.clone().requires_grad_() if mimo_z_base is not None else None
-        )
-        d_i        = d_base.clone().requires_grad_()
+        q_i_leaf = q_base[:, start:end].detach().requires_grad_()
+        k_i_leaf = k_base[:, start:end].detach().requires_grad_()
+        v_i_leaf = v_base[:, start:end].detach().requires_grad_()
+        qb_i = q_bias_base.clone().requires_grad_()
+        kb_i = k_bias_base.clone().requires_grad_()
+        mv_i = mimo_v_base.clone().requires_grad_()
+        mo_i = mimo_o_base.clone().requires_grad_() if contract_mimo_out else None
+        z_i_leaf = z_base[:, start:end].detach().requires_grad_() if z_base is not None else None
+        mz_i = mimo_z_base.clone().requires_grad_() if mimo_z_base is not None else None
+        d_i = d_base.clone().requires_grad_()
         ang_i_leaf = angles_base[:, start:end].detach().requires_grad_()
-        dA_cs_i_leaf     = dA_cs_base[:, :, start:end].detach().requires_grad_()
+        dA_cs_i_leaf = dA_cs_base[:, :, start:end].detach().requires_grad_()
         dA_cs_rev_i_leaf = dA_cs_rev_base[:, :, start:end].detach().requires_grad_()
-        dt_i_leaf   = dt_base[:, :, start:end].detach().requires_grad_()
+        dt_i_leaf = dt_base[:, :, start:end].detach().requires_grad_()
         trap_i_leaf = trap_base[:, :, start:end].detach().requires_grad_()
 
         out_i, _, _ = mamba3_MIMO_chunk_ref(
-            q_i_leaf, k_i_leaf, v_i_leaf, qb_i, kb_i, mv_i, mo_i,
-            z_i_leaf, mz_i,
-            ang_i_leaf, dA_cs_i_leaf, dA_cs_rev_i_leaf, dt_i_leaf, trap_i_leaf, d_i,
+            q_i_leaf,
+            k_i_leaf,
+            v_i_leaf,
+            qb_i,
+            kb_i,
+            mv_i,
+            mo_i,
+            z_i_leaf,
+            mz_i,
+            ang_i_leaf,
+            dA_cs_i_leaf,
+            dA_cs_rev_i_leaf,
+            dt_i_leaf,
+            trap_i_leaf,
+            d_i,
             chunk_size=chunk_size,
             rotary_dim_divisor=inputs["rotary_dim_divisor"],
             dtype=ref_dtype,
@@ -1609,11 +1678,18 @@ def run_ref_backward_fp32_varlen(
         # out_i is already [:, :seq_len] — mamba3_MIMO_chunk_ref slices internally.
 
         grad_input_items = [
-            ("q", q_i_leaf), ("k", k_i_leaf), ("v", v_i_leaf),
-            ("q_bias", qb_i), ("k_bias", kb_i),
-            ("mimo_v", mv_i), ("angles", ang_i_leaf),
-            ("dA_cs", dA_cs_i_leaf), ("dA_cs_rev", dA_cs_rev_i_leaf),
-            ("dt", dt_i_leaf), ("trap", trap_i_leaf), ("dD", d_i),
+            ("q", q_i_leaf),
+            ("k", k_i_leaf),
+            ("v", v_i_leaf),
+            ("q_bias", qb_i),
+            ("k_bias", kb_i),
+            ("mimo_v", mv_i),
+            ("angles", ang_i_leaf),
+            ("dA_cs", dA_cs_i_leaf),
+            ("dA_cs_rev", dA_cs_rev_i_leaf),
+            ("dt", dt_i_leaf),
+            ("trap", trap_i_leaf),
+            ("dD", d_i),
         ]
         if z_i_leaf is not None:
             grad_input_items.append(("z", z_i_leaf))
@@ -1659,18 +1735,25 @@ def run_ref_backward_fp32_varlen(
         end = int(cu_seqlens[i + 1].item())
         seq_len = end - start
         pad_len = (chunk_size - seq_len % chunk_size) % chunk_size
-        ddA_cs_i     = _pad_zeros(ddA_cs[:, :, start:end],     pad_len, dim=2)
+        ddA_cs_i = _pad_zeros(ddA_cs[:, :, start:end], pad_len, dim=2)
         ddA_cs_rev_i = _pad_zeros(ddA_cs_rev[:, :, start:end], pad_len, dim=2)
         ddA[:, :, start:end] = grads_to_dA(ddA_cs_i, ddA_cs_rev_i, chunk_size)[:, :, :seq_len]
 
     return {
-        "dq": dq, "dk": dk, "dv": dv,
+        "dq": dq,
+        "dk": dk,
+        "dv": dv,
         "dA": ddA,
-        "ddt": ddt, "dtrap": dtrap_acc,
-        "dq_bias": dq_bias, "dk_bias": dk_bias,
-        "dmimo_v": dmimo_v, "dmimo_o": dmimo_o,
-        "dmimo_z": dmimo_z, "dangles": dangles,
-        "dD": dD, "dz": dz,
+        "ddt": ddt,
+        "dtrap": dtrap_acc,
+        "dq_bias": dq_bias,
+        "dk_bias": dk_bias,
+        "dmimo_v": dmimo_v,
+        "dmimo_o": dmimo_o,
+        "dmimo_z": dmimo_z,
+        "dangles": dangles,
+        "dD": dD,
+        "dz": dz,
     }
 
 
@@ -1692,27 +1775,45 @@ VARLEN_CASE_GRID = [
 # Varlen forward tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("n,p,r,chunk_size,bb_threads", VARLEN_CASE_GRID)
 def test_fwd_varlen_relative_error_lt_10pct(
     mods_varlen: SimpleNamespace,
-    n: int, p: int, r: int, chunk_size: int, bb_threads: int,
+    n: int,
+    p: int,
+    r: int,
+    chunk_size: int,
+    bb_threads: int,
 ) -> None:
     del bb_threads
     seqlens = _varlen_seqlens(chunk_size)
     inputs = build_inputs_varlen(
         mods_varlen=mods_varlen,
-        n=n, p=p, r=r, chunk_size=chunk_size, seqlens=seqlens,
+        n=n,
+        p=p,
+        r=r,
+        chunk_size=chunk_size,
+        seqlens=seqlens,
         seed=9001 + n + p + r + chunk_size,
     )
 
     out_tilelang, _, _ = mods_varlen.fwd_varlen.mamba_mimo_forward_varlen(
-        inputs["q"], inputs["k"], inputs["v"],
-        inputs["q_bias"], inputs["k_bias"],
-        inputs["mimo_v"], inputs["mimo_o"],
-        inputs["z"], inputs["D"], inputs["mimo_z"],
+        inputs["q"],
+        inputs["k"],
+        inputs["v"],
+        inputs["q_bias"],
+        inputs["k_bias"],
+        inputs["mimo_v"],
+        inputs["mimo_o"],
+        inputs["z"],
+        inputs["D"],
+        inputs["mimo_z"],
         inputs["angles"],
-        inputs["dA_cs"], inputs["dA_cs_rev"],
-        inputs["dt"], inputs["trap"], inputs["segsum"],
+        inputs["dA_cs"],
+        inputs["dA_cs_rev"],
+        inputs["dt"],
+        inputs["trap"],
+        inputs["segsum"],
         chunk_size=chunk_size,
         rotary_dim_divisor=inputs["rotary_dim_divisor"],
         dtype=FIXED_DTYPE,
@@ -1720,14 +1821,20 @@ def test_fwd_varlen_relative_error_lt_10pct(
     )
 
     out_ref_fp32, _, _ = mamba3_MIMO_chunk_ref(
-        inputs["q"].clone(), inputs["k"].clone(), inputs["v"].clone(),
-        inputs["q_bias"].clone(), inputs["k_bias"].clone(),
-        inputs["mimo_v"].clone(), inputs["mimo_o"].clone(),
+        inputs["q"].clone(),
+        inputs["k"].clone(),
+        inputs["v"].clone(),
+        inputs["q_bias"].clone(),
+        inputs["k_bias"].clone(),
+        inputs["mimo_v"].clone(),
+        inputs["mimo_o"].clone(),
         inputs["z"].clone() if inputs["z"] is not None else None,
         inputs["mimo_z"].clone() if inputs["mimo_z"] is not None else None,
         inputs["angles"].clone(),
-        inputs["dA_cs"].clone(), inputs["dA_cs_rev"].clone(),
-        inputs["dt"].clone(), inputs["trap"].clone(),
+        inputs["dA_cs"].clone(),
+        inputs["dA_cs_rev"].clone(),
+        inputs["dt"].clone(),
+        inputs["trap"].clone(),
         inputs["D"].clone() if inputs["D"] is not None else None,
         chunk_size=chunk_size,
         rotary_dim_divisor=inputs["rotary_dim_divisor"],
@@ -1736,7 +1843,8 @@ def test_fwd_varlen_relative_error_lt_10pct(
     )
 
     assert_stable_rel(
-        out_tilelang, out_ref_fp32,
+        out_tilelang,
+        out_ref_fp32,
         label="fwd_varlen",
         cfg=f"N={n}, P={p}, R={r}, chunk={chunk_size}, seqlens={seqlens}",
     )
@@ -1745,26 +1853,43 @@ def test_fwd_varlen_relative_error_lt_10pct(
 @pytest.mark.parametrize("n,p,r,chunk_size,bb_threads", VARLEN_CASE_GRID)
 def test_fwd_varlen_prereduce_relative_error_lt_10pct(
     mods_varlen: SimpleNamespace,
-    n: int, p: int, r: int, chunk_size: int, bb_threads: int,
+    n: int,
+    p: int,
+    r: int,
+    chunk_size: int,
+    bb_threads: int,
 ) -> None:
     """Varlen forward pass in prereduce mode (mimo_o=None, output shape [B,S,R,H,P])."""
     del bb_threads
     seqlens = _varlen_seqlens(chunk_size)
     inputs = build_inputs_varlen(
         mods_varlen=mods_varlen,
-        n=n, p=p, r=r, chunk_size=chunk_size, seqlens=seqlens,
+        n=n,
+        p=p,
+        r=r,
+        chunk_size=chunk_size,
+        seqlens=seqlens,
         seed=9003 + n + p + r + chunk_size,
         has_z=False,
     )
 
     out_tilelang, _, _ = mods_varlen.fwd_varlen.mamba_mimo_forward_varlen(
-        inputs["q"], inputs["k"], inputs["v"],
-        inputs["q_bias"], inputs["k_bias"],
-        inputs["mimo_v"], None,
-        inputs["z"], inputs["D"], inputs["mimo_z"],
+        inputs["q"],
+        inputs["k"],
+        inputs["v"],
+        inputs["q_bias"],
+        inputs["k_bias"],
+        inputs["mimo_v"],
+        None,
+        inputs["z"],
+        inputs["D"],
+        inputs["mimo_z"],
         inputs["angles"],
-        inputs["dA_cs"], inputs["dA_cs_rev"],
-        inputs["dt"], inputs["trap"], inputs["segsum"],
+        inputs["dA_cs"],
+        inputs["dA_cs_rev"],
+        inputs["dt"],
+        inputs["trap"],
+        inputs["segsum"],
         chunk_size=chunk_size,
         rotary_dim_divisor=inputs["rotary_dim_divisor"],
         dtype=FIXED_DTYPE,
@@ -1772,13 +1897,20 @@ def test_fwd_varlen_prereduce_relative_error_lt_10pct(
     )
 
     out_ref_fp32, _, _ = mamba3_MIMO_chunk_ref(
-        inputs["q"].clone(), inputs["k"].clone(), inputs["v"].clone(),
-        inputs["q_bias"].clone(), inputs["k_bias"].clone(),
-        inputs["mimo_v"].clone(), None,
-        None, None,
+        inputs["q"].clone(),
+        inputs["k"].clone(),
+        inputs["v"].clone(),
+        inputs["q_bias"].clone(),
+        inputs["k_bias"].clone(),
+        inputs["mimo_v"].clone(),
+        None,
+        None,
+        None,
         inputs["angles"].clone(),
-        inputs["dA_cs"].clone(), inputs["dA_cs_rev"].clone(),
-        inputs["dt"].clone(), inputs["trap"].clone(),
+        inputs["dA_cs"].clone(),
+        inputs["dA_cs_rev"].clone(),
+        inputs["dt"].clone(),
+        inputs["trap"].clone(),
         inputs["D"].clone() if inputs["D"] is not None else None,
         chunk_size=chunk_size,
         rotary_dim_divisor=inputs["rotary_dim_divisor"],
@@ -1788,7 +1920,8 @@ def test_fwd_varlen_prereduce_relative_error_lt_10pct(
     )
 
     assert_stable_rel(
-        out_tilelang, out_ref_fp32,
+        out_tilelang,
+        out_ref_fp32,
         label="fwd_varlen_prereduce",
         cfg=f"N={n}, P={p}, R={r}, chunk={chunk_size}, seqlens={seqlens}",
     )
@@ -1798,36 +1931,64 @@ def test_fwd_varlen_prereduce_relative_error_lt_10pct(
 # Varlen backward tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("n,p,r,chunk_size,bb_threads", VARLEN_CASE_GRID)
 def test_bwd_varlen_relative_errors_lt_10pct(
     mods_varlen: SimpleNamespace,
-    n: int, p: int, r: int, chunk_size: int, bb_threads: int,
+    n: int,
+    p: int,
+    r: int,
+    chunk_size: int,
+    bb_threads: int,
 ) -> None:
     seqlens = _varlen_seqlens(chunk_size)
     inputs = build_inputs_varlen(
         mods_varlen=mods_varlen,
-        n=n, p=p, r=r, chunk_size=chunk_size, seqlens=seqlens,
+        n=n,
+        p=p,
+        r=r,
+        chunk_size=chunk_size,
+        seqlens=seqlens,
         seed=9002 + n + p + r + chunk_size,
     )
 
     ref_grads = run_ref_backward_fp32_varlen(inputs)
 
     (
-        dq, dk, dv, dA, ddt, dtrap,
-        dq_bias, dk_bias,
-        dmimo_v, dmimo_z, dmimo_o,
-        dangles, dD, dz,
+        dq,
+        dk,
+        dv,
+        dA,
+        ddt,
+        dtrap,
+        dq_bias,
+        dk_bias,
+        dmimo_v,
+        dmimo_z,
+        dmimo_o,
+        dangles,
+        dD,
+        dz,
     ) = mods_varlen.bwd_varlen.mamba_mimo_bwd_combined_varlen(
         inputs["dout"],
-        inputs["q"], inputs["k"], inputs["v"],
-        inputs["q_bias"], inputs["k_bias"],
-        inputs["mimo_v"], inputs["mimo_o"],
-        inputs["z"], inputs["mimo_z"],
+        inputs["q"],
+        inputs["k"],
+        inputs["v"],
+        inputs["q_bias"],
+        inputs["k_bias"],
+        inputs["mimo_v"],
+        inputs["mimo_o"],
+        inputs["z"],
+        inputs["mimo_z"],
         inputs["angles"],
-        inputs["dA_cs"], inputs["dA_cs_rev"],
-        inputs["dt"], inputs["trap"],
-        inputs["D"], inputs["segsum"],
-        chunk_size, inputs["rotary_dim_divisor"],
+        inputs["dA_cs"],
+        inputs["dA_cs_rev"],
+        inputs["dt"],
+        inputs["trap"],
+        inputs["D"],
+        inputs["segsum"],
+        chunk_size,
+        inputs["rotary_dim_divisor"],
         FIXED_DTYPE,
         cu_seqlens=inputs["cu_seqlens"],
         bb_threads=bb_threads,
@@ -1860,20 +2021,26 @@ def test_bwd_varlen_relative_errors_lt_10pct(
 @pytest.mark.parametrize("n,p,r,chunk_size,bb_threads", VARLEN_CASE_GRID)
 def test_bwd_varlen_prereduce_relative_errors_lt_10pct(
     mods_varlen: SimpleNamespace,
-    n: int, p: int, r: int, chunk_size: int, bb_threads: int,
+    n: int,
+    p: int,
+    r: int,
+    chunk_size: int,
+    bb_threads: int,
 ) -> None:
     """Varlen backward in prereduce mode (mimo_o=None)."""
     seqlens = _varlen_seqlens(chunk_size)
     inputs = build_inputs_varlen(
         mods_varlen=mods_varlen,
-        n=n, p=p, r=r, chunk_size=chunk_size, seqlens=seqlens,
+        n=n,
+        p=p,
+        r=r,
+        chunk_size=chunk_size,
+        seqlens=seqlens,
         seed=9004 + n + p + r + chunk_size,
         has_z=False,
     )
     b, s_total, h_dim, p_dim = inputs["v"].shape
-    dout_prereduce = torch.randn(
-        (b, s_total, r, h_dim, p_dim), device="cuda", dtype=FIXED_DTYPE
-    )
+    dout_prereduce = torch.randn((b, s_total, r, h_dim, p_dim), device="cuda", dtype=FIXED_DTYPE)
 
     ref_grads = run_ref_backward_fp32_varlen(
         inputs,
@@ -1882,21 +2049,40 @@ def test_bwd_varlen_prereduce_relative_errors_lt_10pct(
     )
 
     (
-        dq, dk, dv, dA, ddt, dtrap,
-        dq_bias, dk_bias,
-        dmimo_v, dmimo_z, dmimo_o,
-        dangles, dD, dz,
+        dq,
+        dk,
+        dv,
+        dA,
+        ddt,
+        dtrap,
+        dq_bias,
+        dk_bias,
+        dmimo_v,
+        dmimo_z,
+        dmimo_o,
+        dangles,
+        dD,
+        dz,
     ) = mods_varlen.bwd_varlen.mamba_mimo_bwd_combined_varlen(
         dout_prereduce,
-        inputs["q"], inputs["k"], inputs["v"],
-        inputs["q_bias"], inputs["k_bias"],
-        inputs["mimo_v"], None,
-        None, None,
+        inputs["q"],
+        inputs["k"],
+        inputs["v"],
+        inputs["q_bias"],
+        inputs["k_bias"],
+        inputs["mimo_v"],
+        None,
+        None,
+        None,
         inputs["angles"],
-        inputs["dA_cs"], inputs["dA_cs_rev"],
-        inputs["dt"], inputs["trap"],
-        inputs["D"], inputs["segsum"],
-        chunk_size, inputs["rotary_dim_divisor"],
+        inputs["dA_cs"],
+        inputs["dA_cs_rev"],
+        inputs["dt"],
+        inputs["trap"],
+        inputs["D"],
+        inputs["segsum"],
+        chunk_size,
+        inputs["rotary_dim_divisor"],
         FIXED_DTYPE,
         cu_seqlens=inputs["cu_seqlens"],
         bb_threads=bb_threads,
@@ -1920,9 +2106,6 @@ def test_bwd_varlen_prereduce_relative_errors_lt_10pct(
         "dD": (dD, ref_grads["dD"]),
     }
 
-    cfg = (
-        f"N={n}, P={p}, R={r}, chunk={chunk_size}, "
-        f"seqlens={seqlens}, bb_threads={bb_threads}"
-    )
+    cfg = f"N={n}, P={p}, R={r}, chunk={chunk_size}, " f"seqlens={seqlens}, bb_threads={bb_threads}"
     for name, (ours, ref) in comparisons.items():
         assert_stable_rel(ours, ref, label=f"bwd_varlen_prereduce_{name}", cfg=cfg)

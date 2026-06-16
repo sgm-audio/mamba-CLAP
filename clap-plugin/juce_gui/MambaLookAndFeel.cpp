@@ -11,7 +11,7 @@ MambaLookAndFeel::MambaLookAndFeel()
     setColour (juce::Slider::thumbColourId, neonGreen);
     setColour (juce::Slider::rotarySliderFillColourId, neonGreen.withAlpha (0.8f));
     setColour (juce::Slider::rotarySliderOutlineColourId, darkGrey);
-    
+
     setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.9f));
     setColour (juce::TextButton::buttonColourId, darkGrey);
     setColour (juce::TextButton::textColourOffId, juce::Colours::white);
@@ -63,12 +63,12 @@ void MambaLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int wi
         // Add a subtle glow to the fill
         g.setColour (fill);
         g.strokePath (valueArc, juce::PathStrokeType (lineW, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        
+
         // Draw "Thumb" / Pointer
         auto thumbWidth = lineW * 2.0f;
         juce::Path thumb;
         thumb.addRectangle (-thumbWidth * 0.5f, -radius, thumbWidth, lineW * 2.0f);
-        
+
         g.setColour (juce::Colours::white);
         g.fillPath (thumb, juce::AffineTransform::rotation (toAngle).translated (bounds.getCentre()));
     }
@@ -77,12 +77,12 @@ void MambaLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int wi
 void MambaLookAndFeel::drawLabel (juce::Graphics& g, juce::Label& label)
 {
     g.setColour (label.findColour (juce::Label::textColourId));
-    
+
     auto font = getLabelFont (label);
     g.setFont (font);
-    
+
     auto textArea = getLabelBorderSize (label).subtractedFrom (label.getLocalBounds());
-    
+
     g.drawFittedText (label.getText(), textArea, label.getJustificationType(),
                       juce::jmax (1, (int) (textArea.getHeight() / font.getHeight())),
                       label.getMinimumHorizontalScale());

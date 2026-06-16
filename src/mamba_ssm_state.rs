@@ -9,16 +9,16 @@ pub struct MambaState {
     /// The recurrent hidden state (h) of the Mamba-SSM
     /// In a real implementation, this would be a tensor, but for now we'll use a placeholder
     pub hidden_state: Vec<f32>,
-    
+
     /// Convolutional state for causal convolutions
     pub conv_state: Option<Vec<f32>>,
-    
+
     /// Time step counter for position embeddings
     pub time_step: usize,
-    
+
     /// Layer index (for multi-layer SSMs)
     pub layer_idx: usize,
-    
+
     /// Device information (CPU/GPU placeholder)
     pub device: String,
 }
@@ -26,16 +26,16 @@ pub struct MambaState {
 impl MambaState {
     /// Create a new zero-initialized Mamba state
     pub fn zeros(
-        batch_size: usize, 
-        d_model: usize, 
-        d_conv: usize, 
+        batch_size: usize,
+        d_model: usize,
+        d_conv: usize,
         n_layers: usize,
         device: &str
     ) -> Result<Self, Box<dyn Error>> {
         // Hidden state: [batch, d_model, n_layers] flattened
         let hidden_state_len = batch_size * d_model * n_layers;
         let hidden_state = vec![0.0f32; hidden_state_len];
-        
+
         // Convolutional state: [batch, d_conv, d_model, n_layers] flattened
         let conv_state = if d_conv > 0 {
             let conv_state_len = batch_size * d_conv * d_model * n_layers;
@@ -43,7 +43,7 @@ impl MambaState {
         } else {
             None
         };
-        
+
         Ok(Self {
             hidden_state,
             conv_state,
@@ -52,7 +52,7 @@ impl MambaState {
             device: device.to_string(),
         })
     }
-    
+
     /// Create a new state from existing tensors (for serialization/deserialization)
     pub fn from_tensors(
         hidden_state: Vec<f32>,
@@ -69,7 +69,7 @@ impl MambaState {
             device,
         }
     }
-    
+
     /// Reset the state to zeros while preserving dimensions
     pub fn reset(&mut self) -> Result<(), Box<dyn Error>> {
         self.hidden_state.iter_mut().for_each(|x| *x = 0.0);
@@ -79,17 +79,17 @@ impl MambaState {
         self.time_step = 0;
         Ok(())
     }
-    
+
     /// Increment the time step counter
     pub fn increment_time_step(&mut self, steps: usize) {
         self.time_step += steps;
     }
-    
+
     /// Get the current time step
     pub fn get_time_step(&self) -> usize {
         self.time_step
     }
-    
+
     /// Clone the state (deep copy)
     pub fn clone_state(&self) -> Self {
         Self {
@@ -100,17 +100,17 @@ impl MambaState {
             device: self.device.clone(),
         }
     }
-    
+
     /// Serialize state to bytes for storage/transmission
     pub fn serialize(&self) -> Result<Vec<u8>, Box<dyn Error>> {
         Ok(serde_json::to_vec(self)?)
     }
-    
+
     /// Deserialize state from bytes
     pub fn deserialize(buf: &[u8]) -> Result<Self, Box<dyn Error>> {
         Ok(serde_json::from_slice(buf)?)
     }
-    
+
     /// Validate state dimensions match expected shapes
     pub fn validate_dimensions(&self, _expected_d_model: usize, _expected_n_layers: usize) -> Result<(), Box<dyn Error>> {
         // For simplicity, we're just checking that we have reasonable data
@@ -120,7 +120,7 @@ impl MambaState {
                 "Hidden state is empty"
             )));
         }
-        
+
         // Validate conv state if present
         if let Some(ref conv_state) = self.conv_state {
             if conv_state.is_empty() {
@@ -130,7 +130,7 @@ impl MambaState {
                 )));
             }
         }
-        
+
         Ok(())
     }
 }
@@ -143,7 +143,7 @@ impl Hash for MambaState {
         self.layer_idx.hash(state);
         self.device.hash(state);
         self.hidden_state.len().hash(state);
-        
+
         if let Some(ref conv_state) = self.conv_state {
             conv_state.len().hash(state);
         }
@@ -176,22 +176,22 @@ impl SharedMambaState {
             inner: Arc::new(parking_lot::RwLock::new(state)),
         }
     }
-    
+
     /// Read the current state (blocks briefly)
     pub fn read(&self) -> parking_lot::RwLockReadGuard<MambaState> {
         self.inner.read()
     }
-    
+
     /// Write a new state (blocks briefly)
     pub fn write(&self) -> parking_lot::RwLockWriteGuard<MambaState> {
         self.inner.write()
     }
-    
+
     /// Try to read without blocking
     pub fn try_read(&self) -> Option<parking_lot::RwLockReadGuard<MambaState>> {
         self.inner.try_read()
     }
-    
+
     /// Try to write without blocking
     pub fn try_write(&self) -> Option<parking_lot::RwLockWriteGuard<MambaState>> {
         self.inner.try_write()
@@ -214,7 +214,7 @@ impl Default for SharedMambaState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_mamba_state_creation() -> Result<(), Box<dyn Error>> {
         let state = MambaState::zeros(2, 64, 4, 3, "cpu")?;
@@ -226,7 +226,7 @@ mod tests {
         assert_eq!(state.device, "cpu");
         Ok(())
     }
-    
+
     #[test]
     fn test_mamba_state_reset() -> Result<(), Box<dyn Error>> {
         let mut state = MambaState::zeros(1, 32, 2, 2, "cpu")?;
@@ -234,24 +234,24 @@ mod tests {
         if let Some(ref mut conv) = state.conv_state {
             conv.iter_mut().for_each(|x| *x = 2.0);
         }
-        
+
         state.reset()?;
-        
+
         // Check that all values are zero
         for val in &state.hidden_state {
             assert_eq!(*val, 0.0);
         }
-        
+
         if let Some(ref conv) = state.conv_state {
             for val in conv {
                 assert_eq!(*val, 0.0);
             }
         }
-        
+
         assert_eq!(state.time_step, 0);
         Ok(())
     }
-    
+
     #[test]
     fn test_mamba_state_serialization() -> Result<(), Box<dyn Error>> {
         let mut original = MambaState::zeros(1, 16, 2, 1, "cpu")?;
@@ -261,38 +261,38 @@ mod tests {
         }
         original.time_step = 100;
         original.layer_idx = 1;
-        
+
         let serialized = original.serialize()?;
         let deserialized = MambaState::deserialize(&serialized)?;
-        
+
         assert_eq!(deserialized.time_step, 100);
         assert_eq!(deserialized.layer_idx, 1);
         assert_eq!(deserialized.hidden_state.len(), original.hidden_state.len());
-        assert_eq!(deserialized.conv_state.as_ref().unwrap().len(), 
+        assert_eq!(deserialized.conv_state.as_ref().unwrap().len(),
                   original.conv_state.as_ref().unwrap().len());
         assert_eq!(deserialized.device, original.device);
-        
+
         Ok(())
     }
-    
+
     #[test]
     fn test_shared_mamba_state() {
         let state = MambaState::zeros(1, 8, 2, 1, "cpu").unwrap();
         let shared = SharedMambaState::new(state);
-        
+
         // Test read
         {
             let guard = shared.read();
             assert_eq!(guard.time_step, 0);
         }
-        
+
         // Test write
         {
             let mut guard = shared.write();
             guard.time_step = 42;
             assert_eq!(guard.time_step, 42);
         }
-        
+
         // Verify change persisted
         {
             let guard = shared.read();

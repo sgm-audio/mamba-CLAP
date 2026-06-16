@@ -20,13 +20,13 @@ Architecture contract (must stay in sync with C++):
     5. out_proj:   [d_inner] → [d_model=1]      (weight: [d_model, d_inner])
 
 Weight tensors (stored flat in .mamba_weights, per layer):
-    in_proj   : [d_model * 2 * d_inner]  float32
-    out_proj  : [d_inner]               float32   (d_model=1 → d_inner rows)
-    conv1d    : [d_inner * d_conv]      float32
-    dA        : [d_inner * d_state]     float32   (pre-computed discrete A)
-    dB        : [d_inner * d_state]     float32   (pre-computed discrete B, fixed)
-    C         : [d_inner * d_state]     float32   (output matrix, fixed)
-    D         : [d_inner]               float32
+    in_proj   : [d_model * 2 * d_inner]  float32  (W^T stored, [d_model, 2*d_inner] row-major)
+    out_proj  : [d_model * d_inner]      float32  ([d_model, d_inner] row-major)
+    conv1d    : [d_inner * d_conv]       float32
+    dA        : [d_inner * d_state]      float32  (pre-computed discrete A)
+    dB        : [d_inner * d_state]      float32  (pre-computed discrete B, fixed)
+    C         : [d_inner * d_state]      float32  (output matrix, fixed)
+    D         : [d_inner]                float32
 """
 
 from __future__ import annotations
@@ -60,8 +60,8 @@ class SimpleMambaLayer(nn.Module):
         super().__init__()
         self.d_model = d_model
         self.d_state = d_state
-        self.d_conv  = d_conv
-        self.expand  = expand
+        self.d_conv = d_conv
+        self.expand = expand
         self.d_inner = expand * d_model
 
         # --- Weights (exactly matching C++ weight layout) ---
@@ -89,9 +89,9 @@ class SimpleMambaLayer(nn.Module):
         # dB: discrete input matrix
         self.dB = nn.Parameter(torch.zeros(self.d_inner, d_state))
         # C: output matrix
-        self.C  = nn.Parameter(torch.zeros(self.d_inner, d_state))
+        self.C = nn.Parameter(torch.zeros(self.d_inner, d_state))
         # D: skip connection
-        self.D  = nn.Parameter(torch.ones(self.d_inner))
+        self.D = nn.Parameter(torch.ones(self.d_inner))
 
         self._init_weights()
 
@@ -110,7 +110,7 @@ class SimpleMambaLayer(nn.Module):
         with torch.no_grad():
             self.dA.fill_(0.9)
             nn.init.normal_(self.dB, std=0.01)
-            nn.init.normal_(self.C,  std=0.01)
+            nn.init.normal_(self.C, std=0.01)
             self.D.fill_(1.0)
 
     # ------------------------------------------------------------------
@@ -144,9 +144,9 @@ class SimpleMambaLayer(nn.Module):
         # --- Causal depthwise conv1d ---
         # Transpose to [batch, d_inner, seq] for conv1d
         x_t = x_branch.transpose(1, 2)
-        conv_out = self.conv1d(x_t)[:, :, :seq_len]          # [batch, d_inner, seq]
+        conv_out = self.conv1d(x_t)[:, :, :seq_len]  # [batch, d_inner, seq]
         conv_out = F.silu(conv_out)
-        conv_out = conv_out.transpose(1, 2)                   # [batch, seq, d_inner]
+        conv_out = conv_out.transpose(1, 2)  # [batch, seq, d_inner]
 
         # --- Sequential SSM recurrence ---
         # Matches C++ processSample() exactly.
@@ -155,7 +155,7 @@ class SimpleMambaLayer(nn.Module):
         h = state  # [batch, d_inner, d_state]
 
         for t in range(seq_len):
-            x_t_step = conv_out[:, t, :]   # [batch, d_inner]
+            x_t_step = conv_out[:, t, :]  # [batch, d_inner]
 
             # h_new[b, i, j] = dA[i, j] * h[b, i, j] + dB[i, j] * x[b, i]
             h = self.dA.unsqueeze(0) * h + self.dB.unsqueeze(0) * x_t_step.unsqueeze(-1)
@@ -186,9 +186,8 @@ class SimpleMambaLayer(nn.Module):
         and shape expected by MambaWeightLoader::load() in C++.
 
         Shapes:
-            in_proj  : [d_model * 2 * d_inner]  ← in_proj.weight is [2*d_inner, d_model]
-            out_proj : [d_inner]                 ← out_proj.weight is [d_model, d_inner],
-                                                    d_model=1 → just d_inner values
+            in_proj  : [d_model * 2 * d_inner]  ← in_proj.weight.T flattened ([d_model, 2*d_inner])
+            out_proj : [d_model * d_inner]       ← out_proj.weight flattened ([d_model, d_inner])
             conv1d   : [d_inner * d_conv]        ← conv1d.weight is [d_inner, 1, d_conv]
             dA       : [d_inner * d_state]
             dB       : [d_inner * d_state]
@@ -197,18 +196,18 @@ class SimpleMambaLayer(nn.Module):
         """
         with torch.no_grad():
             return {
-                # in_proj.weight shape is [2*d_inner, d_model].
-                # C++ expects [d_model * 2 * d_inner], rows = features, so transpose first.
-                "in_proj":  self.in_proj.weight.T.contiguous().float().flatten(),
-                # out_proj.weight shape is [d_model, d_inner].
-                # C++ expects [d_inner] (d_model=1 path), so just the first row.
-                "out_proj": self.out_proj.weight[0].contiguous().float().flatten(),
-                # conv1d.weight shape is [d_inner, 1, d_conv] → flatten to [d_inner * d_conv].
-                "conv1d":   self.conv1d.weight.squeeze(1).contiguous().float().flatten(),
-                "dA":       self.dA.contiguous().float().flatten(),
-                "dB":       self.dB.contiguous().float().flatten(),
-                "C":        self.C.contiguous().float().flatten(),
-                "D":        self.D.contiguous().float().flatten(),
+                # in_proj.weight: [2*d_inner, d_model] → transpose → [d_model, 2*d_inner], flatten.
+                # C++ reads col-major GEMV: proj[i] = sum_j(W[j, i] * x[j]).
+                "in_proj": self.in_proj.weight.T.contiguous().float().flatten(),
+                # out_proj.weight: [d_model, d_inner] — store full matrix row-major.
+                # C++ reads: out[i] = sum_j(W[i, j] * ssm[j]).
+                "out_proj": self.out_proj.weight.contiguous().float().flatten(),
+                # conv1d.weight: [d_inner, 1, d_conv] → squeeze → [d_inner, d_conv], flatten.
+                "conv1d": self.conv1d.weight.squeeze(1).contiguous().float().flatten(),
+                "dA": self.dA.contiguous().float().flatten(),
+                "dB": self.dB.contiguous().float().flatten(),
+                "C": self.C.contiguous().float().flatten(),
+                "D": self.D.contiguous().float().flatten(),
             }
 
 
@@ -231,17 +230,16 @@ class SimpleMambaModel(nn.Module):
         expand: int = 2,
     ) -> None:
         super().__init__()
-        self.d_model  = d_model
+        self.d_model = d_model
         self.n_layers = n_layers
-        self.d_state  = d_state
-        self.d_conv   = d_conv
-        self.expand   = expand
-        self.d_inner  = expand * d_model
+        self.d_state = d_state
+        self.d_conv = d_conv
+        self.expand = expand
+        self.d_inner = expand * d_model
 
-        self.layers = nn.ModuleList([
-            SimpleMambaLayer(d_model, d_state, d_conv, expand)
-            for _ in range(n_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [SimpleMambaLayer(d_model, d_state, d_conv, expand) for _ in range(n_layers)]
+        )
 
     def forward(
         self,
@@ -272,10 +270,10 @@ class SimpleMambaModel(nn.Module):
         """Returns architecture as dict for embedding in the .mamba_weights header."""
         return {
             "n_layers": self.n_layers,
-            "d_model":  self.d_model,
-            "d_state":  self.d_state,
-            "d_conv":   self.d_conv,
-            "expand":   self.expand,
+            "d_model": self.d_model,
+            "d_state": self.d_state,
+            "d_conv": self.d_conv,
+            "expand": self.expand,
         }
 
 
@@ -306,13 +304,13 @@ if __name__ == "__main__":
     for i, layer in enumerate(model.layers):
         ws = layer.get_weight_arrays()
         exp = {
-            "in_proj":  d_model * 2 * d_inner,
-            "out_proj": d_inner,
-            "conv1d":   d_inner * d_conv,
-            "dA":       d_inner * d_state,
-            "dB":       d_inner * d_state,
-            "C":        d_inner * d_state,
-            "D":        d_inner,
+            "in_proj": d_model * 2 * d_inner,
+            "out_proj": d_model * d_inner,
+            "conv1d": d_inner * d_conv,
+            "dA": d_inner * d_state,
+            "dB": d_inner * d_state,
+            "C": d_inner * d_state,
+            "D": d_inner,
         }
         ok = all(ws[k].numel() == exp[k] for k in exp)
         status = "✅" if ok else "❌"
@@ -323,7 +321,11 @@ if __name__ == "__main__":
 
     total_params = sum(p.numel() for p in model.parameters())
     print(f"\nTotal parameters: {total_params:,}")
-    print("\nAll checks passed — safe to export." if all(
-        layer.get_weight_arrays()["in_proj"].numel() == d_model * 2 * d_inner
-        for layer in model.layers
-    ) else "\n❌ Shape mismatch — fix before exporting!")
+    print(
+        "\nAll checks passed — safe to export."
+        if all(
+            layer.get_weight_arrays()["in_proj"].numel() == d_model * 2 * d_inner
+            for layer in model.layers
+        )
+        else "\n❌ Shape mismatch — fix before exporting!"
+    )

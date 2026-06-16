@@ -148,7 +148,7 @@ The models will be autodownloaded by the generation script below.
 
 These models were trained on the [Pile](https://huggingface.co/datasets/EleutherAI/pile), and follow the standard model dimensions described by GPT-3 and followed by many open source models:
 
-| Parameters | Layers | Model dim. | 
+| Parameters | Layers | Model dim. |
 |------------|--------|------------|
 | 130M       | 24     | 768        |
 | 370M       | 48     | 1024       |
@@ -248,7 +248,7 @@ If you are on ROCm 6.0, run the following steps to avoid errors during compilati
 
 2. Apply the Patch. Run with `sudo` in case you encounter permission issues.
    ```bash
-    patch /opt/rocm/include/hip/amd_detail/amd_hip_bf16.h < rocm_patch/rocm6_0.patch 
+    patch /opt/rocm/include/hip/amd_detail/amd_hip_bf16.h < rocm_patch/rocm6_0.patch
    ```
 
 
@@ -271,12 +271,12 @@ If you use this codebase, or otherwise find our work valuable, please cite Mamba
 }
 
 @misc{lahoti2026mamba3improvedsequencemodeling,
-      title={Mamba-3: Improved Sequence Modeling using State Space Principles}, 
+      title={Mamba-3: Improved Sequence Modeling using State Space Principles},
       author={Aakash Lahoti and Kevin Y. Li and Berlin Chen and Caitlin Wang and Aviv Bick and J. Zico Kolter and Tri Dao and Albert Gu},
       year={2026},
       eprint={2603.15569},
       archivePrefix={arXiv},
       primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2603.15569}, 
+      url={https://arxiv.org/abs/2603.15569},
 }
 ```

@@ -2,12 +2,16 @@
 #define MAMBA_WEIGHT_LOADER_H
 
 #include "mamba_model.h"
+#include "dsp/effect_params.h"
 #include <string>
 #include <vector>
 #include <cstdint>
 
 /**
  * @brief Custom binary weight loader for Mamba models.
+ *
+ * Thread-domain per ADR-002: ALL methods are [Main] only.
+ * Uses mmap, file I/O, and heap allocation. Never call from audio thread.
  *
  * Replaces torch::jit::load() with a flat binary format that has no
 dependencies outside the C++ standard library.
@@ -88,6 +92,49 @@ public:
      */
     static bool extractRawWeights(const std::string& path,
                                   std::vector<std::vector<float>>& outLayers);
+
+    // -----------------------------------------------------------------------
+    // Optional PROJ section (appended after layer weights by export_weights.py
+    // when exporting a full EffectControllerMamba checkpoint).
+    //
+    // Layout (little-endian):
+    //   uint32_t proj_magic  = PROJ_MAGIC
+    //   uint32_t enc_in      (== N_MEL for d_model=1 encoder)
+    //   uint32_t head_out    (== N_MAMBA_OUT)
+    //   float    enc_w[enc_in]
+    //   float    enc_b
+    //   float    head_w[head_out]
+    //   float    head_b[head_out]
+    // -----------------------------------------------------------------------
+    static constexpr uint32_t PROJ_MAGIC    = 0x4A4F5250; // V1: enc+scalar-head ("PROJ" LE)
+    static constexpr uint32_t PROJ_MAGIC_V2 = 0x324F5250; // V2: matrix head, no enc ("PRO2" LE)
+
+    static constexpr uint32_t PROJ_MAGIC_V3 = 0x334F5250; // V3: head + ctx_proj + feat_proj ("PRO3" LE)
+
+    // Weights from the optional PROJ section appended after layer data.
+    // V2 format: head_w is [head_out × d_model_in] row-major matrix.
+    struct ProjectionWeights {
+        bool valid{false};
+        int d_model_in{0}; // N_MEL
+        int head_out{0};   // N_MAMBA_OUT
+        std::vector<float> head_w; // [head_out * d_model_in] row-major
+        std::vector<float> head_b; // [head_out]
+
+        // V3 additions: context projection (N_MEL → head_out)
+        bool has_ctx_proj{false};
+        std::vector<float> ctx_proj_w; // [head_out * d_model_in]
+        std::vector<float> ctx_proj_b; // [head_out]
+
+        // V3 additions: feature projection (N_AUDIO_FEATURES → head_out)
+        bool has_feat_proj{false};
+        int n_audio_features{0};
+        std::vector<float> feat_proj_w; // [head_out * n_audio_features]
+        std::vector<float> feat_proj_b; // [head_out]
+    };
+
+    // Reads the PROJ section (V1, V2, or V3) from a .mambaweights file.
+    // Returns valid=false if the section is absent or malformed.
+    static ProjectionWeights loadProjections(const std::string& path);
 
 private:
     struct Header {

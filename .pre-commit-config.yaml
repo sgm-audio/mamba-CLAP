@@ -4,19 +4,15 @@
 repos:
   # Code formatting
   - repo: https://github.com/psf/black
-    rev: 23.1.0
+    rev: 25.1.0
     hooks:
       - id: black
         language_version: python3
         args: [--line-length=100]
 
   # Import sorting
-  - repo: https://github.com/asottile/seed-isort-config
-    rev: 2.2.0
-    hooks:
-      - id: seed-isort-config
   - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
+    rev: 5.13.2
     hooks:
       - id: isort
         name: isort (python)
@@ -24,23 +20,23 @@ repos:
 
   # Linting
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.1.6
+    rev: v0.9.1
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-        exclude: ^mamba/ssm/cute/|^mamba/ssm/ops/triton/|^mamba/ssm/ops/test_\
+        exclude: ^mamba/ssm/cute/|^mamba/ssm/ops/triton/|^mamba/ssm/ops/test_
 
   # Type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.0
+    rev: v1.13.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-PyYAML]
-        args: [--ignore-missing-imports, --follow-imports=silent]
+        additional_dependencies: [types-PyYAML, types-redis]
+        args: [--ignore-missing-imports, --follow-imports=silent, --explicit-package-bases]
 
   # trailing whitespace
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -52,8 +48,8 @@ repos:
       - id: fix-byte-order-marker
 
   # Prevent committing secrets
-  - repo: https://github.com/gitleaks/gitleaks-action
-    rev: v2.0.0
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
     hooks:
       - id: gitleaks
-        stages: [commit]
+        stages: [pre-commit]

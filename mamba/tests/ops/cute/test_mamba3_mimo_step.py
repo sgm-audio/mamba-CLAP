@@ -11,6 +11,7 @@ python tests/ops/cute/test_mamba3_mimo_step.py  # For benchmark
 
 Remove the -s flag for less verbose output.
 """
+
 import logging
 import warnings
 from dataclasses import dataclass, field
@@ -20,12 +21,8 @@ import pytest
 import torch
 from torch import Tensor
 
-
 warnings.filterwarnings("ignore")
 logging.disable(logging.WARNING)
-
-
-
 
 
 BATCH = 128
@@ -38,9 +35,11 @@ DEVICE = "cuda"
 RTOL = 0.1
 ATOL = 0.1
 
+
 @dataclass(frozen=True)
 class VariantConfig:
     """Captures the SISO/MIMO knobs that used to be mutable globals."""
+
     mimo_dim: int
     use_tilelang: bool
     is_mimo: bool
@@ -140,9 +139,7 @@ def _assert_close(
     except AssertionError as err:
         location = f", step={step}" if step is not None else ""
         stats = _diff_stats(actual, expected)
-        raise AssertionError(
-            f"{label} assertion failed for {cfg}{location} ({stats})"
-        ) from err
+        raise AssertionError(f"{label} assertion failed for {cfg}{location} ({stats})") from err
 
 
 def _run_case(variant: VariantConfig, *, is_outproj_norm: bool) -> RunOutputs:
@@ -243,7 +240,7 @@ def test_step_matches_forward_fp32(variant: VariantConfig, is_outproj_norm: bool
 
     _assert_close(
         outputs.prefix_out,
-        outputs.out_fwd_fp32[:, :outputs.split],
+        outputs.out_fwd_fp32[:, : outputs.split],
         label="mixed-prefix",
         cfg=outputs.config_label,
     )
@@ -261,6 +258,7 @@ def test_step_matches_forward_fp32(variant: VariantConfig, is_outproj_norm: bool
 def run_step_benchmark(variant: VariantConfig, *, is_outproj_norm: bool) -> None:
     _require_cuda_and_kernel_deps()
     from triton.testing import do_bench_cudagraph
+
     Mamba3 = _mamba3_cls()
 
     cfg = _case_config(variant, is_outproj_norm=is_outproj_norm)
@@ -306,10 +304,7 @@ def run_step_benchmark(variant: VariantConfig, *, is_outproj_norm: bool) -> None
     bw = total_bytes / (ms_full * 1e-3) / 1e9
 
     print("\n" + "=" * 70)
-    print(
-        "Benchmark: Mamba3.step() "
-        f"(rotation={rotate_str}, is_outproj_norm={is_outproj_norm})"
-    )
+    print("Benchmark: Mamba3.step() " f"(rotation={rotate_str}, is_outproj_norm={is_outproj_norm})")
     print("=" * 70)
     print(
         f"  batch={BATCH}, d_model={cfg['d_model']}, nheads={NHEADS}, "

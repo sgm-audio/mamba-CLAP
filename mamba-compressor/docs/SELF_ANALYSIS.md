@@ -67,7 +67,7 @@ The `forward_with_state` method in `mamba_tower.py` is defined but not integrate
   class StreamingInference:
       def __init__(self, model_path, chunk_size=2048, lookahead=4):
           # Initialize ring buffers, warm states, etc.
-      
+
       def process_block(self, audio_block):
           # Handle stateful processing across blocks
   ```
@@ -119,7 +119,7 @@ class MultibandParameterHead(nn.Module):
         self.heads = nn.ModuleList([
             CompressorParameterHead() for _ in range(n_bands)
         ])
-    
+
     def forward(self, context):
         return {f"band_{i}": head(context) for i, head in enumerate(self.heads)}
 ```
@@ -144,7 +144,7 @@ No empirical evidence that:
   | Mamba (6L)  | 60s     | 3.2ms   | 4.2/5            |
   | GRU (6L)    | 60s     | 2.1ms   | 3.1/5            |
   | Transformer | 2s      | 45ms    | 3.8/5            |
-  
+
 - Publish results in reproducible format (Weights & Biases reports)
 - Include failure case analysis (where does the model fail?)
 
@@ -168,7 +168,7 @@ The model is untested against:
       model_44k = load_model(sr=44100)
       audio_48k = load_audio("test.wav", sr=48000)
       # Should handle gracefully, not crash or distort
-  
+
   def test_extreme_levels():
       clipped_audio = torch.clamp(audio, -0.99, 0.99)  # Near-clipping
       output = model(clipped_audio)
@@ -190,12 +190,12 @@ The README claims "NeMo Integration for FP8/distributed training," but there's n
 - Implement `NeMoMambaAudioModel(ModelPT)`:
   ```python
   from nemo.core import ModelPT
-  
+
   class NeMoMambaAudioModel(ModelPT):
       def __init__(self, cfg, trainer=None):
           super().__init__(cfg, trainer)
           self.model = ContextAwareCompressor(...)
-      
+
       def training_step(self, batch, batch_idx):
           # Native NeMo training loop with mixed precision
   ```

@@ -3,6 +3,7 @@ import torch.nn as nn
 
 try:
     from mamba_ssm import Mamba
+
     MAMBA_SSM_AVAILABLE = True
 except ImportError:
     MAMBA_SSM_AVAILABLE = False
@@ -41,9 +42,7 @@ class MambaSpectrogramPredictor(nn.Module):
                 ]
             )
         else:
-            self.layers = nn.ModuleList(
-                [nn.Linear(d_model, d_model) for _ in range(n_layer)]
-            )
+            self.layers = nn.ModuleList([nn.Linear(d_model, d_model) for _ in range(n_layer)])
 
         self.output_proj = nn.Linear(d_model, n_mels)
 

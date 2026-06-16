@@ -10,26 +10,31 @@ from __future__ import annotations
 from typing import Optional, Tuple, Union
 
 import torch
-from torch import Tensor
+from mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_bwd import mamba_mimo_bwd_combined
+from mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_bwd_varlen import (
+    mamba_mimo_bwd_combined_varlen,
+)
+from mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_fwd import mamba_mimo_forward
+from mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_fwd_varlen import (
+    mamba_mimo_forward_varlen,
+)
+from mamba_ssm.ops.triton.mamba3.angle_dt import angle_dt_bwd, angle_dt_fwd
 
 # Import kernels
-from mamba_ssm.ops.triton.mamba3.mamba3_mimo_utils import compute_dacs_segsum_triton, compute_dacs_segsum_triton_varlen
-from mamba_ssm.ops.triton.mamba3.angle_dt import angle_dt_fwd, angle_dt_bwd
-
-from mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_fwd import mamba_mimo_forward
-from mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_fwd_varlen import mamba_mimo_forward_varlen
-
-from mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_bwd import mamba_mimo_bwd_combined
-from mamba_ssm.ops.tilelang.mamba3.mamba3_mimo_bwd_varlen import mamba_mimo_bwd_combined_varlen
-
+from mamba_ssm.ops.triton.mamba3.mamba3_mimo_utils import (
+    compute_dacs_segsum_triton,
+    compute_dacs_segsum_triton_varlen,
+)
+from torch import Tensor
 
 # =============================================================================
 # Autograd Function
 # =============================================================================
 
+
 class _Mamba3Function(torch.autograd.Function):
     """Custom autograd function for Mamba-3 with Triton/Tilelang kernels."""
-    
+
     @staticmethod
     def forward(
         ctx,
@@ -60,7 +65,20 @@ class _Mamba3Function(torch.autograd.Function):
         (Q, K, V, ADT, DT, Trap, Q_bias, K_bias, MIMO_V, MIMO_Z, MIMO_Out, Angles, D, Z) = tuple(
             t.contiguous() if t is not None else None
             for t in (
-                Q, K, V, ADT, DT, Trap, Q_bias, K_bias, MIMO_V, MIMO_Z, MIMO_Out, Angles, D, Z,
+                Q,
+                K,
+                V,
+                ADT,
+                DT,
+                Trap,
+                Q_bias,
+                K_bias,
+                MIMO_V,
+                MIMO_Z,
+                MIMO_Out,
+                Angles,
+                D,
+                Z,
             )
         )
         # Kernels require cu_seqlens as int32; torch.cumsum promotes int32→int64 on CUDA
@@ -69,7 +87,8 @@ class _Mamba3Function(torch.autograd.Function):
 
         # Compute cumulative angles (varlen-aware)
         Angles_Cumsum, angle_output_state = angle_dt_fwd(
-            Angles, DT,
+            Angles,
+            DT,
             chunk_size=chunk_size,
             return_output_state=True,
             cu_seqlens=cu_seqlens,
@@ -78,33 +97,75 @@ class _Mamba3Function(torch.autograd.Function):
             Final_Angle = torch.remainder(angle_output_state, 2 * torch.pi).contiguous().detach()
 
         if cu_seqlens is not None:
-            DA_CS, DA_CS_REV, Segsum = compute_dacs_segsum_triton_varlen(ADT, chunk_size, cu_seqlens=cu_seqlens)
+            DA_CS, DA_CS_REV, Segsum = compute_dacs_segsum_triton_varlen(
+                ADT, chunk_size, cu_seqlens=cu_seqlens
+            )
             Out, Final_SSM_State, Final_K = mamba_mimo_forward_varlen(
-                Q, K, V, Q_bias, K_bias, MIMO_V, MIMO_Out,
-                Z, D, MIMO_Z, Angles_Cumsum,
-                DA_CS, DA_CS_REV, DT, Trap, Segsum,
+                Q,
+                K,
+                V,
+                Q_bias,
+                K_bias,
+                MIMO_V,
+                MIMO_Out,
+                Z,
+                D,
+                MIMO_Z,
+                Angles_Cumsum,
+                DA_CS,
+                DA_CS_REV,
+                DT,
+                Trap,
+                Segsum,
                 cu_seqlens=cu_seqlens,
                 return_state=return_state,
-                chunk_size=chunk_size, rotary_dim_divisor=rotary_dim_divisor,
+                chunk_size=chunk_size,
+                rotary_dim_divisor=rotary_dim_divisor,
                 dtype=dtype,
             )
 
         else:
             DA_CS, DA_CS_REV, Segsum = compute_dacs_segsum_triton(ADT, chunk_size)
             Out, Final_SSM_State, Final_K = mamba_mimo_forward(
-                Q, K, V, Q_bias, K_bias, MIMO_V, MIMO_Out,
-                Z, D, MIMO_Z, Angles_Cumsum,
-                DA_CS, DA_CS_REV, DT, Trap, Segsum,
+                Q,
+                K,
+                V,
+                Q_bias,
+                K_bias,
+                MIMO_V,
+                MIMO_Out,
+                Z,
+                D,
+                MIMO_Z,
+                Angles_Cumsum,
+                DA_CS,
+                DA_CS_REV,
+                DT,
+                Trap,
+                Segsum,
                 return_state=return_state,
-                chunk_size=chunk_size, rotary_dim_divisor=rotary_dim_divisor,
+                chunk_size=chunk_size,
+                rotary_dim_divisor=rotary_dim_divisor,
                 dtype=dtype,
             )
 
         ctx.chunk_size = chunk_size
         ctx.save_for_backward(
-            Q, K, V, ADT, DT, Trap, Q_bias, K_bias, Angles, Angles_Cumsum,
-            D, Z,
-            MIMO_V, MIMO_Out, MIMO_Z,
+            Q,
+            K,
+            V,
+            ADT,
+            DT,
+            Trap,
+            Q_bias,
+            K_bias,
+            Angles,
+            Angles_Cumsum,
+            D,
+            Z,
+            MIMO_V,
+            MIMO_Out,
+            MIMO_Z,
             cu_seqlens,
         )
 
@@ -116,11 +177,11 @@ class _Mamba3Function(torch.autograd.Function):
             Final_V = V[:, -1, :, :].contiguous().detach()
             ctx.mark_non_differentiable(Final_Angle, Final_SSM_State, Final_K, Final_V)
             return Out, Final_Angle, Final_SSM_State, Final_K, Final_V
-    
+
     @staticmethod
     def backward(ctx, dout, *args) -> tuple:
         """Backward pass: compute gradients using Tilelang backward kernels."""
-        
+
         if len(ctx.saved_tensors) == 0:
             raise RuntimeError(
                 "Backward called but forward ran without gradient tracking. "
@@ -128,67 +189,106 @@ class _Mamba3Function(torch.autograd.Function):
             )
         dout = dout.contiguous()
 
-        (Q, K, V, ADT, DT, Trap, Q_bias, K_bias, Angles, Angles_Cumsum,
-            D, Z,
-            MIMO_V, MIMO_Out, MIMO_Z,
-            cu_seqlens
-            ) = ctx.saved_tensors
+        (
+            Q,
+            K,
+            V,
+            ADT,
+            DT,
+            Trap,
+            Q_bias,
+            K_bias,
+            Angles,
+            Angles_Cumsum,
+            D,
+            Z,
+            MIMO_V,
+            MIMO_Out,
+            MIMO_Z,
+            cu_seqlens,
+        ) = ctx.saved_tensors
 
         if cu_seqlens is not None:
-            DA_CS, DA_CS_REV, Segsum = compute_dacs_segsum_triton_varlen(ADT, ctx.chunk_size, cu_seqlens=cu_seqlens)
-            (dQ, dK, dV,
-                dADT, dDT, dTrap, dQ_bias, dK_bias,
-                dMIMO_V, dMIMO_Z, dMIMO_Out, dAngles_Cumsum,
-                dD, dZ) = mamba_mimo_bwd_combined_varlen(
-                    dout,
-                    Q,
-                    K,
-                    V,
-                    Q_bias,
-                    K_bias,
-                    MIMO_V,
-                    MIMO_Out,
-                    Z,
-                    MIMO_Z,
-                    Angles_Cumsum,
-                    DA_CS,
-                    DA_CS_REV,
-                    DT,
-                    Trap,
-                    D,
-                    Segsum,
-                    ctx.chunk_size,
-                    ctx.rotary_dim_divisor,
-                    ctx.dtype,
-                    cu_seqlens=cu_seqlens,
-                )
+            DA_CS, DA_CS_REV, Segsum = compute_dacs_segsum_triton_varlen(
+                ADT, ctx.chunk_size, cu_seqlens=cu_seqlens
+            )
+            (
+                dQ,
+                dK,
+                dV,
+                dADT,
+                dDT,
+                dTrap,
+                dQ_bias,
+                dK_bias,
+                dMIMO_V,
+                dMIMO_Z,
+                dMIMO_Out,
+                dAngles_Cumsum,
+                dD,
+                dZ,
+            ) = mamba_mimo_bwd_combined_varlen(
+                dout,
+                Q,
+                K,
+                V,
+                Q_bias,
+                K_bias,
+                MIMO_V,
+                MIMO_Out,
+                Z,
+                MIMO_Z,
+                Angles_Cumsum,
+                DA_CS,
+                DA_CS_REV,
+                DT,
+                Trap,
+                D,
+                Segsum,
+                ctx.chunk_size,
+                ctx.rotary_dim_divisor,
+                ctx.dtype,
+                cu_seqlens=cu_seqlens,
+            )
         else:
             DA_CS, DA_CS_REV, Segsum = compute_dacs_segsum_triton(ADT, ctx.chunk_size)
-            (dQ, dK, dV,
-                dADT, dDT, dTrap, dQ_bias, dK_bias,
-                dMIMO_V, dMIMO_Z, dMIMO_Out, dAngles_Cumsum,
-                dD, dZ) = mamba_mimo_bwd_combined(
-                    dout,
-                    Q,
-                    K,
-                    V,
-                    Q_bias,
-                    K_bias,
-                    MIMO_V,
-                    MIMO_Out,
-                    Z,
-                    MIMO_Z,
-                    Angles_Cumsum,
-                    DA_CS,
-                    DA_CS_REV,
-                    DT,
-                    Trap,
-                    D,
-                    Segsum,
-                    ctx.chunk_size,
-                    ctx.rotary_dim_divisor,
-                    ctx.dtype,
-                )
+            (
+                dQ,
+                dK,
+                dV,
+                dADT,
+                dDT,
+                dTrap,
+                dQ_bias,
+                dK_bias,
+                dMIMO_V,
+                dMIMO_Z,
+                dMIMO_Out,
+                dAngles_Cumsum,
+                dD,
+                dZ,
+            ) = mamba_mimo_bwd_combined(
+                dout,
+                Q,
+                K,
+                V,
+                Q_bias,
+                K_bias,
+                MIMO_V,
+                MIMO_Out,
+                Z,
+                MIMO_Z,
+                Angles_Cumsum,
+                DA_CS,
+                DA_CS_REV,
+                DT,
+                Trap,
+                D,
+                Segsum,
+                ctx.chunk_size,
+                ctx.rotary_dim_divisor,
+                ctx.dtype,
+            )
 
         # Backprop through angle_dt cumsum (varlen-aware)
         dAngles, dDT_angle, _ = angle_dt_bwd(
@@ -216,13 +316,18 @@ class _Mamba3Function(torch.autograd.Function):
             dAngles,
             dD,
             dZ,
-            None, None, None, None, None,
+            None,
+            None,
+            None,
+            None,
+            None,
         )
 
 
 # =============================================================================
 # Public API
 # =============================================================================
+
 
 def mamba3_mimo(
     Q: Tensor,
@@ -246,7 +351,7 @@ def mamba3_mimo(
     cu_seqlens: Optional[Tensor] = None,
 ) -> Tensor | Tuple[Tensor, Tuple]:
     """Mamba-3 attention with Tilelang kernels and automatic differentiation.
-    
+
     Args:
         Q: Query tensor (batch, seqlen, mimo_rank, nheads_qk, headdim_qk)
         K: Key tensor (batch, seqlen, mimo_rank, nheads_qk, headdim_qk)
@@ -262,15 +367,15 @@ def mamba3_mimo(
         Angles: Rotary position embeddings (batch, seqlen, nheads, headangles)
         D: Optional skip connection weight (nheads,)
         Z: Optional gating tensor (batch, seqlen, nheads, headdim_v)
-        chunk_size: Chunk size for state computation (default: 64//R)  
+        chunk_size: Chunk size for state computation (default: 64//R)
         rotary_dim_divisor: Divisor for rotary embedding dimensions (default: 4, meaning angles have 1/4 of headdim_qk)
         dtype: Data type for lower-precision computation (e.g., torch.bfloat16)
         return_state: Whether to return final state for autoregressive decoding (default: False)
-        cu_seqlens: Optional tensor of cumulative sequence lengths for variable-length sequences. 
-         If provided, should be a tensor of shape (num_seq + 1,) where cu_seqlens[i] is 
-         the cumulative sequence length up to sequence i. This is used for efficient processing of 
+        cu_seqlens: Optional tensor of cumulative sequence lengths for variable-length sequences.
+         If provided, should be a tensor of shape (num_seq + 1,) where cu_seqlens[i] is
+         the cumulative sequence length up to sequence i. This is used for efficient processing of
          variable-length sequences in the kernel.
-              
+
     Returns:
         output: (batch, seqlen, nheads, headdim_v) if MIMO_Out is not None
                 (batch, seqlen, mimo_rank, nheads, headdim_v) if MIMO_Out is None
@@ -284,32 +389,45 @@ def mamba3_mimo(
      in case of smem over-allocation, which can occur with larger headdim_qk, headdim_v, or mimo_rank values.
     NOTE: Currently final_state is intended to be a non-differentiable side output. In particular,
      loss = f(output) is fine, but loss = f(output, final_state) will not work properly since the backward does not compute gradients for final_state components.
-    NOTE: Currently we have a separate set of kernels for variable-length sequences with cu_seqlens input, 
-     which can be more efficient than padding to max length. However, the variable-length kernels 
+    NOTE: Currently we have a separate set of kernels for variable-length sequences with cu_seqlens input,
+     which can be more efficient than padding to max length. However, the variable-length kernels
      incur noticeable overhead, so we have separate scripts for the non-varlen case.
 
     """
-    
+
     batch, seqlen, mimo_rank, nheads_qk, headdim_qk = Q.shape
     _, _, nheads, headdim_v = V.shape
-    
-    assert chunk_size >= 8, "chunk_size must be at least 8"
-    assert nheads % nheads_qk == 0, f"nheads ({nheads}) must be divisible by nheads_qk ({nheads_qk})"
-    assert headdim_qk % 2 == 0, f"headdim_qk ({headdim_qk}) must be even for rotary embeddings"
-    assert rotary_dim_divisor in [2, 4], "currently only supports rotary embedding on entire or half of headdim_qk"
-    # NOTE: the following (headdim_qk, headdim_v) values currently can result in compilation errors: (16, 32), (256, 128) 
-    if headdim_qk not in [16, 32, 64, 128, 256]:
-        print(f"WARNING: The value headdim_qk={headdim_qk} has not been tested. " +\
-              "Proceed with caution and consider one of the tested headdim_qk: 16, 32, 64, 128, 256.")
-    if headdim_v not in [32, 64, 128]:
-        print(f"WARNING: The value headdim_v={headdim_v} has not been tested. " +\
-              "Proceed with caution and consider one of the tested headdim_v: 32, 64, 128.")
-    if mimo_rank not in [1, 2, 4, 8]:
-        print(f"WARNING: The value mimo_rank={mimo_rank} has not been tested. " +\
-              "Proceed with caution and consider one of the tested mimo_rank: 1, 2, 4, 8.")
 
-    if chunk_size*mimo_rank > 64:
-        print(f"WARNING: chunk_size * mimo_rank = {chunk_size*mimo_rank} exceeds 64, which may result in smem over-allocation. Consider decreasing chunk_size.")
+    assert chunk_size >= 8, "chunk_size must be at least 8"
+    assert (
+        nheads % nheads_qk == 0
+    ), f"nheads ({nheads}) must be divisible by nheads_qk ({nheads_qk})"
+    assert headdim_qk % 2 == 0, f"headdim_qk ({headdim_qk}) must be even for rotary embeddings"
+    assert rotary_dim_divisor in [
+        2,
+        4,
+    ], "currently only supports rotary embedding on entire or half of headdim_qk"
+    # NOTE: the following (headdim_qk, headdim_v) values currently can result in compilation errors: (16, 32), (256, 128)
+    if headdim_qk not in [16, 32, 64, 128, 256]:
+        print(
+            f"WARNING: The value headdim_qk={headdim_qk} has not been tested. "
+            + "Proceed with caution and consider one of the tested headdim_qk: 16, 32, 64, 128, 256."
+        )
+    if headdim_v not in [32, 64, 128]:
+        print(
+            f"WARNING: The value headdim_v={headdim_v} has not been tested. "
+            + "Proceed with caution and consider one of the tested headdim_v: 32, 64, 128."
+        )
+    if mimo_rank not in [1, 2, 4, 8]:
+        print(
+            f"WARNING: The value mimo_rank={mimo_rank} has not been tested. "
+            + "Proceed with caution and consider one of the tested mimo_rank: 1, 2, 4, 8."
+        )
+
+    if chunk_size * mimo_rank > 64:
+        print(
+            f"WARNING: chunk_size * mimo_rank = {chunk_size*mimo_rank} exceeds 64, which may result in smem over-allocation. Consider decreasing chunk_size."
+        )
 
     return _Mamba3Function.apply(
         Q,

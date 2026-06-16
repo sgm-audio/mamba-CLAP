@@ -18,6 +18,7 @@
 
 #ifdef MAMBA_ENABLE_GUI
 #include <clap/ext/gui.h>
+#include <juce_events/juce_events.h>
 #include "gui/gui_bridge.h"
 #endif
 
@@ -176,6 +177,10 @@ static void plugin_on_main_thread(const clap_plugin_t* plugin) {
   if (!plugin) return;
   auto* inst = get_instance(plugin);
   inst->processor.handleDeferredReinit();
+#ifdef MAMBA_ENABLE_GUI
+  if (auto* mm = juce::MessageManager::getInstanceWithoutCreating())
+    mm->runDispatchLoopUntil(0);
+#endif
 }
 
 // =============================================================================
@@ -396,9 +401,14 @@ static const clap_plugin_note_ports_t s_note_ports_ext = {
 // =============================================================================
 
 static void timer_on_timer(const clap_plugin_t* plugin, clap_id timer_id) {
-    if (!plugin || timer_id != kGuiTimerId) return;
-    auto* inst = get_instance(plugin);
-    if (inst->processor.clipDetected()) {
+ if (!plugin) return;
+ auto* inst = get_instance(plugin);
+ if (timer_id != inst->gui_timer_id) return;
+ #ifdef MAMBA_ENABLE_GUI
+ if (auto* mm = juce::MessageManager::getInstanceWithoutCreating())
+ mm->runDispatchLoopUntil(0);
+ #endif
+ if (inst->processor.clipDetected()) {
         inst->log(CLAP_LOG_WARNING, "MambaDAW: output clipping detected — reduce output gain");
         inst->processor.clearClipFlag();
         const clap_host_t* host = inst->host;

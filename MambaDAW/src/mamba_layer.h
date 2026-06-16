@@ -8,6 +8,11 @@
 /**
  * @brief CPU-Optimized, Real-Time Safe Mamba Layer.
  *
+ * Thread-domain per ADR-002:
+ *   processSample(), processBlock() — [Audio] (RT-safe, no allocation)
+ *   loadLayerWeights(), resetState(), getState(), setState() — [Main]
+ *   Architecture accessors — [Any]
+ *
  * Implements the Selective State Space (SSM) recurrent step using only
  * pre-allocated std::vector buffers. No heap allocation occurs inside
  * processSample() or processBlock().
@@ -30,20 +35,32 @@ public:
     // RT-safe audio processing
     // -------------------------------------------------------------------------
 
-    /** Process a single sample through the SSM step using current precision. */
+    /** Process a single sample through the SSM step (d_model=1 path). */
     float processSample(float sample);
 
-    /** Process a block: calls processSample() sequentially. */
+    /** Process a d_model-dim vector through one SSM step (d_model>1 path). */
+    void processVector(const float* input, float* output) noexcept;
+
+    /** Process a block: calls processSample() sequentially (d_model=1 only). */
     void processBlock(const float* input, float* output, int64_t num_samples);
 
     // -------------------------------------------------------------------------
     // Non-RT: state and weight management
     // -------------------------------------------------------------------------
 
-    /** Zero all hidden states (h_t) and convolution ring buffer. */
-    void reset_state();
+  /** Zero all hidden states (h_t) and convolution ring buffer. */
+  void reset_state();
 
-    void copy_state_from(const MambaLayer& other);
+  void copy_state_from(const MambaLayer& other);
+
+  struct LayerState {
+    std::vector<float> state_h;
+    std::vector<float> conv_buffer;
+    int64_t conv_pos;
+  };
+
+  LayerState getState() const;
+  bool setState(const LayerState& s);
 
     /** Scale the state decay matrix (dA) dynamically. 1.0 = normal, < 1.0 = shorter context. */
     void setContextScale(float scale) { context_scale_ = scale; }
@@ -129,6 +146,7 @@ private:
     mutable std::vector<float> tmp_proj_out_; // [2 * d_inner]
     mutable std::vector<float> tmp_conv_out_; // [d_inner]
     mutable std::vector<float> tmp_ssm_out_;  // [d_inner]
+    mutable std::vector<float> tmp_out_vec_;  // [d_model]  — processVector output scratch
 
     // --- Quantized helpers ---
     void prepareInt8Weights() const;   // lazy: one-shot FP32->INT8 conversion

@@ -62,24 +62,24 @@ std::vector<torch::Tensor> persistent_state_; // Mamba state (pre-allocated)
 bool MambaClapPlugin::activate(double sample_rate, ...) {
     is_active_ = true;
     sample_rate_ = static_cast<int>(sample_rate);
-    
+
     // Pre-allocate ALL tensors (real-time safe)
     const int MAX_HOP = 2048;
     const int MAX_FRAMES = 9; // for 2048/256 hop
-    
+
     prealloc_input_ = torch::empty({1, MAX_HOP}, torch::kFloat32);
     prealloc_mel_spec_ = torch::empty({MAX_FRAMES, n_mels_}, torch::kFloat32);
     prealloc_processed_mel_ = torch::empty({MAX_FRAMES, n_mels_}, torch::kFloat32);
     prealloc_effect_params_ = torch::empty({MAX_FRAMES, 4}, torch::kFloat32);
-    
+
     // Allocate persistent Mamba state (persists across blocks)
     persistent_state_ = mamba_wrapper_->getInitialState(1); // batch=1
-    
+
     // Ensure STFTProcessor is created (it pre-allocates FFTW buffers)
     if (!stft_processor_) {
         stft_processor_ = std::make_unique<STFTProcessor>(n_fft_, hop_length_, n_mels_, sample_rate_);
     }
-    
+
     return true;
 }
 ```
@@ -89,18 +89,18 @@ bool MambaClapPlugin::activate(double sample_rate, ...) {
 bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int num_samples) {
     // 1. Copy dry signal to output (memcpy only - RT safe)
     std::memcpy(output, input, num_samples * sizeof(float));
-    
+
     if (!mamba_wrapper_ || !model_loaded_) {
         return true; // Dry only
     }
-    
+
     try {
         torch::NoGradGuard no_grad;
-        
+
         // 2. Copy input to pre-allocated tensor (NO allocation)
         float* input_data = prealloc_input_.data_ptr<float>();
         std::memcpy(input_data, input, num_samples * sizeof(float));
-        
+
         // 3. STFT forward (uses pre-allocated FFTW buffers internally)
         int T = 0;
         try {
@@ -112,38 +112,38 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
             // Log error (deferred to NRT) but continue with dry signal
             return true;
         }
-        
+
         // 4. Mamba recurrent processing (stateful, must NOT allocate)
         // Use shallow copy of state tensor wrappers (they share underlying storage)
         auto state = persistent_state_;
-        
+
         for (int t = 0; t < T; ++t) {
             // Get mel frame as tensor VIEW (no copy, no allocation)
             auto mel_frame = prealloc_mel_spec_.slice(0, t, t+1); // [1, n_mels]
-            
+
             // Call quantized step - MUST be allocation-free
             torch::Tensor effect_params_frame;
             mamba_wrapper_->step_quantized(mel_frame, state, effect_params_frame);
-            
+
             // Store effect parameters in preallocated buffer
             if (effect_params_frame.numel() == 1) {
                 float param = effect_params_frame.item<float>();
                 prealloc_effect_params_[t][getEffectTypeIndex()] = param;
             }
         }
-        
+
         // Persist updated state for next audio block
         persistent_state_ = state;
-        
+
         // 5. Apply effect modulation to mel spectrogram
         for (int t = 0; t < T; ++t) {
             float effect_strength = prealloc_effect_params_[t].mean().item<float>();
             float modulation = 1.0f + (effect_strength - 0.5f) * 2.0f; // [0,1] -> [0,2]
-            
+
             auto mel_frame = prealloc_processed_mel_.slice(0, t, t+1);
             mel_frame *= modulation; // in-place scaling (no new allocation)
         }
-        
+
         // 6. ISTFT back to waveform (uses pre-allocated FFTW buffers)
         torch::Tensor output_tensor;
         try {
@@ -153,11 +153,11 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
         } catch (const std::exception& e) {
             return true; // dry signal already present
         }
-        
+
         // 7. Mix dry/wet (use pre-allocated output tensor memory)
         const float* wet_data = output_tensor.data_ptr<float>();
         float mix = param_mix_.load(std::memory_order_relaxed);
-        
+
         for (int i = 0; i < num_samples; ++i) {
             float wet = wet_data[i];
             // Sanitize (NaN/Inf protection)
@@ -167,12 +167,12 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
             // Soft clip to prevent overflow
             output[i] = std::tanh(mixed);
         }
-        
+
     } catch (const std::exception& e) {
         // Any exception - output remains dry (already copied)
         // Error deferred to NRT thread for logging
     }
-    
+
     return true;
 }
 ```
@@ -212,14 +212,14 @@ def quantize_mamba_model(input_pt, output_pt):
     # Load original model
     model = torch.jit.load(input_pt)
     model.eval()
-    
+
     # Quantize to INT8
     model_quantized = torch.quantization.quantize_dynamic(
         model,
         {torch.nn.Linear},  # Quantize linear layers
         dtype=torch.qint8
     )
-    
+
     # Test accuracy
     example = torch.randn(1, 256, 80)  # [batch, frames, n_mels]
     with torch.no_grad():
@@ -227,7 +227,7 @@ def quantize_mamba_model(input_pt, output_pt):
         out_quant = model_quantized(example)
         mse = torch.mean((out_fp32 - out_quant) ** 2)
         print(f"Quantization MSE: {mse.item():.6f}")
-    
+
     # Save
     torch.save(model_quantized.state_dict(), output_pt)
     print(f"Saved quantized model: {output_pt}")
@@ -254,23 +254,23 @@ private:
     std::vector<QuantizedLinear> input_proj_weights_;  // One per layer
     std::vector<QuantizedLinear> out_proj_weights_;
     std::vector<QuantizedLinear> effect_decoder_weights_;
-    
+
     // Scratch buffer for dequantized intermediate results
     torch::Tensor scratch_buffer_;
-    
+
 public:
     bool loadQuantizedModel(const std::string& path) {
         // Load TorchScript quantized model
         auto model = torch::jit::load(path);
         model.eval();
-        
+
         // Extract quantized weights from all Linear modules
         // Traverse model.named_modules() and copy quantized params
         // ...
-        
+
         // Allocate scratch buffer
         scratch_buffer_ = torch::empty({d_inner_}, torch::kFloat32);
-        
+
         return true;
     }
 };
@@ -291,7 +291,7 @@ void quantized_linear_forward_int8(
         int32_t accum = 0;
         const int8_t* w_row = weight_q + o * in_features;
         for (int i = 0; i < in_features; ++i) {
-            accum += (static_cast<int32_t>(w_row[i]) - static_cast<int32_t>(zero_point[o])) 
+            accum += (static_cast<int32_t>(w_row[i]) - static_cast<int32_t>(zero_point[o]))
                      * static_cast<int32_t>(input[i]);
         }
         // Dequantize: (accum * scale[o]) + bias
@@ -354,30 +354,30 @@ void selective_scan_cpu_fp32(
     const float* __restrict__ dt,
     int d_inner,
     int d_state) {
-    
+
     constexpr float kDenormalCutoff = 1e-30f;
     constexpr float kDenormalReplace = 0.0f;
-    
+
     // Process d_inner in chunks of 8 (AVX2) or 16 (AVX-512)
     for (int i = 0; i < d_inner; i += 8) {
         // Load u[i..i+7]
         __m256 u_vec = _mm256_loadu_ps(u + i);
-        
+
         // For each i, update all d_state elements (inner loop)
         for (int j = 0; j < d_state; ++j) {
             size_t idx = i * d_state + j;
-            
+
             // Load state[i, j]
             float state_ij = state[idx];
-            
+
             // Discretize A: dA = exp(dt * A_log)
             float A_ij = A_log[idx];
             float dA = std::exp(dt[i] * A_ij);  // TODO: precompute if dt constant
-            
+
             // Update state: state' = dA * state + (dt * B) * u
             float B_ij = B[idx];
             float dB = dt[i] * B_ij;
-            
+
             // Update with denormal protection
             state[idx] = dA * state_ij + dB * u_vec[0];
             if (std::abs(state[idx]) < kDenormalCutoff) {
@@ -385,11 +385,11 @@ void selective_scan_cpu_fp32(
             }
         }
     }
-    
+
     // Output: y = C @ state + D * u
     // Initialize output to zero then accumulate
     std::memset(const_cast<float*>(u), 0, d_inner * sizeof(float));  // reuse u as output
-    
+
     for (int j = 0; j < d_state; ++j) {
         for (int i = 0; i < d_inner; i += 8) {
             // Load 8 state values for this j
@@ -402,7 +402,7 @@ void selective_scan_cpu_fp32(
             _mm256_storeu_ps(u + i, acc);
         }
     }
-    
+
     // Add skip connection: y += D * u_input (but u was overwritten, so need original)
     // Handle separately
 }
@@ -438,10 +438,10 @@ private:
         std::atomic<bool> pending{false};
         std::array<char, 256> buffer;
     };
-    
+
     LogMessage log_msg_[3];  // Info, warn, error buffers
     std::atomic<bool> log_flush_needed_{false};
-    
+
 public:
     void flushLogsToStderr() {
         // Called from NRT context (e.g., deactivate, host callback)
@@ -501,7 +501,7 @@ class ProductionConfig(Config):
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     REDIS_URL = os.environ.get('REDIS_URL')
-    
+
     def __init__(self):
         missing = []
         for var in ['SECRET_KEY', 'JWT_SECRET_KEY', 'DATABASE_URL', 'REDIS_URL']:
@@ -553,25 +553,25 @@ def process_mastering_job(job_id: str) -> None:
         except ValueError:
             logger.error(f"Invalid job ID: {job_id}")
             return
-        
+
         # ATOMIC claim: only update if status='pending' (SELECT ... FOR UPDATE)
         job = Job.query.filter_by(id=job_uuid, status='pending').with_for_update().first()
         if not job:
             logger.warning(f"Job {job_id} already processing or completed")
             return
-        
+
         # Claim it
         job.status = 'processing'
         job.startedAt = datetime.utcnow()
         job.processing_worker_id = f"{socket.gethostname()}:{os.getpid()}"
-        
+
         try:
             db.session.commit()
         except SQLAlchemyError as e:
             logger.error(f"Failed to claim job: {e}")
             db.session.rollback()
             return
-        
+
         # ... rest of processing ...
 ```
 
@@ -605,12 +605,12 @@ def recover_stuck_jobs(timeout_minutes: int = 30) -> int:
     app = create_app('production')
     with app.app_context():
         cutoff = datetime.utcnow() - timedelta(minutes=timeout_minutes)
-        
+
         stuck_jobs = Job.query.filter(
             Job.status == 'processing',
             Job.startedAt < cutoff
         ).all()
-        
+
         for job in stuck_jobs:
             logger.warning(
                 f"Recovering stuck job {job.id} "
@@ -619,7 +619,7 @@ def recover_stuck_jobs(timeout_minutes: int = 30) -> int:
             job.status = 'failed'
             job.errorMessage = f'Worker timeout after {timeout_minutes} minutes'
             job.completedAt = datetime.utcnow()
-        
+
         db.session.commit()
         logger.info(f"Recovered {len(stuck_jobs)} stuck jobs")
         return len(stuck_jobs)
@@ -655,32 +655,32 @@ if __name__ == '__main__':
 def validate_s3_uri(uri: str) -> Tuple[str, str]:
     if not uri.startswith('s3://'):
         raise ValueError("Invalid S3 URI: must start with 's3://'")
-    
+
     path = uri[5:]
     if '/' not in path:
         raise ValueError("Invalid S3 URI: missing key after bucket")
-    
+
     bucket, key = path.split('/', 1)
-    
+
     # Validate bucket (AWS rules)
     if not re.match(r'^[a-z0-9][a-z0-9\-.]{1,61}[a-z0-9]$', bucket):
         raise ValueError(f"Invalid bucket name")
-    
+
     # Key validation
     if len(key) > 1024:
         raise ValueError("S3 key too long (max 1024)")
-    
+
     if any(ord(c) < 32 for c in key):  # control chars
         raise ValueError("S3 key contains control characters")
-    
+
     if '..' in key or '/./' in key or '//' in key or key.startswith('/'):
         raise ValueError("Path traversal attempt")
-    
+
     # Canonicalization: ensure decoded == original (prevents %2e%2e%2f etc)
     import urllib.parse
     if urllib.parse.unquote(key) != key:
         raise ValueError("URL encoding not allowed in S3 key")
-    
+
     return bucket, key
 ```
 
@@ -739,7 +739,7 @@ def test_create_job_success(client, test_user):
         'contentType': 'audio/wav',
         'intensity': 50
     }, headers={'Authorization': f'Bearer {test_user.token}'})
-    
+
     assert response.status_code == 202
     data = response.json
     assert 'id' in data
@@ -750,7 +750,7 @@ def test_create_job_missing_field(client, test_user):
         'fileName': 'test.wav',
         # missing fileSize, presetId, contentType
     }, headers={'Authorization': f'Bearer {test_user.token}'})
-    
+
     assert response.status_code == 400
     assert response.json['error'] == 'VALIDATION_ERROR'
 
