@@ -13,5 +13,5 @@ celery>=5.4.0
 torch
 torchaudio
 librosa
-pytest>=8.0.0
+pytest>=9.0.3
 httpx>=0.27.0
