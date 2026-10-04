@@ -147,7 +147,7 @@ void PluginProcessor::resetState() {
 }
 
 void PluginProcessor::buildManualEffectBlock(EffectParamBlock& out) const {
-    // RT-Safety: reads atomics (relaxed) and param_smoother_ values only. No allocation.
+    // Source-level note only: this helper reads parameter atomics/smoother state; a complete RT audit has not been performed.
     const bool global = param_smoother_.getValue(1) >= 0.5f;
 
     // --- EQ ---
@@ -242,9 +242,9 @@ void PluginProcessor::processBlock(float** inputs, float** outputs,
     int32_t num_frames,
     int32_t num_input_channels,
     int32_t num_output_channels) {
-    /* RT-Safety Justification: beginBlock()/endBlock() use clock_gettime(CLOCK_MONOTONIC)
-       which is async-signal-safe and lock-free per POSIX. No heap allocation, no mutex.
-       All CpuBudgetMonitor state is pre-allocated fixed-size arrays. */
+    /* Timing/audit note: CpuBudgetMonitor uses clock_gettime(CLOCK_MONOTONIC).
+       POSIX async-signal-safety is not a hard-real-time guarantee. Callback timing,
+       allocation behavior, and clock-call cost require measurement on target hosts. */
     cpu_budget_.beginBlock();
 
     const bool is_active = activated_.load(std::memory_order_acquire);

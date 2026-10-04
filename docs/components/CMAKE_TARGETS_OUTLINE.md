@@ -1,4 +1,6 @@
-# CMake Targets Outline
+# Proposed CMake targets outline
+
+> **Status (2026-10-04):** this is an architecture sketch, not the current checked-in CMake target graph. The active build blockers and existing targets are recorded in [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md). No proposed target or compile option below should be treated as implemented.
 
 ## Top-Level Goals
 - Keep RT audio path dependency-light and deterministic.
@@ -14,7 +16,7 @@
 2. `mamba_rt_core` (STATIC)
 - Domain: SSM Core.
 - Contains inference kernels, state buffers, processing modes.
-- RT-safe compile options enabled.
+- Proposed callback constraints; no flag set alone establishes real-time safety.
 - Forbidden deps in this target: CUDA runtime, BLAS, heavy ML frameworks.
 
 3. `mamba_ml_pipeline` (STATIC)

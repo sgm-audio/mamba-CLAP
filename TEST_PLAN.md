@@ -1,4 +1,6 @@
-# Test Plan: AI-Powered Audio Mastering Service
+# Proposed test plan: AI-Powered Audio Mastering Service
+
+> **Status (2026-10-04): test strategy/checklist only, not test results.** Coverage percentages, pass criteria, integrations, and service behavior below are targets; no evidence of their completion is implied. Report actual runs, environment, and results separately. See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
 
 ## Test Strategy
 

@@ -1,22 +1,16 @@
-# MASTER IMPLEMENTATION ROADMAP: Production Readiness
+# Historical implementation ideas — unvalidated backlog
 
-**Created:** 2026-05-08
-**Reviewer:** Production Code Review Agent
-**Critical Status:** ⚠️ **PRODUCTION READINESS: FAILED** - Multiple critical blockers must be fixed
-**Estimated Critical Path:** 40-60 hours (1-2 weeks with 1 engineer)
+> **Status (2026-10-04):** This is a large, historical brainstorming/engineering-proposal document, not a verified audit, executable roadmap, or completed implementation. It contains assumptions about files and APIs, illustrative code, proposed performance thresholds, estimates, and claims that have not been reproduced. Verify each item against the current checkout before acting; do not quote its timing or performance targets as results. See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for current evidence and blockers.
+
+**Historical draft date:** 2026-05-08. Prior reviewer attribution, priority counts, and schedules were not independently verified.
 
 ---
 
 ## EXECUTIVE SUMMARY
 
-The Mamba repository combines state-of-the-art Mamba-SSM models with professional audio processing. The codebase shows strong research foundations but **lacks production-grade engineering discipline**. Critical issues exist in **real-time audio safety**, **security**, **reliability**, and **testing** that would cause crashes, security breaches, or poor user experience in production.
+The repository contains multiple research and plug-in experiments, none of which is verified as a production-ready audio product. This backlog proposes areas to investigate—callback safety, build integrity, dependency/security review, reliability, and testing. Its task count, severity labels, proposed weeks/hours, code samples, performance thresholds, and described consequences are hypotheses until checked and measured against the current source.
 
-**Key Findings**:
-- 🔴 **6 CRITICAL BLOCKERS** (must fix before any production deployment)
-- 🟡 **12 HIGH-PRIORITY ISSUES** (address immediately after blockers)
-- 🟢 **9 MEDIUM/LOW IMPROVEMENTS** (polish and maintainability)
-- ❌ **CI/CD NOT ESTABLISHED** - No automated testing or quality gates
-- ⚠️ **ARCHITECTURAL CONCERNS** - Duplicate plugin implementations, incomplete real-time safety
+**Current evidence:** no full plug-in build, host validation, quality evaluation, or hard-real-time audit is established. There is no `.github/workflows/ci.yml` in the checked-in tree. The missing-source and build details are maintained in `docs/PROJECT_STATUS.md`.
 
 ---
 
@@ -188,19 +182,21 @@ cmake -DCMAKE_BUILD_TYPE=Debug -DRT_DEBUG=ON ..
 ```
 
 **Acceptance Criteria**:
-- ✅ Valgrind massif shows 0 heap allocations in `processAudioBlock()`
-- ✅ All `torch::zeros()`, `torch::empty()`, `torch::clone()`, `std::vector` operations removed from audio path
-- ✅ Processing time < 80% of block budget (e.g., < 4.6ms for 256@44.1kHz)
+- [ ] Valgrind massif shows 0 heap allocations in `processAudioBlock()`
+- [ ] All `torch::zeros()`, `torch::empty()`, `torch::clone()`, `std::vector` operations removed from audio path
+- [ ] Processing time < 80% of block budget (e.g., < 4.6ms for 256@44.1kHz)
 
 ---
 
-### Task 1.2: Implement Quantized INT8 Model Pipeline
+### Task 1.2: Research quantization only if profiling justifies it (not implemented)
 
-**Files**: `scripts/quantize_model.py`, `clap-plugin/src/mamba_wrapper.cpp`
+**Proposed locations**: `scripts/quantize_model.py`, `clap-plugin/src/mamba_wrapper.cpp` (the quantization script is not present in the current tree).
 
-**Background**: FP32 Mamba is too slow for CPU real-time. Need INT8 quantization to achieve < 500µs per step.
+**Unverified hypothesis**: the selected FP32 model might miss a measured runtime or memory budget. No representative baseline is recorded, and no `<500 µs` requirement has been demonstrated. The current MambaDAW exporter/loader path is FP32-only; choose a model and profile it before designing quantization.
 
-**Actions**:
+**Status of pseudocode below**: illustrative, untested design notes—not a runnable script or supported Torch/C++ quantization workflow. Revalidate APIs, arithmetic, shapes, export format, numerical error, and target hardware for any selected model.
+
+**Actions (candidate work)**:
 
 1. **Create quantization script** `scripts/quantize_model.py`:
 ```python
@@ -322,10 +318,10 @@ print(f'Average: {np.mean(times):.1f} µs (target: <500 µs)')
 ```
 
 **Acceptance**:
-- ✅ Quantized model loads successfully in C++
-- ✅ Single frame inference < 500 µs on target CPU (i7-12700K or M1)
-- ✅ Quantization MSE < 0.001 on validation set
-- ✅ Model size reduced by >75% (FP32 ~100MB → INT8 ~25MB)
+- [ ] Quantized model loads successfully in C++
+- [ ] Single frame inference < 500 µs on target CPU (i7-12700K or M1)
+- [ ] Quantization MSE < 0.001 on validation set
+- [ ] Model size reduced by >75% (FP32 ~100MB → INT8 ~25MB)
 
 ---
 
@@ -333,7 +329,7 @@ print(f'Average: {np.mean(times):.1f} µs (target: <500 µs)')
 
 **File**: `mamba_ssm/ops/cpu/selective_scan_fp32.cpp`
 
-**Why**: The naive loop in `MambaLayer::discrete_state_update()` (lines 66-94 of mamba_layer.cpp) is ~100x too slow for real-time. Each time step loops over `d_inner * d_state` with scalar operations. Needs SIMD vectorization.
+**Hypothesis to check before optimizing**: This paragraph references `MambaLayer::discrete_state_update()`, which was not found in the current `MambaDAW/src/mamba_layer.cpp` at audit time. No ~100× slowdown measurement is recorded. First profile the actual implementation with representative dimensions and a reproducible benchmark; only then decide whether SIMD or another optimization is warranted.
 
 **Implementation**:
 ```cpp
@@ -415,9 +411,9 @@ void selective_scan_cpu_fp32(
 - Aim for < 50 µs for d_inner=1024, d_state=16 on target CPU
 
 **Acceptance**:
-- ✅ Benchmark: selective_scan_cpu_fp32() executes in < 50 µs for typical Mamba-3 dimensions
-- ✅ Vectorized code uses at least 80% of CPU's SIMD lanes (profile with perf)
-- ✅ Output matches reference Torch implementation (MSE < 1e-5)
+- [ ] Benchmark: selective_scan_cpu_fp32() executes in < 50 µs for typical Mamba-3 dimensions
+- [ ] Vectorized code uses at least 80% of CPU's SIMD lanes (profile with perf)
+- [ ] Output matches reference Torch implementation (MSE < 1e-5)
 
 ---
 
@@ -478,8 +474,8 @@ if (std::isnan(wet)) {
 ```
 
 **Acceptance**:
-- ✅ No `std::cerr`, `std::cout`, `printf`, `fprintf` in `processAudioBlock()` or any inline functions it calls
-- ✅ Static analysis (clang-tidy `bugprone-printf-format`) passes
+- [ ] No `std::cerr`, `std::cout`, `printf`, `fprintf` in `processAudioBlock()` or any inline functions it calls
+- [ ] Static analysis (clang-tidy `bugprone-printf-format`) passes
 
 ---
 
@@ -512,9 +508,9 @@ class ProductionConfig(Config):
 ```
 
 **Acceptance**:
-- ✅ Application fails to start in production mode if any secret missing
-- ✅ Error message clearly lists which environment variables are required
-- ✅ No defaults in ProductionConfig
+- [ ] Application fails to start in production mode if any secret missing
+- [ ] Error message clearly lists which environment variables are required
+- [ ] No defaults in ProductionConfig
 
 ---
 
@@ -576,9 +572,9 @@ def process_mastering_job(job_id: str) -> None:
 ```
 
 **Acceptance**:
-- ✅ Two workers cannot process same job simultaneously (database constraint)
-- ✅ Job status transitions: pending → processing → (completed|failed)
-- ✅ Worker ID tracked for debugging
+- [ ] Two workers cannot process same job simultaneously (database constraint)
+- [ ] Job status transitions: pending → processing → (completed|failed)
+- [ ] Worker ID tracked for debugging
 
 ---
 
@@ -638,9 +634,9 @@ if __name__ == '__main__':
 **Monitoring**: Alert if any jobs recovered (Prometheus metric `jobs_recovered_total`).
 
 **Acceptance**:
-- ✅ Orphaned jobs auto-recovered within 5 minutes
-- ✅ Alert triggered on recovery event
-- ✅ No manual intervention required
+- [ ] Orphaned jobs auto-recovered within 5 minutes
+- [ ] Alert triggered on recovery event
+- [ ] No manual intervention required
 
 ---
 
@@ -685,9 +681,9 @@ def validate_s3_uri(uri: str) -> Tuple[str, str]:
 ```
 
 **Acceptance**:
-- ✅ Fuzzing with path traversal payloads (../, %2e%2e%2f, double-encode) all rejected
-- ✅ Long keys (>1024) rejected
-- ✅ Control characters (\n, \r, \t) rejected
+- [ ] Fuzzing with path traversal payloads (../, %2e%2e%2f, double-encode) all rejected
+- [ ] Long keys (>1024) rejected
+- [ ] Control characters (\n, \r, \t) rejected
 
 ---
 
@@ -712,9 +708,9 @@ def logout():
 ```
 
 **Acceptance**:
-- ✅ Login limited to 10/min/IP
-- ✅ Returns 429 + Retry-After header when exceeded
-- ✅ Rate limits bypassed in DEBUG mode (configurable)
+- [ ] Login limited to 10/min/IP
+- [ ] Returns 429 + Retry-After header when exceeded
+- [ ] Rate limits bypassed in DEBUG mode (configurable)
 
 ---
 
@@ -767,9 +763,9 @@ def test_rate_limiting(client):
 ```
 
 **Acceptance**:
-- ✅ pytest-cov shows >80% coverage for `backend/api/`
-- ✅ All error paths tested
-- ✅ Rate limiting tests pass
+- [ ] pytest-cov shows >80% coverage for `backend/api/`
+- [ ] All error paths tested
+- [ ] Rate limiting tests pass
 
 ---
 
@@ -783,9 +779,9 @@ def test_rate_limiting(client):
 - `security-scan`: Trivy + Gitleaks
 
 **Acceptance**:
-- ✅ CI runs on every PR
-- ✅ Build and test status shown on PR
-- ✅ Security scan blocks merge on critical vulnerabilities
+- [ ] CI runs on every PR
+- [ ] Build and test status shown on PR
+- [ ] Security scan blocks merge on critical vulnerabilities
 
 ---
 
@@ -813,20 +809,20 @@ def test_rate_limiting(client):
 Before any production deployment, **all P0 (Critical)** tasks must be complete. The codebase must pass:
 
 ### Hard Requirements
-- ✅ Zero heap allocations in processAudioBlock (valgrind verified)
-- ✅ No secrets hardcoded in production config
-- ✅ Job idempotency and stuck-state recovery implemented
-- ✅ S3 validation passes security audit
-- ✅ No I/O operations in audio callback
-- ✅ Quantized model loads and runs < 500µs per frame
-- ✅ Selective scan kernel fused and SIMD-optimized
+- [ ] Zero heap allocations in processAudioBlock (valgrind verified)
+- [ ] No secrets hardcoded in production config
+- [ ] Job idempotency and stuck-state recovery implemented
+- [ ] S3 validation passes security audit
+- [ ] No I/O operations in audio callback
+- [ ] Quantized model loads and runs < 500µs per frame
+- [ ] Selective scan kernel fused and SIMD-optimized
 
 ### Soft Requirements (Should Have)
-- ✅ API integration test coverage >80%
-- ✅ CI pipeline set up
-- ✅ Rate limiting on all auth endpoints
-- ✅ Structured logging in backend
-- ✅ Health checks actually verify dependencies
+- [ ] API integration test coverage >80%
+- [ ] CI pipeline set up
+- [ ] Rate limiting on all auth endpoints
+- [ ] Structured logging in backend
+- [ ] Health checks actually verify dependencies
 
 ---
 

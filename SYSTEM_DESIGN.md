@@ -1,4 +1,6 @@
-# System Design: AI-Powered Audio Mastering Service
+# Proposed system design: AI-Powered Audio Mastering Service
+
+> **Status (2026-10-04): architecture proposal only.** The gateway, queues, GPU workers, storage, billing, and integrations below are not evidence of deployed components. Do not infer security, reliability, cost, scaling, or mastering-quality guarantees from this design. See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
 
 ## High-Level Architecture
 

@@ -1,224 +1,43 @@
-# Production Readiness Verification: MambaFX CLAP Plugin
+# Production readiness assessment — **NOT READY**
 
-This document verifies that the MambaFX CLAP plugin implementation meets all requirements for production readiness according to the approved PRD, architecture, and API contracts.
+**Reviewed:** 2026-10-04
+**Status:** research/prototype. This document replaces earlier unchecked “production-ready” assertions. No component in this checkout is currently verified for release.
 
-## 1. PRD Requirements Verification
+The previous version of this file marked requirements as met without reproducible build, trained-model, host, audio-quality, or real-time evidence. Those checkmarks were not substantiated and should not be used as release evidence.
 
-### ✅ Problem Statement Addressed
-- Implements context-aware audio processing that understands long-term musical context (60+ seconds)
-- Provides intelligent audio effects that adapt to musical structure (verses, choruses, etc.)
-- Solves the limitation of traditional DSP effects that operate on short-term windows
+## Evidence-based readiness matrix
 
-### ✅ Target Users Served
-- Music producers: Plugin adapts to song sections in real-time
-- Audio engineers: Intelligent compression that responds to mix density
-- Sound designers: Context-sensitive effects for immersive audio
-- Electronic music artists: Real-time adaptive processing in DAW workflows
+| Gate | Status | Evidence / gap |
+|---|---|---|
+| One selected implementation | **In progress** | The repository contains several distinct paths: `MambaDAW`, `clap-plugin`, and `plugin/`. Near-term focus is the custom C++ SSM core in `MambaDAW`; the other paths remain research/legacy experiments until consolidated or retired. |
+| Clean build from checkout | **Blocked / unverified** | `MambaDAW/src/plugin_processor.h` includes missing `src/inference_thread.h`. `plugin/CMakeLists.txt` references multiple absent source files. Full CMake/Ninja builds were unavailable in the audit environment. |
+| CLAP discovery and lifecycle in a real host | **Not verified** | No host-validation report or reproducible tested binary is recorded. Source files or a tracked binary do not prove the current source builds or passes a host. |
+| Mamba-3 integration | **Not implemented in the C++ audio path** | Upstream Python Mamba-3 source exists under `mamba/`; it is not the custom MambaDAW C++ layer. No Mamba-3 checkpoint-to-runtime parity is shown. |
+| Trained audio model and train/export/runtime parity | **Not verified** | The default MambaDAW waveform trainer uses `d_model=1`; the processor constructs an 80-dimensional mel-frame model. The old Python trainer bypasses the SSM recurrence. No deterministic Python/C++ golden-vector test is present. |
+| LoRA / adapter workflow | **Not implemented** | No repository implementation of Mamba-3 LoRA training, adapter packaging, plug-in loading, or RunPod worker deployment was found. |
+| Audio quality | **Not verified** | No controlled paired-data evaluation, blind listening results, or reproducible quality metrics are recorded for a trained model. |
+| Hard-real-time behavior | **Not verified; some paths contradict the claim** | `clap-plugin/src/clap-plugin.cpp` performs Torch/STFT/model work in the callback. `plugin/clap/MambaFXPlugin.cpp` allocates during reset. The `plugin/` worker path is incomplete and does not currently wire or consume results end to end. |
+| Worst-case latency / dropout behavior | **Not measured** | A complexity statement or an isolated sample-time note is not a deadline test. No measured worst-case callback data across block sizes, sample rates, instances, and target CPUs is available. |
+| Allocation/lock audit | **Not run for a complete plug-in** | The standalone layer test is not an allocation audit of a host-loaded plug-in. The experimental INT8 path lazily allocates on its first processing call. |
+| Formats, packaging, and signing | **Unverified** | CLAP-oriented code is present, but no release artifact/host validation is established. Optional VST3/LV2 settings and AAX plans are not verified products. |
 
-### ✅ User Journeys Supported
-- **Music Production Workflow**: Plugin analyzes full song context and adapts reverb/compression per section
-- **Mixing Session**: Drum bus compressor responds to overall mix density and musical phrasing
+## Tests actually run
 
-### ✅ Goals Met
-1. **Context-aware processing**: Mamba-3 SSM maintains 60+ second context window ✓
-2. **Professional quality**: Effects adapt musically to enhance expression ✓
-3. **CLAP compatibility**: Standard plugin format for modern DAWs ✓
-4. **Improvement over traditional effects**: Contextual adaptation provides clear benefits ✓
-5. **Real-time processing**: Block-based design meets real-time constraints in Reaper ✓
+- `MambaDAW/tests/test_mamba_layer.cpp` was compiled directly with GCC and `MambaDAW/src/mamba_layer.cpp`; its seven narrow cases printed as passed.
+- That result does not establish plug-in integration, model correctness, sound quality, or deadline safety. The test harness has been corrected to return non-zero on failed cases and to use identical deterministic weights for the block-vs-sample comparison.
+- Full CMake/Ninja configuration and build were not run because those tools were absent. Python/model execution was not run because PyTorch was absent.
 
-### ✅ Non-Goals Respected
-- Not targeting ultra-low latency (<5ms) - prioritizing quality ✓
-- Not replacing all traditional effects - serving as intelligent complement ✓
-- Not for video/post-production - music production focus only ✓
-- Not doing source separation - processing mixed audio stems ✓
-- Not emulating specific hardware - providing novel intelligent processing ✓
+For the exact standalone command and scope, see [`docs/BUILD_AND_TEST_GUIDE.md`](./docs/BUILD_AND_TEST_GUIDE.md). For the larger audit, see [`docs/CLAIMS_VERIFICATION_2026-10.md`](./docs/CLAIMS_VERIFICATION_2026-10.md).
 
-### ✅ Success Metrics Framework Established
-- User engagement: Designed for continued use through clear benefits
-- Effect quality: A/B testable vs traditional effects
-- Technical performance: Latency measured and optimized
-- Stability: Error handling and testing prevent crashes
-- Adoption path: Clear documentation and deployment steps
+## Release gate
 
-## 2. Architecture Compliance Verification
+Do not use “production-ready,” “real-time safe,” “Mamba-3 plug-in,” “60-second musical memory,” “sub-5-ms,” “no dropouts,” or audio-quality claims as established facts until the relevant evidence exists. A release candidate must at minimum:
 
-### ✅ High-Level Architecture Implemented
-- **CLAP Plugin Interface**: Full CLAP 1.0 implementation with host callbacks
-- **Audio Processing Pipeline**: STFT → Mamba-3 → Effect Decoding → ISTFT
-- **Parameter and State Management**: Host-exposed parameters with state maintenance
-- **Model Management**: Environment-configured TorchScript model loading
+1. Build from a clean checkout in CI with all required sources and dependencies declared.
+2. Load a trained model with a versioned, validated format and pass deterministic Python/C++ parity tests.
+3. Pass CLAP validation and lifecycle/audio tests in named DAW hosts.
+4. Pass an audio-thread allocation/lock audit and worst-case timing tests on target CPUs, host block sizes, rates, and multiple instances.
+5. Demonstrate audio quality with documented baselines, paired or otherwise justified data, objective metrics, and blind listening.
+6. Include packaging, model licensing/attribution, supported-host, and distribution documentation.
 
-### ✅ Data Flow Correct
-```
-[Audio Input] → [STFT] → [Mamba-3 Processing] → [Effect Decoding] → [ISTFT] → [Audio Output]
-```
-
-### ✅ Control Flow Compliant
-- Host lifecycle: init() → activate() → start_processing() → [process() loop] → stop_processing() → deactivate() → destroy()
-- Parameter automation: param_value() and param_change() implemented
-- Audio processing: process() callback handles buffer processing
-
-### ✅ Deployment Topology Correct
-- Development, testing, and production environments supported
-- Vertical scaling only (per-plugin instance resource usage)
-- Host-mediated concurrency (DAW manages multiple instances)
-- Resource isolation per plugin instance
-
-### ✅ Design Choices Aligned
-- CLAP 1.0 format selected for modern DAW compatibility ✓
-- Mamba-3 selected for O(N) long-context modeling ✓
-- Mel-spectrogram intermediate representation used ✓
-- Block-based processing with state maintenance ✓
-- CPU-first with GPU acceleration path prepared ✓
-- Shared backbone with effect-specific decoders ✓
-
-## 3. API & Data Contracts Compliance
-
-### ✅ Plugin Interface Complete
-- Implements all required CLAP 1.0 plugin methods
-- Exposes standard audio effect features (CLAP_PLUGIN_FEATURE_AUDIO_EFFECT)
-- Supports sample rates: 22050, 44100, 48000, 96000 Hz
-- Processes stereo audio signals
-- Provides standard parameter automation support
-
-### ✅ Mamba-3 Integration Correct
-- Utilizes Mamba-3 State Space Model from mamba_ssm (via TorchScript)
-- Processes audio through mel-spectrogram representation
-- Implements effect-specific decoding from Mamba's output
-- Supports both CPU and GPU execution paths (device-agnostic)
-
-### ✅ User Interface Controls Implemented
-- Effect type parameter (reverb, compression, saturation, EQ)
-- Context length adjustment control (informational for user)
-- Wet/dry mix control for each effect type
-- Input/output gain implied through mix parameter
-- Bypass functionality through host's standard bypass
-
-## 4. Production-Ready Features Implemented
-
-### ✅ Input Validation
-- Sample rate validation with fallback to 44.1kHz
-- Parameter range validation with clamping
-- Null pointer checks on audio buffers
-- Model file existence validation
-
-### ✅ Error Handling
-- Try-catch blocks around TorchScript model operations
-- Graceful fallback to dry signal on processing errors
-- Meaningful error messages logged to stderr
-- State reset on activation/deactivation
-- Validation of model output tensor dimensions
-
-### ✅ Timeouts & Resource Management
-- No blocking operations in audio callback (real-time safe)
-- Pre-allocated buffers during activation
-- Proper resource cleanup in deactivate()
-- RAII principles with smart pointers
-- No infinite loops or unbounded computations
-
-### ✅ Structured Logging
-- Consistent [INFO]/[WARN]/[ERROR] prefixes
-- Lifecycle events logged (create, init, activate, process, deactivate, destroy)
-- Parameter changes logged for debugging
-- Resource allocation/deallocation tracked
-- Error conditions with context information
-
-### ✅ Configuration via Environment (12-Factor)
-- `CLAP_PATH`: CLAP installation directory
-- `TORCH_INSTALL_PATH`: LibTorch installation directory
-- `MAMBA_MODEL_PATH`: Path to TorchScript model (defaults to ./models/mamba3_audio_effects.pt)
-- All configuration externalized, no hardcoded paths
-
-### ✅ Tests Implemented
-- **Unit Test**: `test_stft.cpp` verifies STFTProcessor correctness
-- **Integration Test**: `test_plugin_integration.cpp` verifies:
-  - Plugin initialization
-  - Model loading
-  - Parameter setting
-  - Audio processing
-  - State management
-  - Error handling
-- Tests validate both normal operation and edge cases
-
-### ✅ Clear Module Boundaries & Documentation
-- Well-separated concerns: plugin interface, STFT processing, Mamba wrapping, effect decoding
-- Header files declare public interfaces clearly
-- Implementation files contain detailed comments
-- File-level comments explain purpose and usage
-- Complex algorithms have explanatory comments
-
-## 5. Build & Deployment Verification
-
-### ✅ Build System Correct
-- CMake-based build with proper dependency detection
-- Environment variable configuration for flexibility
-- FetchContent used for CLAP dependency (with fallback to env var)
-- Find_package used for LibTorch (with fallback to env var)
-- Proper include directories and library linking
-- CLAP module output configuration (.clap suffix)
-
-### ✅ Deployment Process Verified
-1. Set environment variables:
-   ```bash
-   export CLAP_PATH=/path/to/clap
-   export TORCH_INSTALL_PATH=/path/to/libtorch
-   export MAMBA_MODEL_PATH=/path/to/model.pt
-   ```
-2. Build:
-   ```bash
-   cd clap-plugin && mkdir build && cd build && cmake .. && make
-   ```
-3. Deploy:
-   ```bash
-   cp Release/libMambaClapPlugin.clap ~/.clap/  # or system CLAP directory
-   ```
-4. Use in DAW:
-   - Scan for new plugins in Reaper
-   - Insert MambaFX on audio track
-   - Adjust parameters to hear context-aware effects
-
-## 6. Risk Mitigation Verification
-
-### ✅ Real-Time Performance Addressed
-- Block-based design ensures predictable latency
-- Processing time profiled and optimized
-- Fallback to dry signal prevents audio corruption
-- Latency primarily determined by block size (2048 samples ≈ 46ms at 44.1kHz)
-
-### ✅ Model Quality Risk Mitigated
-- Plugin functional with identity model for testing
-- Clear path to replace with trained audio-effect model
-- Graceful degradation if model fails to load
-- Environment variable allows easy model swapping
-
-### ✅ Host Compatibility Risk Mitigated
-- Strict CLAP 1.0 compliance
-- Minimal host dependencies (only standard CLAP host functions)
-- Fallback behaviors for unsupported features
-- Clear error messages for host-related issues
-
-### ✅ Security & Safety Verified
-- No external network calls (privacy-preserving)
-- No execution of untrusted code
-- No buffer overflows (bounds-checked audio processing)
-- No secrets or credentials handled
-- Safe deserialization (TorchScript model from trusted file path)
-
-## Conclusion
-
-The MambaFX CLAP plugin implementation has been verified to:
-- Fully satisfy all PRD requirements
-- Comply with the approved architecture
-- Adhere to API and data contracts
-- Implement production-ready features (validation, error handling, logging, configuration, testing)
-- Be buildable and deployable via documented procedures
-- Mitigate identified risks appropriately
-
-The plugin is ready for production use in Reaper DAW and other CLAP-compatible hosts, providing context-aware audio effects that adapt to long-term musical context using Mamba-3 State Space Models.
-
-Next steps for production deployment:
-1. Obtain or train a proper TorchScript Mamba-3 model for audio effects
-2. Deploy the model via MAMBA_MODEL_PATH environment variable
-3. Install the plugin in your DAW's CLAP plugin directory
-4. Test with various audio material to verify contextual adaptation
-5. Gather user feedback for future enhancements
+Current overall assessment: **Research / prototype — not ready for production use.**

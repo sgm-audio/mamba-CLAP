@@ -1,7 +1,7 @@
 # ADR-005: Processing Modes and CPU Budget Enforcement
 
 ## Status
-Accepted
+Accepted as a design target only; CPU-budget thresholds and processing modes are not measured or implemented end to end. See [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md).
 
 ## Context
 The product must support both tiny and large Mamba models while keeping default-model DSP below 30% of real-time budget on a 4-core 2.5GHz CPU.
@@ -43,6 +43,6 @@ Define two runtime modes with explicit eligibility and contracts.
 - Performance harness measures worst-case callback time and average CPU under both modes.
 - Regression threshold gate in CI for default-model profile.
 
-## Acceptance Criteria
-- Both mode paths maintain state continuity and RT safety constraints.
-- Default model passes CPU budget gate on reference hardware.
+## Proposed acceptance criteria (not passed)
+- Demonstrate state continuity and callback-safety constraints for each implemented mode.
+- Measure a named default model against a documented CPU-budget gate on reference hardware.

@@ -1,11 +1,8 @@
 #pragma once
-// Central parameter registry.
-//   • Each parameter is stored as a std::atomic<float> — reads from the
-//     real-time audio thread are always wait-free.
-//   • The bank also owns the clap_param_info_t descriptors so the CLAP
-//     extension layer can answer host queries without touching the audio path.
-//   • Value normalisation (0.0–1.0 plain ↔ physical units) lives here so
-//     all layers share the same conversion logic.
+// Parameter registry prototype. This file is part of an incomplete proposed
+// plug-in architecture; platform-specific atomic guarantees and callback use
+// have not been audited. It stores float parameters atomically and provides
+// conversion helpers; it is not evidence of a complete or RT-validated product.
 
 #include <atomic>
 #include <array>
@@ -24,7 +21,7 @@ enum class ParamId : uint32_t {
     InputGain       = 2,   // -24 dB – +24 dB
     OutputGain      = 3,   // -24 dB – +24 dB
     ContextLength   = 4,   // 1.0 s – 120.0 s (informational for model)
-    ModelVariant    = 5,   // 0=tiny(20MB) 1=base(80MB) 2=large(150MB)
+    ModelVariant    = 5,   // proposed selector; no model variants are packaged
     InferenceDevice = 6,   // 0=CPU 1=CUDA (if available)
     Bypass          = 7,   // 0=off 1=on
     COUNT           = 8
@@ -48,7 +45,7 @@ inline constexpr std::array<ParamMeta, kParamCount> kParamMeta = {{
     { "Input Gain",        "MambaFX/Levels",    -24.0,  24.0,  0.0,   CLAP_PARAM_IS_AUTOMATABLE },
     { "Output Gain",       "MambaFX/Levels",    -24.0,  24.0,  0.0,   CLAP_PARAM_IS_AUTOMATABLE },
     { "Context Length (s)","MambaFX/Model",      1.0,   120.0, 60.0,  CLAP_PARAM_IS_AUTOMATABLE },
-    { "Model Variant",     "MambaFX/Model",      0.0,   2.0,   1.0,   CLAP_PARAM_IS_ENUM        },
+    { "Model Variant",     "MambaFX/Model",      0.0,   2.0,   1.0,   CLAP_PARAM_IS_ENUM        }, // placeholder; no checkpoints
     { "Inference Device",  "MambaFX/Model",      0.0,   1.0,   0.0,   CLAP_PARAM_IS_ENUM        },
     { "Bypass",            "MambaFX/Utility",    0.0,   1.0,   0.0,   CLAP_PARAM_IS_STEPPED
                                                                      | CLAP_PARAM_IS_AUTOMATABLE },
@@ -63,12 +60,12 @@ public:
                              std::memory_order_relaxed);
     }
 
-    // Real-time safe — called from any thread.
+    // Intended non-blocking accessor; lock-free behavior is platform-dependent and unverified.
     [[nodiscard]] float get(ParamId id) const noexcept {
         return values_[idx(id)].load(std::memory_order_relaxed);
     }
 
-    // Real-time safe — called from audio thread or host automation callbacks.
+    // Intended non-blocking setter; full callback/platform audit remains outstanding.
     void set(ParamId id, float value) noexcept {
         values_[idx(id)].store(clamp(id, value), std::memory_order_relaxed);
     }

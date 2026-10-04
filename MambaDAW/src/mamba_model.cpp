@@ -22,11 +22,8 @@ if (!std::isfinite(out)) out = 0.f;
 return out;
 }
 
-// RT-Safety Justification: sanitizeOutput() runs on the audio thread.
-// - Pure computation on pre-allocated buffer, no heap allocation.
-// - No mutexes, locks, or I/O.
-// - std::isfinite() is branchless on most compilers; the fallback write
-//   ensures no NaN/Inf propagates to downstream DSP or the effect decoder.
+// sanitizeOutput() is a bounded source-level helper over caller-provided memory.
+// This local observation is not a full plug-in callback or hard-real-time audit.
 
 static void sanitizeOutput(float* buf, int64_t n) noexcept {
 for (int64_t i = 0; i < n; ++i) {

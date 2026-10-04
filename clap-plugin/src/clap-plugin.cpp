@@ -21,7 +21,7 @@ static const clap_plugin_descriptor kDescriptor = {
     .manual_url = "",
     .support_url = "",
     .version = "1.0.0",
-    .description = "Audio effect using Mamba SSM for context-aware processing",
+    .description = "Experimental TorchScript/STFT audio-processing prototype; not release-validated",
     .features = (const char*[]){
         CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
         CLAP_PLUGIN_FEATURE_UTILITY,
@@ -113,7 +113,7 @@ bool MambaClapPlugin::activate(double sample_rate, double min_blep_latency, doub
               << ", n_mels=" << n_mels_
               << ", sample_rate=" << sample_rate_ << std::endl;
 
-    // REAL-TIME SAFE: Pre-allocate ALL processing buffers (done once here, not in process())
+    // RT-STATUS UNVERIFIED: Pre-allocate ALL processing buffers (done once here, not in process())
     // These tensors persist across all process() calls
     prealloc_input_ = torch::empty({1, MAX_BLOCK_SIZE}, torch::kFloat32);
     prealloc_mel_spec_ = torch::empty({MAX_FRAMES, n_mels_}, torch::kFloat32);
@@ -145,7 +145,7 @@ bool MambaClapPlugin::activate(double sample_rate, double min_blep_latency, doub
     }
 
     is_active_ = true;
-    std::cerr << "[INFO] MambaFX CLAP plugin activated successfully (real-time safe: all buffers pre-allocated)" << std::endl;
+    std::cerr << "[INFO] MambaFX CLAP plugin activated successfully (callback RT-safety unverified; some buffers are pre-allocated)" << std::endl;
     return true;
 }
 
@@ -230,7 +230,7 @@ void MambaClapPlugin::process(const clap_process_t* process) {
 }
 
 bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int num_samples) {
-    // REAL-TIME SAFE: Copy dry signal (memcpy is async-safe)
+    // RT-STATUS UNVERIFIED: Copy dry signal (memcpy is async-safe)
     std::memcpy(output, input, num_samples * sizeof(float));
 
     // Skip processing if not active or no model
@@ -247,11 +247,11 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
         torch::NoGradGuard no_grad;
         auto tick = std::chrono::high_resolution_clock::now();
 
-        // REAL-TIME SAFE: Copy input to pre-allocated tensor (NO allocation)
+        // RT-STATUS UNVERIFIED: Copy input to pre-allocated tensor (NO allocation)
         float* input_data = prealloc_input_.data_ptr<float>();
         std::memcpy(input_data, input, num_samples * sizeof(float));
 
-        // REAL-TIME SAFE: STFT forward
+        // RT-STATUS UNVERIFIED: STFT forward
         prealloc_mel_spec_ = stft_processor_->forward(
             prealloc_input_.slice(0, 0, num_samples)
         );
@@ -262,18 +262,18 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
             return true;
         }
 
-        // REAL-TIME SAFE: Process with Mamba frame by frame
+        // RT-STATUS UNVERIFIED: Process with Mamba frame by frame
         // Use shallow copy of state (tensor wrappers share underlying storage)
         auto state = mamba_state_; // Shallow copy
 
         for (int t = 0; t < time_steps; ++t) {
-            // REAL-TIME SAFE: Get mel frame as VIEW (no copy, no allocation)
+            // RT-STATUS UNVERIFIED: Get mel frame as VIEW (no copy, no allocation)
             auto step_input = prealloc_mel_spec_.slice(0, t, t+1); // [1, n_mels]
 
             // Process this step (must NOT allocate - mamba_wrapper_->step should use pre-allocated buffers)
             auto step_output = mamba_wrapper_->step(step_input, state);
 
-            // REAL-TIME SAFE: Check for NaN/Inf without allocation
+            // RT-STATUS UNVERIFIED: Check for NaN/Inf without allocation
             // Use pre-allocated zeros tensor instead of creating new one
             if (!step_output.isfinite().all().item<bool>()) {
                 // Use pre-allocated zeros (no allocation)
@@ -288,15 +288,15 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
             float effect_strength = effect_params.mean().item<float>();
             float modulation = 1.0f + (effect_strength * 0.5f);
 
-            // REAL-TIME SAFE: Store result in pre-allocated buffer (in-place modulation)
+            // RT-STATUS UNVERIFIED: Store result in pre-allocated buffer (in-place modulation)
             auto dest_slice = prealloc_processed_mel_.slice(0, t, t+1);
             dest_slice.copy_(step_output * modulation);
         }
 
-        // REAL-TIME SAFE: Save updated state for next block
+        // RT-STATUS UNVERIFIED: Save updated state for next block
         mamba_state_ = state;
 
-        // REAL-TIME SAFE: ISTFT back to waveform
+        // RT-STATUS UNVERIFIED: ISTFT back to waveform
         torch::Tensor output_tensor = stft_processor_->inverse(
             prealloc_processed_mel_.slice(0, 0, time_steps)
         );
@@ -308,14 +308,14 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
         );
         blocks_processed_count_.fetch_add(1, std::memory_order_relaxed);
 
-        // REAL-TIME SAFE: Mix dry/wet using pre-allocated tensor access
+        // RT-STATUS UNVERIFIED: Mix dry/wet using pre-allocated tensor access
         const float* wet_data = output_tensor.data_ptr<float>();
         float mix = param_mix_.load(std::memory_order_relaxed);
 
         for (int i = 0; i < num_samples && i < output_tensor.size(0); ++i) {
             float wet_sample = wet_data[i];
 
-            // REAL-TIME SAFE: Sanitize (NaN/Inf protection)
+            // RT-STATUS UNVERIFIED: Sanitize (NaN/Inf protection)
             if (std::isnan(wet_sample) || std::isinf(wet_sample)) {
                 wet_sample = 0.0f;
             }
@@ -323,12 +323,12 @@ bool MambaClapPlugin::processAudioBlock(const float* input, float* output, int n
             float dry_sample = output[i]; // Already contains dry signal
             float mixed = dry_sample * (1.0f - mix) + wet_sample * mix;
 
-            // REAL-TIME SAFE: Sanitize mixed signal
+            // RT-STATUS UNVERIFIED: Sanitize mixed signal
             if (std::isnan(mixed) || std::isinf(mixed)) {
                 mixed = 0.0f;
             }
 
-            // REAL-TIME SAFE: Soft clipping (tanh is fast and bounded)
+            // RT-STATUS UNVERIFIED: Soft clipping (tanh is fast and bounded)
             output[i] = std::tanh(mixed);
         }
     } catch (const std::exception& e) {
@@ -449,7 +449,7 @@ torch::Tensor STFTProcessor::forward(const torch::Tensor& waveform) {
     int pad = pad_;
     int padded_len = L + n_fft_; // total length after padding
 
-    // Ensure pre-allocated buffer is large enough (real-time safe)
+    // Capacity guard only; exception path means this is not RT-verified.
     if (padded_len > static_cast<int>(padded_buffer_capacity_)) {
         throw std::runtime_error("STFTProcessor::forward: block size exceeds maximum supported size (" +
                                  std::to_string(padded_len) + " > " + std::to_string(padded_buffer_capacity_) + ")");
@@ -526,7 +526,7 @@ torch::Tensor STFTProcessor::inverse(const torch::Tensor& mel_spectrogram) {
 
     // Allocate buffer for full overlap-added signal
     int full_len = (T - 1) * hop_length_ + n_fft_;
-    // Ensure pre-allocated buffer is large enough (real-time safe)
+    // Capacity guard only; exception path means this is not RT-verified.
     if (full_len > static_cast<int>(padded_buffer_capacity_)) {
         throw std::runtime_error("STFTProcessor::inverse: output length exceeds maximum supported buffer size");
     }

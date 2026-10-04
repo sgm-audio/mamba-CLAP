@@ -1,15 +1,15 @@
 # ADR-003: Processing Modes and ARA Bridge
 
 ## Status
-Accepted
+Historical design draft; proposed ARA and processing-mode behavior is not implemented or host-validated. Consult [`docs/PROJECT_STATUS.md`](../docs/PROJECT_STATUS.md).
 
 ## Context
 We need to support two inference modes for the Mamba-SSM model to accommodate different model sizes and latency requirements.
 Additionally, we need to define how ARA musical context (tempo, key, chords) is used to condition the SSM parameters (Δ and B) via learned projections.
 
-## Decision
+## Proposed Design (not implemented or evaluated)
 ### Processing Modes
-We define two modes:
+Candidate modes for experimentation; the size/block thresholds below are placeholders, not validated performance guidance:
 
 **Mode A (Tiny)**:
 - Designed for very small Mamba models (e.g., ≤2M parameters) where per-sample or micro-block processing is feasible.
@@ -33,10 +33,10 @@ This conditioning vector is then used to bias the SSM parameters Δ and B via le
 - The projections are precomputed and stored as part of the weight file (or computed on the fly from the weights, but we prefer to precompute for efficiency).
 - The conditioning vector is updated by the ARA thread and shared with the audio thread via the double-buffered mechanism described in ADR-001.
 
-## Consequences
-- The system can handle a wide range of model sizes by switching between Mode A and Mode B (and adjusting block size) without changing the core inference code.
-- The ARA conditioning is applied in a way that is efficient and real-time safe: the audio thread reads the latest conditioning vector (via atomic pointer) and applies the biases via a few multiply-add operations (if the projections are linear).
-- The design isolates the real-time audio thread from the variability of ARA updates.
+## Intended Consequences (unverified)
+- The design goal is to support different model/block sizes; this has not been implemented or benchmarked.
+- ARA conditioning would ideally be handed off without blocking, but atomic ownership, callback cost, and real-time safety are not established.
+- Isolation from ARA update variability remains a requirement to test, not a current capability.
 
 ## Implementation Notes
 - We define two processing functions in the SSM core: `process_tiny` (for Mode A) and `process_block` (for Mode B). The plugin selects which one to use based on the model size and user preference (or automatically).

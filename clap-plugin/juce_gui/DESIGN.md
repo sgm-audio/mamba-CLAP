@@ -1,6 +1,8 @@
-# Mamba Based: JUCE Frontend Architecture Design
+# Mamba Based: proposed JUCE frontend design
 
-This document outlines the architecture for a "visually pleasing," high-performance JUCE frontend for the Mamba audio processor. The design prioritizes a "High-Tech HUD" aesthetic, real-time feedback, and a seamless user experience.
+> **Status (2026-10-04):** UI design concept only. It does not establish that the underlying model, CLAP processor, latency/confidence metrics, or 60-fps visualization are implemented or validated. Treat all performance and model-feedback displays below as proposals.
+
+This document outlines a visual direction for a future JUCE frontend.
 
 ## 1. Design Philosophy: "The Silicon Serpent"
 The UI should feel like a high-performance terminal into a neural state space. It uses high-contrast colors, monospaced typography, and hardware-accelerated visualizations to convey the intelligence of the underlying Mamba SSM.

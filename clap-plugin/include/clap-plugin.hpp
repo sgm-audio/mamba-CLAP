@@ -59,7 +59,7 @@ private:
     static constexpr int MAX_BLOCK_SIZE = 32768;
     static constexpr int MAX_FRAMES = (MAX_BLOCK_SIZE / 256) + 2; // worst case
 
-    // REAL-TIME SAFE: Pre-allocated buffers (allocated in activate(), never in process())
+    // Experimental preallocated scratch buffers; Torch/STFT work in process() means RT safety is unverified.
     torch::Tensor prealloc_input_;       // [1, MAX_BLOCK_SIZE]
     torch::Tensor prealloc_mel_spec_;    // [MAX_FRAMES, n_mels]
     torch::Tensor prealloc_processed_mel_; // [MAX_FRAMES, n_mels]

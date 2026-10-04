@@ -1,13 +1,13 @@
 # ADR-001: Triple-Thread Boundary and Lock-Free Communication
 
 ## Status
-Accepted
+Historical design draft; implementation and real-time behavior are not verified. `docs/adr/002-rt-thread-boundary-and-domain-decomposition.md` and the current [`docs/PROJECT_STATUS.md`](../docs/PROJECT_STATUS.md) are the relevant references.
 
 ## Context
 We need to define the threading model for the plugin suite to ensure real-time safety in the audio thread while allowing communication from the main thread (UI, state serialization) and the ARA thread (offline rendering, analysis). The audio thread must be free of allocations, locks, and blocking operations.
 
-## Decision
-We define three threads:
+## Proposed Decision
+The draft proposes three threads; this is not evidence that the current plug-in implements them:
 1. **Audio Thread**: Runs the audio callback (`process()`). It is real-time and must never block.
    - Owns the current SSM state (`h_state`).
    - Reads parameters via atomic float array or lock-free ring buffer (for smoothed values).
@@ -29,10 +29,10 @@ We define three threads:
 - **State Snapshots**: For state serialization (e.g., when saving a preset), the audio thread writes the current SSM state (`h_state`) to a secondary buffer (pre-allocated) and then increments a sequence lock (seqlock). The main thread, when serializing state, reads the seqlock, copies the secondary buffer, and then reads the seqlock again to ensure consistency. If the seqlock changed during the copy, it retries.
 
 ## Consequences
-- The audio thread is guaranteed to be free of locks, allocations, and blocking I/O.
-- Parameter updates are eventually consistent and may be delayed by up to one audio buffer period, but are smooth and glitch-free.
-- ARA conditioning updates are also eventually consistent and safe for real-time reading.
-- State snapshots are consistent without blocking the audio thread for long periods.
+- Intended target: keep locks, allocations, and blocking I/O out of the audio callback; no audit establishes that this is achieved.
+- Parameter-update freshness, smoothing, and audible behavior require implementation tests and host/listening evaluation.
+- ARA conditioning ownership/atomicity and audio-thread behavior are unimplemented or unverified.
+- State-snapshot consistency and retry behavior require concrete implementation and concurrency tests.
 
 ## Implementation Notes
 - The atomic float array for parameters must be aligned to avoid tearing (use `std::atomic<float>` for each parameter or align the whole array to cache line size).

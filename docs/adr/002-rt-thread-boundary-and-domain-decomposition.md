@@ -1,12 +1,12 @@
 # ADR-002: Real-Time Thread Boundary and Domain Decomposition
 
 ## Status
-Accepted
+Accepted as a design proposal only; no complete plug-in build, thread-boundary audit, or hard-real-time guarantee is established. See [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md).
 
 ## Context
-This plugin suite must run neural audio processing under CLAP 1.1+ and ARA 2.0 while preserving hard real-time guarantees in `process()`. The implementation spans CLAP host integration, Mamba-SSM inference, offline ARA analysis, and UI/session state.
+The design goal is to support neural audio processing under CLAP/ARA while preserving callback constraints. This is a requirement, not evidence of a current implementation; the repository contains separate, incomplete plug-in experiments.
 
-Without explicit domain boundaries and thread ownership, teams will introduce mutexes, allocations, or cross-thread state hazards inside the audio callback.
+The design intent is to prevent mutexes, allocations, and cross-thread state hazards from reaching an audio callback; the current code has not been fully audited against these requirements.
 
 ## Decision
 We define four architectural domains and a strict triple-thread boundary.
@@ -47,7 +47,7 @@ We define four architectural domains and a strict triple-thread boundary.
 
 ## Consequences
 ### Positive
-- Real-time safety obligations are localized and testable.
+- Goal: localize safety obligations so they can be audited; testability and compliance are not yet demonstrated.
 - Teams can implement subsystems independently with deterministic ownership.
 - Host and ARA integration no longer leak into SSM math layer.
 

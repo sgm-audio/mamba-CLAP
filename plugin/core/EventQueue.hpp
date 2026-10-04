@@ -1,6 +1,7 @@
 #pragma once
-// Lock-free single-producer / single-consumer queue for cross-thread commands.
-// Real-time safe: push() and pop() never allocate or block.
+// Fixed-capacity SPSC queue prototype for cross-thread commands. push()/pop()
+// have no explicit dynamic allocation or blocking, but lock-free atomics are
+// platform-dependent and the complete callback path has not been RT-audited.
 // Capacity must be a power-of-two; fixed at compile time via template param.
 
 #include <atomic>
@@ -16,7 +17,7 @@ template<typename T, std::size_t Capacity>
 class SPSCQueue {
 public:
     static_assert(std::is_trivially_destructible_v<T>,
-        "T must be trivially destructible for real-time safety");
+        "T must be trivially destructible for bounded queue teardown");
 
     // Producer thread only.
     [[nodiscard]] bool push(const T& item) noexcept {

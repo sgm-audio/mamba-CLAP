@@ -79,12 +79,14 @@ PluginEditor::PluginEditor(PluginProcessor& p,
     ctxLenSlider_.setRange(10.0, 120.0, 1.0);
     ctxLenSlider_.setValue(60.0, dontSendNotification);
     ctxLenSlider_.onValueChange = [this] {
-        setParam(5, ctxLenSlider_.getValue());
-        contextMeter_.setContextLengthSeconds(static_cast<float>(ctxLenSlider_.getValue()));
+        const auto seconds = ctxLenSlider_.getValue();
+        setParam(5, seconds);
+        ctxLenLabel_.setText("Ctx target: " + String(static_cast<int>(seconds)) + "s", dontSendNotification);
+        contextMeter_.setContextLengthSeconds(static_cast<float>(seconds));
     };
     addAndMakeVisible(ctxLenSlider_);
 
-    ctxLenLabel_.setText("Ctx: 60s", dontSendNotification);
+    ctxLenLabel_.setText("Ctx target: 60s", dontSendNotification);
     ctxLenLabel_.setColour(Label::textColourId, MambaColors::textSecondary);
     ctxLenLabel_.setFont(Font(FontOptions(11.f)));
     ctxLenLabel_.setJustificationType(Justification::centredRight);

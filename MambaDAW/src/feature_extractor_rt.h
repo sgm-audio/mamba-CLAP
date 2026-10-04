@@ -5,12 +5,12 @@
 
 /**
  * @file feature_extractor_rt.h
- * @brief Real-time safe audio feature extraction for L4 frame context.
+ * @brief Experimental, lightweight audio-feature helpers.
  *
- * All functions are allocation-free (use caller-provided buffers or stack).
- * No heap allocations, no STL containers, no exceptions.
- * Designed to run in the audio callback if needed (though typically L4
- * is assembled on the inference thread from features passed from RT).
+ * Some helpers use caller-provided buffers or stack storage, but this header has
+ * not had a complete callback/deadline audit. Do not infer hard-real-time safety
+ * from the file name or these local implementation choices. Integration into a
+ * verified plug-in path is incomplete; several features below are placeholders.
  */
 
 /**
@@ -187,7 +187,7 @@ static inline float compute_hnr(float rms, float peak) {
 }
 
 /**
- * @brief Extract all features from an audio buffer (RT-safe).
+ * @brief Compute the currently implemented subset of features (RT safety unverified).
  *
  * @param samples Input audio buffer (assumed mono or summed to mono)
  * @param num_samples Number of samples

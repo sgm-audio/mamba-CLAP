@@ -1,7 +1,7 @@
 # ADR-001: Modify API Spec to Include Content Type in Job Creation and Job ID in Upload URL
 
 ## Status
-Accepted
+Accepted as an API-design decision; implementation and deployment status are not established by this ADR. Verify against the current service code.
 
 ## Context
 We are implementing the AI-Powered Audio Mastering Service API. During the implementation of the job creation endpoint, we encountered a problem:

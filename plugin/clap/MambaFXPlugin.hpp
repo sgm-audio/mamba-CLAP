@@ -1,25 +1,16 @@
 #pragma once
 // ─────────────────────────────────────────────────────────────────────────────
-// MambaFXPlugin — production-ready CLAP 1.2 plugin skeleton (C++20)
+// MambaFXPlugin — experimental CLAP implementation / architecture prototype (C++20)
 //
-// Audio configuration: STEREO (2 channels in / 2 channels out), in-place capable
-// Process mode:        block-based, variable frame count (min=1, max=MAX_BLOCK)
-// Parameters (8):      EffectType · WetMix · InputGain · OutputGain ·
-//                      ContextLength · ModelVariant · InferenceDevice · Bypass
+// STATUS: not release-validated. Full build, host compatibility, callback timing,
+// and hard-real-time behavior have not been demonstrated. This file's former
+// RT-safety contract described intended constraints, not measured or audited facts.
+// Inline RT-INTENT comments are design notes only; review the implementation and
+// audit every callback path before any production use.
 //
-// RT-safety contract (enforced throughout process()):
-//   ✗ No heap allocation  — all memory pre-allocated in activate()
-//   ✗ No std::mutex       — SPSC queues + atomics only
-//   ✗ No system calls     — no mmap, read, write, gettimeofday, etc.
-//   ✗ No libtorch         — inference runs on dedicated worker thread
-//   ✗ No exceptions       — all paths noexcept; errors silently bypass
-//   ✓ Bounded loops only  — no unbounded waits or retries
-//   ✓ Wait-free reads     — atomic<float> params, SPSC queue pop
-//
-// Thread boundaries are marked with:
-//   [MAIN]      — main/UI thread (init, destroy, activate, deactivate, save/load)
-//   [AUDIO-RT]  — real-time audio thread (process, params_flush, start/stop)
-//   [ANY]       — safe to call from any thread (atomics, SPSC push/pop)
+// Audio configuration and parameter list below describe the proposed interface,
+// not a verified product capability. [MAIN]/[AUDIO-RT]/[ANY] are intended thread
+// domains, not certification that the current implementation is safe there.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #include <clap/clap.h>
@@ -53,17 +44,17 @@ namespace mamba::clap_adapter {
 // ─── Constants ───────────────────────────────────────────────────────────────
 inline constexpr uint32_t kChannels    = 2;        // stereo
 inline constexpr uint32_t kMaxBlock    = 8192;     // max frames per process()
-inline constexpr uint32_t kLatency     = 256;      // hop_length: reported to host
+inline constexpr uint32_t kLatency     = 256;     // placeholder; not a measured end-to-end latency
 inline constexpr uint32_t kTailSamples = 1024;     // STFT window tail
 inline constexpr double   kSmoothMs    = 20.0;     // param ramp time in ms
 inline constexpr uint32_t kEventCapacity = 256;    // max events drained per block
 
-// ─── clap-validator compliance assertions ────────────────────────────────────
-// These fire at compile time to catch spec violations early.
+// ─── Local configuration sanity checks (not host/spec validation) ─────────────
+// Compile-time checks do not validate a built plug-in or its reported latency.
 static_assert(kChannels >= 1 && kChannels <= 64,
     "CLAP: channel count must be 1..64");
 static_assert(kLatency < kMaxBlock * 16,
-    "CLAP: reported latency must be less than 16× max block size (practical rule)");
+    "local latency placeholder is outside the configured sanity range; measure actual latency");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ParamSmootherBank — one SmoothedValue per automatable parameter.
@@ -162,7 +153,7 @@ private:
     static void s_stop_processing (const clap_plugin_t*) noexcept;
     // [AUDIO-RT] — resets all DSP state; called after host seek or re-init
     static void s_reset           (const clap_plugin_t*) noexcept;
-    // [AUDIO-RT] — hot path; must satisfy RT-safety contract
+    // [AUDIO-RT] — proposed hot path; callback safety is not established
     static clap_process_status
                 s_process         (const clap_plugin_t*,
                                    const clap_process_t*) noexcept;

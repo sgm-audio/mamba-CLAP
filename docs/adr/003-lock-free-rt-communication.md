@@ -1,7 +1,7 @@
 # ADR-003: Lock-Free Cross-Thread Communication Contracts
 
 ## Status
-Accepted
+Accepted as a design proposal only; implementation, platform lock-free behavior, and end-to-end callback safety are unverified. See [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md).
 
 ## Context
 The plugin must exchange parameters, ARA context, and state snapshots across `Main`, `ARA`, and `Audio` threads without violating RT constraints.

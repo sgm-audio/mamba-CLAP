@@ -1,109 +1,23 @@
-# Release Process Documentation
+# Release process — proposed checklist
 
-## Overview
+> **Status (2026-10-04):** no production plug-in or service release process is established. This checklist is prospective; it does not imply that builds, CI, signing, distribution, or support infrastructure are configured. See [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md) and [`../BUILD_AND_TEST_GUIDE.md`](../BUILD_AND_TEST_GUIDE.md).
 
-This document outlines the release process for the Mamba repository. As a monorepo with multiple components, releases need to be coordinated across different parts of the system.
+## Release gates
 
-## Versioning Strategy
+Do not create a product release until the chosen component has:
 
-The repository follows semantic versioning (MAJOR.MINOR.PATCH) with optional pre-release identifiers.
+1. A clean, reproducible build from the documented source revision and dependencies.
+2. Tests that run in CI and report their actual status; the current `scripts/build-all.sh` is disabled and no root `.github/workflows/ci.yml` is present.
+3. Host/format validation for each advertised plug-in format and platform.
+4. A matched model/checkpoint/export contract, when ML is included, plus output parity tests.
+5. Worst-case callback/allocation measurements and audio-quality/listening evidence.
+6. Reviewed dependencies, licenses, signing/notarization, installation, uninstall, state migration, and user support.
+7. Separate evidence for customer demand, operating costs, and pricing; technical readiness does not prove a business forecast.
 
-- **MAJOR**: Incompatible API changes
-- **MINOR**: Backward-compatible functionality additions
-- **PATCH**: Backward-compatible bug fixes
-- **PRE-RELEASE**: Optional identifiers like `alpha`, `beta`, `rc` for testing
+The current repository passes none of these release gates as a complete product. The standalone custom C++ layer test is narrow and is not a release test.
 
-## Release Components
+## Prospective versioning and packaging
 
-Different components may have different release cycles:
+Semantic versioning, component-specific releases, changelog entries, signed artifacts, and platform-specific packages are possible future policies, not policies already established for this checkout. Upstream `mamba/` release infrastructure is not a release workflow for this repository's plug-ins or SaaS concepts.
 
-1. **Core Mamba Package** (`mamba_ssm`): Released to PyPI
-2. **Plugin Components**: May have separate distribution channels
-3. **Applications**: Typically versioned with the core package or released independently
-
-## Release Process
-
-### 1. Preparation
-
-```bash
-# Ensure you're on the main branch and up to date
-git checkout main
-git pull origin main
-
-# Run tests to ensure stability
-./scripts/run-tests.sh all
-
-# Check for any uncommitted changes
-git status
-```
-
-### 2. Version Bump
-
-Update version numbers in relevant files:
-- `setup.py` (for Python package)
-- Component-specific version files (if any)
-- Documentation references
-
-### 3. Changelog Update
-
-Update `CHANGELOG.md` with:
-- Summary of changes since last release
-- New features, improvements, bug fixes
-- Breaking changes (if any)
-- Contributors
-
-### 4. Create Release Tag
-
-```bash
-# Create annotated tag for the release
-git tag -a vX.Y.Z -m "Release vX.Y.Z"
-
-# Push tags to remote
-git push origin vX.Y.Z
-```
-
-### 5. Build and Distribute
-
-#### Python Package (mamba_ssm)
-
-```bash
-# Build distribution packages
-python setup.py sdist bdist_wheel
-
-# Upload to PyPI (requires credentials)
-twine upload dist/*
-```
-
-#### C++ Components
-
-C++ components are typically distributed through:
-- Source code releases (tagged commits)
-- Pre-built binaries for specific platforms
-- Package managers (conda, vcpkg, etc.) - if applicable
-
-### 6. Post-Release Activities
-
-- Update documentation if needed
-- Announce release through appropriate channels
-- Monitor for issues and feedback
-- Create maintenance branches if needed for long-term support
-
-## Automated Releases
-
-The repository uses GitHub Actions for automated builds:
-- Workflows in `.github/workflows/` (in the mamba subdirectory)
-- Releases triggered by pushing tags matching `v*`
-- Automatic building and testing of tagged commits
-
-## Release Signing
-
-For security-sensitive distributions:
-- Sign release tags with GPG
-- Sign distribution packages
-- Publish signatures alongside artifacts
-
-## Maintenance
-
-- Backport critical fixes to maintenance branches
-- Clearly label pre-release versions
-- Deprecate old versions with appropriate notice periods
+When a release path is ready, document the chosen component, version source, exact build/test commands, artifact checksums, supported hosts/platforms, rollback plan, and publication owner. Do not assume that a root `setup.py`, CI workflow, PyPI package, or signed plug-in artifact exists; inspect the current tree first.

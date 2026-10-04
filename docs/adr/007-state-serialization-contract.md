@@ -1,7 +1,7 @@
 # ADR-007: Plugin State Serialization Contract
 
 ## Status
-Accepted
+Accepted as a schema proposal only; a release-ready serializer, migration fixtures, and host round-trip tests are not established. See [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md).
 
 ## Context
 Session save/restore must preserve plugin behavior while honoring RT ownership of live recurrent state.

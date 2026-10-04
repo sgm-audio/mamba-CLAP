@@ -1,91 +1,21 @@
-# Contributing to MambaCompressor
+# Contributing to MambaCompressor — research prototype
 
-Thank you for your interest in contributing! We welcome contributions from the audio engineering and ML research communities.
+> **Status (2026-10-04):** experimental Python research code. There is no validated package-install workflow, checked-in `tests/` suite, pretrained model, or release process for this component. See [`README.md`](README.md) and [`../docs/PROJECT_STATUS.md`](../docs/PROJECT_STATUS.md). Treat the development commands from older versions of this guide as withdrawn unless the referenced files exist and the commands have been tested.
 
-## How to Contribute
+## Contribution focus
 
-### 1. Report Bugs
-- Use GitHub Issues with the "bug" label
-- Include: Python version, PyTorch version, GPU model, error traceback
-- Provide minimal reproducible example
+Useful contributions include reproducible model/data tests, checkpoint save/load and inference contracts, baseline comparisons, dataset/license documentation, numerical robustness, and careful audio-quality evaluation. CUDA/Triton kernels, streaming, multiband processing, and plug-in integration are research or implementation tasks—not existing supported features.
 
-### 2. Suggest Features
-- Open a GitHub Issue with "enhancement" label
-- Describe the use case and expected behavior
-- Discuss implementation approach before coding
+## Before submitting a change
 
-### 3. Submit Code
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a Pull Request
+1. State the hypothesis and the exact component/model/API being changed.
+2. Add a focused test or reproducible experiment; include tensor shapes, sample rate, seed/config, and expected behavior.
+3. Record the exact command and environment used. Do not state “all tests pass” when there is no defined suite or when dependencies prevented a run.
+4. Separate measured quality/latency/memory results from design targets; include baselines and listening protocol for audio claims.
+5. Check data and dependency licenses before adding training assets or distribution instructions.
 
-## Development Setup
+## Current test/install limitations
 
-```bash
-# Clone your fork
-git clone https://github.com/YOUR_USERNAME/mamba-compressor.git
-cd mamba-compressor
-
-# Install in editable mode with dev dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest tests/
-
-# Format code
-black src/ scripts/
-isort src/ scripts/
-```
-
-## Code Style Guidelines
-
-- **Type Hints**: Required for all function signatures
-- **Docstrings**: Google style for all public classes/functions
-- **Formatting**: Black (line length 100), isort for imports
-- **Naming**:
-  - Classes: PascalCase
-  - Functions/variables: snake_case
-  - Constants: UPPER_SNAKE_CASE
-
-## Testing Requirements
-
-All PRs must include tests for:
-- New functionality
-- Bug fixes (regression tests)
-- Edge cases (extreme inputs, boundary conditions)
-
-Run tests locally before submitting:
-```bash
-pytest tests/ -v --cov=src
-```
-
-## Areas We Need Help
-
-### High Priority
-- [ ] CUDA kernel for IIR ballistic filtering (Triton or CUDA C++)
-- [ ] Streaming inference pipeline with ring buffers
-- [ ] Multiband extension (crossover filters + independent gain heads)
-- [ ] VST3/AU plugin wrapper (JUCE + libtorch)
-
-### Medium Priority
-- [ ] NeMo ModelPT integration for distributed training
-- [ ] Perceptual self-consistency loss implementation
-- [ ] Gradio web demo for interactive experimentation
-- [ ] A/B comparison framework vs. commercial compressors
-
-### Nice to Have
-- [ ] Additional DSP modules (EQ, limiter, saturation)
-- [ ] Genre-specific pretrained checkpoints
-- [ ] ONNX export support
-- [ ] Documentation translations
-
-## Questions?
-
-Join our [Discussions](https://github.com/yourusername/mamba-compressor/discussions) or email audio.ai@example.com.
-
----
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
+- No `pyproject.toml`/`setup.py` or `tests/` directory is present under `mamba-compressor/`; the former `pip install -e ".[dev]"` and `pytest tests/` examples are not supported by the current tree.
+- `scripts/train_blind.py` is an experimental entry point, but end-to-end training was not run in the current audit environment. Its CLI and data settings are summarized in [`README.md`](README.md).
+- The standalone C++ layer harness is documented at the repository level in [`../docs/BUILD_AND_TEST_GUIDE.md`](../docs/BUILD_AND_TEST_GUIDE.md); it does not test this Python component.

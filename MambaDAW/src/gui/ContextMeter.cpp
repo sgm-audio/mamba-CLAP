@@ -53,11 +53,11 @@ void ContextMeter::paint(Graphics& g) {
     }
 
     const float filledSeconds = fillRatio_ * maxSeconds_;
-    const String label = String("Context: ")
+    const String label = String("Reported buffer: ")
                        + String(filledSeconds, 1)
                        + String("s / ")
                        + String(static_cast<int>(maxSeconds_))
-                       + String("s");
+                       + String("s target");
     g.setColour(MambaColors::textPrimary);
     g.setFont(Font(FontOptions(12.f)));
     g.drawFittedText(label, bounds.reduced(6.f, 0.f).toNearestInt(),

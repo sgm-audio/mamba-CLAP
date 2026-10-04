@@ -246,13 +246,9 @@ float MambaLayer::processSample(float sample) {
     return output;
 }
 
-// RT-Safety Justification: processVector() runs on the audio/inference thread.
-// - No heap allocations (all buffers pre-allocated as class members).
-// - No mutexes, locks, or blocking syscalls.
-// - No file I/O or logging.
-// - NaN/Inf sanitization after SSM recurrence protects against divergent state
-//   from bad weights or numerical overflow. Zeroing is safe: downstream DSP
-//   treats zero as silence, and EffectDecoder sigmoid maps zero logit to 0.5.
+// Source-level note: processVector() uses class-owned scratch buffers and includes
+// finite-value checks. This is not a complete callback/deadline audit; do not
+// interpret it as a hard-real-time guarantee.
 
 void MambaLayer::processVector(const float* input, float* output) noexcept {
     float* proj_out = tmp_proj_out_.data();
