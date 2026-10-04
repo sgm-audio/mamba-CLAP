@@ -1,14 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// MambaFXPlugin.cpp — complete CLAP 1.2 plugin implementation (C++20, stereo)
+// MambaFXPlugin.cpp — CLAP implementation experiment (C++20, stereo interface)
+// STATUS: incomplete / not release-validated. The code and RT labels below are
+// design notes, not evidence of a successful build, host compatibility, or a
+// safe callback. See plugin/PLUGIN_ARCHITECTURE.md and docs/PROJECT_STATUS.md.
 //
-// [AUDIO_CHANNELS] = 2 (stereo)   [PROCESS_MODE] = stereo block
-// [PARAM_LIST] = EffectType · WetMix · InputGain · OutputGain ·
-//               ContextLength · ModelVariant · InferenceDevice · Bypass
-//
-// RT-safety notation used throughout:
-//   ✓ RT-SAFE   — unconditionally safe on the audio thread
-//   ⚠ RT-CHECK  — safe only when precondition noted holds
-//   ✗ RT-UNSAFE — must NOT be called from the audio thread
+// RT-INTENT (UNVERIFIED) — intended constraints only; no hard-RT audit performed.
+// RT-REVIEW REQUIRED — needs implementation review and measurement before use.
+// RT-UNSAFE — must NOT be called from an audio callback.
 // ─────────────────────────────────────────────────────────────────────────────
 
 #include "clap/MambaFXPlugin.hpp"
@@ -174,13 +172,13 @@ void MambaFXPlugin::s_deactivate(const clap_plugin_t* p) noexcept {
 // clap-validator: these bracket every series of process() calls.
 // ─────────────────────────────────────────────────────────────────────────────
 bool MambaFXPlugin::s_start_processing(const clap_plugin_t* p) noexcept {
-    // ✓ RT-SAFE: single atomic store
+    // RT-INTENT (UNVERIFIED): single atomic store
     self(p)->is_processing_.store(true, std::memory_order_release);
     return true;
 }
 
 void MambaFXPlugin::s_stop_processing(const clap_plugin_t* p) noexcept {
-    // ✓ RT-SAFE: single atomic store
+    // RT-INTENT (UNVERIFIED): single atomic store
     self(p)->is_processing_.store(false, std::memory_order_release);
 }
 
@@ -189,7 +187,7 @@ void MambaFXPlugin::s_stop_processing(const clap_plugin_t* p) noexcept {
 // clap-validator: must reset all stateful DSP (filters, envelopes, OLA buffers).
 // ─────────────────────────────────────────────────────────────────────────────
 void MambaFXPlugin::s_reset(const clap_plugin_t* p) noexcept {
-    // ✓ RT-SAFE: only touches pre-allocated buffers
+    // RT-INTENT (UNVERIFIED): only touches pre-allocated buffers
     auto* s = self(p);
     if (s->audio_ring_) s->audio_ring_->clear();
 
@@ -228,7 +226,7 @@ void MambaFXPlugin::s_reset(const clap_plugin_t* p) noexcept {
 clap_process_status MambaFXPlugin::s_process(const clap_plugin_t* p,
                                               const clap_process_t* proc) noexcept
 {
-    // ✓ RT-SAFE: atomic load with relaxed ordering
+    // RT-INTENT (UNVERIFIED): atomic load with relaxed ordering
     auto* s = self(p);
     if (!s->is_active_.load(std::memory_order_relaxed))
         return CLAP_PROCESS_SLEEP;
@@ -236,7 +234,7 @@ clap_process_status MambaFXPlugin::s_process(const clap_plugin_t* p,
         return CLAP_PROCESS_SLEEP;
 
     // ── Defensive: validate port layout ──────────────────────────────────────
-    // ✓ RT-SAFE: pointer comparison only, no alloc
+    // RT-INTENT (UNVERIFIED): pointer comparison only, no alloc
     if (!proc->audio_inputs  || proc->audio_inputs_count  == 0 ||
         !proc->audio_outputs || proc->audio_outputs_count == 0)
         return CLAP_PROCESS_SLEEP;
@@ -250,7 +248,7 @@ clap_process_status MambaFXPlugin::s_process(const clap_plugin_t* p,
     const uint32_t safe_frames = std::min(frames, kMaxBlock);
 
     // ── 1. Update transport mirror ─────────────────────────────────────────
-    // ✓ RT-SAFE: only atomic stores (relaxed)
+    // RT-INTENT (UNVERIFIED): only atomic stores (relaxed)
     if (proc->transport) {
         const auto& t = *proc->transport;
         const bool playing   = (t.flags & CLAP_TRANSPORT_IS_PLAYING)   != 0;
@@ -270,14 +268,14 @@ clap_process_status MambaFXPlugin::s_process(const clap_plugin_t* p,
     }
 
     // ── 2. Drain input events → AutomationEvent scratch array ─────────────
-    // ✓ RT-SAFE: fixed-size scratch array on the stack of the process() call;
+    // RT-INTENT (UNVERIFIED): fixed-size scratch array on the stack of the process() call;
     //            no heap alloc; SPSC queue push is lock-free wait-free.
     uint32_t n_events = 0;
     if (proc->in_events)
         s->drain_events(proc->in_events, s->event_scratch_.data(), n_events);
 
     // ── 3. Bypass fast-path ────────────────────────────────────────────────
-    // ✓ RT-SAFE: atomic load + memcpy
+    // RT-INTENT (UNVERIFIED): atomic load + memcpy
     if (s->bypass_.load(std::memory_order_relaxed)) {
         for (uint32_t ch = 0; ch < kChannels; ++ch) {
             if (in_port.data32[ch] && out_port.data32[ch] &&
@@ -302,7 +300,7 @@ clap_process_status MambaFXPlugin::s_process(const clap_plugin_t* p,
             s->process_block(in_port.data32, out_port.data32, cursor, offset);
 
         // Apply the event — updates smoother target; takes effect on next block.
-        // ✓ RT-SAFE: writes to atomic<float> (relaxed) + smoother (single-thread)
+        // RT-INTENT (UNVERIFIED): writes to atomic<float> (relaxed) + smoother (single-thread)
         s->apply_event(ev);
         cursor = offset;
     }
@@ -326,7 +324,7 @@ void MambaFXPlugin::drain_events(const clap_input_events_t* in,
                                   AutomationEvent* scratch,
                                   uint32_t& n_out) noexcept
 {
-    // ✓ RT-SAFE: no alloc; bounded loop over host-provided event list
+    // RT-INTENT (UNVERIFIED): no alloc; bounded loop over host-provided event list
     n_out = 0;
     const uint32_t count = in->size(in);
 
@@ -352,7 +350,7 @@ void MambaFXPlugin::drain_events(const clap_input_events_t* in,
     }
 
     // Sort by sample offset so sub-block processing is in chronological order.
-    // ✓ RT-SAFE: bounded sort on a fixed-size array (worst case kEventCapacity=256 elements)
+    // RT-INTENT (UNVERIFIED): bounded sort on a fixed-size array (worst case kEventCapacity=256 elements)
     // Using insertion sort — optimal for nearly-sorted small arrays (events usually arrive in order).
     for (uint32_t i = 1; i < n_out; ++i) {
         AutomationEvent key = scratch[i];
@@ -369,7 +367,7 @@ void MambaFXPlugin::drain_events(const clap_input_events_t* in,
 // [AUDIO-RT] apply_event — translate one AutomationEvent into plugin state.
 // ─────────────────────────────────────────────────────────────────────────────
 void MambaFXPlugin::apply_event(const AutomationEvent& ev) noexcept {
-    // ✓ RT-SAFE: writes to atomic (ParameterBank) + smoother target (float)
+    // RT-INTENT (UNVERIFIED): writes to atomic (ParameterBank) + smoother target (float)
     const auto id = static_cast<ParamId>(ev.param_id);
     params_.set(id, ev.value);
     smoothers_.set_target(id, ev.value);
@@ -404,7 +402,7 @@ void MambaFXPlugin::apply_event(const AutomationEvent& ev) noexcept {
 //   5. Apply output gain
 //   6. Write to output buffer
 //
-// ✓ RT-SAFE: no alloc, no mutex, no syscall, no libtorch, bounded loops only
+// RT-INTENT (UNVERIFIED): no alloc, no mutex, no syscall, no libtorch, bounded loops only
 // ─────────────────────────────────────────────────────────────────────────────
 void MambaFXPlugin::process_block(const float* const* in,
                                    float* const*       out,
@@ -423,7 +421,7 @@ void MambaFXPlugin::process_block(const float* const* in,
     // ── Inner sample loop ─────────────────────────────────────────────────────
     for (uint32_t s_idx = 0; s_idx < n; ++s_idx) {
         // 1. Advance all smoothers by one sample.
-        // ✓ RT-SAFE: pure float arithmetic on stack-allocated SmoothedValue array
+        // RT-INTENT (UNVERIFIED): pure float arithmetic on stack-allocated SmoothedValue array
         smoothers_.tick_all();
 
         const float smooth_in_gain  = smoothers_.get(ParamId::InputGain);
@@ -444,7 +442,7 @@ void MambaFXPlugin::process_block(const float* const* in,
 
             // 3. Apply effect (time-domain compressor path).
             //    Mel-domain effects (reverb/EQ/saturation) applied via STFT ring.
-            //    ✓ RT-SAFE: EffectApplicator uses only float arithmetic, no alloc.
+            //    RT-INTENT (UNVERIFIED): EffectApplicator uses only float arithmetic, no alloc.
             if (effect_type == dsp::EffectType::Compression && effect_) {
                 // Decode effect params (uses last inference result — may be stale
                 // by one block, which is acceptable for compression).
@@ -473,7 +471,7 @@ void MambaFXPlugin::process_block(const float* const* in,
     }
 
     // ── Push processed block to AudioRingBuffer for inference thread ──────────
-    // ✓ RT-SAFE: AudioRingBuffer::push is lock-free wait-free
+    // RT-INTENT (UNVERIFIED): AudioRingBuffer::push is lock-free wait-free
     if (audio_ring_) {
         for (uint32_t ch = 0; ch < kChannels; ++ch) {
             if (out[ch])
@@ -525,14 +523,14 @@ uint32_t MambaFXPlugin::params_count(const clap_plugin_t*) noexcept {
 bool MambaFXPlugin::params_get_info(const clap_plugin_t*,
                                      uint32_t index,
                                      clap_param_info_t* out) noexcept {
-    // ✓ RT-SAFE: static table lookup, no alloc
+    // RT-INTENT (UNVERIFIED): static table lookup, no alloc
     return ParameterBank::fill_info(index, out);
 }
 
 bool MambaFXPlugin::params_get_value(const clap_plugin_t* p,
                                       clap_id param_id,
                                       double* out) noexcept {
-    // ✓ RT-SAFE: atomic load
+    // RT-INTENT (UNVERIFIED): atomic load
     *out = self(p)->params_.get(static_cast<ParamId>(param_id));
     return true;
 }
@@ -557,7 +555,7 @@ void MambaFXPlugin::params_flush(const clap_plugin_t* p,
                                   const clap_input_events_t*  in,
                                   const clap_output_events_t* /*out*/) noexcept
 {
-    // ✓ RT-SAFE when called on audio thread (no alloc, no mutex)
+    // RT-INTENT (UNVERIFIED) when called on audio thread (no alloc, no mutex)
     auto* s = self(p);
     if (!in) return;
     const uint32_t count = in->size(in);

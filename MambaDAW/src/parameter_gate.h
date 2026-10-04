@@ -7,10 +7,10 @@
 /**
  * @brief Gating mechanism for parameter changes to control SSM state flushes.
  *
- * Thread-domain per ADR-002:
- *   evaluate(vector) — [Main] (allocates via std::vector)
- *   evaluate(ptr,count) — [Audio] (RT-safe, no allocation)
- *   reset(), get_last_value() — [Audio|Main]
+ * Intended call domains per ADR-002, not a hard-real-time audit:
+ *   evaluate(vector) — [Main] (caller owns an allocated vector)
+ *   evaluate(ptr,count) — proposed [Audio] path; inspect actual operations and caller
+ *   reset(), get_last_value() — intended cross-domain; synchronization is unverified
  */
 
 enum class ParamUpdateAction {
@@ -30,7 +30,7 @@ public:
 
     ParamUpdateAction evaluate(const std::vector<ParamSnapshot>& updates); // [Main] — allocates
 
-    ParamUpdateAction evaluate(const ParamSnapshot* updates, uint32_t count); // [Audio] — RT-safe
+    ParamUpdateAction evaluate(const ParamSnapshot* updates, uint32_t count); // [Audio] — intended allocation-free path; not audited
 
     void reset();                                  // [Audio|Main]
     double get_last_value(uint32_t param_id) const; // [Audio|Main]

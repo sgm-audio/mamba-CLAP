@@ -1,175 +1,218 @@
 #include "mamba_layer.h"
-#include <cassert>
+
 #include <cmath>
 #include <iostream>
-#include <limits>
+#include <vector>
 
-static bool almostEqual(float a, float b, float tol = 1e-5f) {
-    return std::abs(a - b) < tol;
+namespace {
+
+bool almostEqual(float a, float b, float tolerance = 1e-5f) {
+    return std::abs(a - b) <= tolerance;
 }
 
-// ============================================================================
-// Test 1: NaN/Inf never leaks out
-// ============================================================================
-static void test_no_nan_inf() {
+bool loadDeterministicWeights(MambaLayer& layer) {
+    if (layer.dModel() != 1) {
+        std::cerr << "  FAILED: deterministic test fixture expects d_model=1\n";
+        return false;
+    }
+
+    const auto d_inner = static_cast<std::size_t>(layer.dInner());
+    const auto d_state = static_cast<std::size_t>(layer.dState());
+    const auto d_conv = static_cast<std::size_t>(layer.dConv());
+
+    std::vector<float> in_proj(2 * d_inner);
+    for (std::size_t i = 0; i < d_inner; ++i) {
+        in_proj[i] = 0.25f + 0.05f * static_cast<float>(i);
+        in_proj[d_inner + i] = 0.75f + 0.02f * static_cast<float>(i);
+    }
+
+    std::vector<float> out_proj(d_inner, 0.5f);
+    std::vector<float> conv1d(d_inner * d_conv, 0.5f);
+    std::vector<float> dA(d_inner * d_state, 0.8f);
+    std::vector<float> dB(d_inner * d_state, 0.5f);
+    std::vector<float> C(d_inner * d_state, 0.7f);
+    std::vector<float> D(d_inner, 0.1f);
+
+    return layer.loadLayerWeights(
+        in_proj.data(), in_proj.size(),
+        out_proj.data(), out_proj.size(),
+        conv1d.data(), conv1d.size(),
+        dA.data(), dA.size(),
+        dB.data(), dB.size(),
+        C.data(), C.size(),
+        D.data(), D.size());
+}
+
+bool test_no_nan_inf() {
     std::cout << "[test] no_nan_inf\n";
     MambaLayer layer(1, 16, 4, 2);
-    int ok = 0;
+    if (!loadDeterministicWeights(layer)) return false;
+
     for (int i = 0; i < 1000; ++i) {
-        float out = layer.processSample(1.0f);
-        if (std::isnan(out) || std::isinf(out)) {
-            std::cerr << "FAILED: NaN/Inf at step " << i << std::endl;
-            return;
+        const float out = layer.processSample(1.0f);
+        if (!std::isfinite(out)) {
+            std::cerr << "  FAILED: non-finite output at step " << i << '\n';
+            return false;
         }
-        ++ok;
     }
-    std::cout << "  PASSED  (" << ok << " steps, no NaN/Inf)\n";
+    std::cout << "  PASSED (1000 finite outputs)\n";
+    return true;
 }
 
-// ============================================================================
-// Test 2: state is persistent (same input -> different output after a step)
-// ============================================================================
-static void test_state_persistence() {
+bool test_state_persistence() {
     std::cout << "[test] state_persistence\n";
     MambaLayer layer(1, 16, 4, 2);
+    if (!loadDeterministicWeights(layer)) return false;
 
-    float first  = layer.processSample(1.0f);
-    float second = layer.processSample(1.0f);
-    if (first == second) {
-        std::cerr << "FAILED: state did not change (" << first << " == " << second << ")\n";
-        return;
+    const float first = layer.processSample(1.0f);
+    const float second = layer.processSample(1.0f);
+    if (almostEqual(first, second, 1e-8f)) {
+        std::cerr << "  FAILED: repeated input did not change output ("
+                  << first << ", " << second << ")\n";
+        return false;
     }
-    std::cout << "  PASSED  (" << first << " != " << second << ")\n";
+    std::cout << "  PASSED (" << first << " != " << second << ")\n";
+    return true;
 }
 
-// ============================================================================
-// Test 3: reset_state brings us back to deterministic initial output
-// ============================================================================
-static void test_reset_deterministic() {
+bool test_reset_deterministic() {
     std::cout << "[test] reset_deterministic\n";
     MambaLayer layer(1, 16, 4, 2);
+    if (!loadDeterministicWeights(layer)) return false;
 
-    float a = layer.processSample(1.0f);
+    const float before_reset = layer.processSample(1.0f);
     layer.reset_state();
-    float b = layer.processSample(1.0f);
-
-    if (!almostEqual(a, b)) {
-        std::cerr << "FAILED: reset changed initial behaviour (" << a << " vs " << b << ")\n";
-        return;
+    const float after_reset = layer.processSample(1.0f);
+    if (!almostEqual(before_reset, after_reset)) {
+        std::cerr << "  FAILED: output after reset differs ("
+                  << before_reset << " vs " << after_reset << ")\n";
+        return false;
     }
-    std::cout << "  PASSED  (" << a << " == " << b << ")\n";
+    std::cout << "  PASSED (" << before_reset << " == " << after_reset << ")\n";
+    return true;
 }
 
-// ============================================================================
-// Test 4: processBlock == sequential processSample for each step
-// ============================================================================
-static void test_block_vs_sample() {
+bool test_block_vs_sample() {
     std::cout << "[test] block_vs_sample\n";
-    const int N = 256;
-    float input[N];
-    for (int i = 0; i < N; ++i) input[i] = std::sin(0.1f * i);
+    constexpr int sample_count = 256;
+    float input[sample_count];
+    for (int i = 0; i < sample_count; ++i)
+        input[i] = std::sin(0.1f * static_cast<float>(i));
 
-    // Sample-at-a-time path
-    MambaLayer layer1(1, 16, 4, 2);
-    float out_sample[N];
-    for (int i = 0; i < N; ++i) out_sample[i] = layer1.processSample(input[i]);
+    MambaLayer sample_layer(1, 16, 4, 2);
+    MambaLayer block_layer(1, 16, 4, 2);
+    if (!loadDeterministicWeights(sample_layer) ||
+        !loadDeterministicWeights(block_layer))
+        return false;
 
-    // Block path
-    MambaLayer layer2(1, 16, 4, 2);
-    float out_block[N] = {};
-    layer2.processBlock(input, out_block, N);
+    float sample_output[sample_count];
+    float block_output[sample_count]{};
+    for (int i = 0; i < sample_count; ++i)
+        sample_output[i] = sample_layer.processSample(input[i]);
+    block_layer.processBlock(input, block_output, sample_count);
 
-    int mismatches = 0;
-    for (int i = 0; i < N; ++i) {
-        if (!almostEqual(out_sample[i], out_block[i], 1e-4f)) {
-            ++mismatches;
+    for (int i = 0; i < sample_count; ++i) {
+        if (!almostEqual(sample_output[i], block_output[i], 1e-6f)) {
+            std::cerr << "  FAILED: mismatch at sample " << i << " ("
+                      << sample_output[i] << " vs " << block_output[i] << ")\n";
+            return false;
         }
     }
-    if (mismatches > 0) {
-        std::cerr << "FAILED: " << mismatches << " mismatches between sample/block paths\n";
-        return;
-    }
-    std::cout << "  PASSED  (" << N << " samples match)\n";
+    std::cout << "  PASSED (" << sample_count << " samples match with identical weights)\n";
+    return true;
 }
 
-// ============================================================================
-// Test 5: zero input -> zero-ish output after reset
-// ============================================================================
-static void test_zero_input() {
+bool test_zero_input() {
     std::cout << "[test] zero_input\n";
     MambaLayer layer(1, 16, 4, 2);
-    float out = layer.processSample(0.0f);
-    if (!almostEqual(out, 0.0f, 1e-3f)) {
-        std::cerr << "FAILED: zero input gave " << out << "\n";
-        return;
+    if (!loadDeterministicWeights(layer)) return false;
+
+    const float out = layer.processSample(0.0f);
+    if (!almostEqual(out, 0.0f, 1e-6f)) {
+        std::cerr << "  FAILED: zero input produced " << out << '\n';
+        return false;
     }
-    std::cout << "  PASSED  (zero -> " << out << ")\n";
+    std::cout << "  PASSED (zero input -> " << out << ")\n";
+    return true;
 }
 
-// ============================================================================
-// Test 6: clamp extreme inputs (saturation robustness)
-// ============================================================================
-static void test_extreme_inputs() {
+bool test_extreme_inputs() {
     std::cout << "[test] extreme_inputs\n";
     MambaLayer layer(1, 16, 4, 2);
-    float extreme[] = { -1e6f, -1000.0f, -10.0f, 10.0f, 1000.0f, 1e6f };
-    for (float x : extreme) {
-        float out = layer.processSample(x);
-        if (std::isnan(out) || std::isinf(out)) {
-            std::cerr << "FAILED: NaN/Inf for input " << x << " -> " << out << "\n";
-            return;
+    if (!loadDeterministicWeights(layer)) return false;
+
+    const float extreme_inputs[] = {
+        -1e6f, -1000.0f, -10.0f, 10.0f, 1000.0f, 1e6f,
+    };
+    for (const float input : extreme_inputs) {
+        const float output = layer.processSample(input);
+        if (!std::isfinite(output)) {
+            std::cerr << "  FAILED: non-finite output for input " << input << '\n';
+            return false;
         }
     }
-    std::cout << "  PASSED\n";
+    std::cout << "  PASSED (all outputs finite)\n";
+    return true;
 }
 
-// ============================================================================
-// Test 7: loadLayerWeights validation
-// ============================================================================
-static void test_load_weights() {
-    std::cout << "[test] loadLayerWeights\n";
+bool test_load_weights_validation() {
+    std::cout << "[test] load_weights_validation\n";
     MambaLayer layer(1, 16, 4, 2);
-
-    const int d_inner = 2;
-    const int d_state = 16;
-    const int d_conv  = 4;
-
-    std::vector<float> in_proj (1 * 2 * d_inner, 0.0f);
-    std::vector<float> out_proj(d_inner, 0.0f);
-    std::vector<float> conv1d  (d_inner * d_conv, 0.0f);
-    std::vector<float> dA      (d_inner * d_state, 0.0f);
-    std::vector<float> dB      (d_inner * d_state, 0.0f);
-    std::vector<float> C       (d_inner * d_state, 0.0f);
-    std::vector<float> D       (d_inner, 0.0f);
-
-    bool ok = layer.loadLayerWeights(
-        in_proj.data(),  in_proj.size(),
-        out_proj.data(), out_proj.size(),
-        conv1d.data(),   conv1d.size(),
-        dA.data(),       dA.size(),
-        dB.data(),       dB.size(),
-        C.data(),        C.size(),
-        D.data(),        D.size()
-    );
-    if (!ok) {
-        std::cerr << "FAILED: loadLayerWeights returned false\n";
-        return;
+    if (!loadDeterministicWeights(layer)) {
+        std::cerr << "  FAILED: valid deterministic weights were rejected\n";
+        return false;
     }
-    std::cout << "  PASSED\n";
+
+    std::vector<float> in_proj(3, 0.0f); // Expected length is 4.
+    std::vector<float> out_proj(2, 0.0f);
+    std::vector<float> conv1d(8, 0.0f);
+    std::vector<float> dA(32, 0.0f);
+    std::vector<float> dB(32, 0.0f);
+    std::vector<float> C(32, 0.0f);
+    std::vector<float> D(2, 0.0f);
+
+    const bool malformed_weights_accepted = layer.loadLayerWeights(
+        in_proj.data(), in_proj.size(),
+        out_proj.data(), out_proj.size(),
+        conv1d.data(), conv1d.size(),
+        dA.data(), dA.size(),
+        dB.data(), dB.size(),
+        C.data(), C.size(),
+        D.data(), D.size());
+    if (malformed_weights_accepted) {
+        std::cerr << "  FAILED: invalid input-projection length was accepted\n";
+        return false;
+    }
+
+    std::cout << "  PASSED (valid weights accepted; invalid size rejected)\n";
+    return true;
 }
 
-// ============================================================================
-// Main
-// ============================================================================
+} // namespace
+
 int main() {
-    std::cout << "=== MambaLayer Unit Tests ===\n";
-    test_no_nan_inf();
-    test_state_persistence();
-    test_reset_deterministic();
-    test_block_vs_sample();
-    test_zero_input();
-    test_extreme_inputs();
-    test_load_weights();
-    std::cout << "=== All tests passed ===\n";
+    using Test = bool (*)();
+    const Test tests[] = {
+        test_no_nan_inf,
+        test_state_persistence,
+        test_reset_deterministic,
+        test_block_vs_sample,
+        test_zero_input,
+        test_extreme_inputs,
+        test_load_weights_validation,
+    };
+
+    int failures = 0;
+    for (const Test test : tests) {
+        if (!test()) ++failures;
+    }
+
+    if (failures != 0) {
+        std::cerr << "=== " << failures << " test(s) failed ===\n";
+        return 1;
+    }
+
+    std::cout << "=== All " << (sizeof(tests) / sizeof(tests[0]))
+              << " tests passed ===\n";
     return 0;
 }

@@ -1,86 +1,39 @@
-# Mamba-SSM Streaming Inference Contract
+# Proposed streaming-inference contract — not implemented
 
-Based on the custom, bare-metal C++ architecture we have established for the `MambaDAW` plugin, here is the explicit streaming inference contract.
+> **Status (2026-10-04):** design proposal / in progress. This contract is not an established runtime. The MambaDAW inference-thread header/source are absent, the custom C++ SSM is not upstream selective Mamba/Mamba-3, and the trainer/export dimensions do not match the plug-in processor by default. The pseudocode, zero-latency claim, SIMD/alignment assumptions, and RT assertions from the previous version are withdrawn. See [`PROJECT_STATUS.md`](./PROJECT_STATUS.md).
 
-## 1. Tensor & State Lifecycle Table
+## Scope and model contract
 
-Because we use a custom flat-binary loader (`MambaWeightLoader`) instead of TorchScript or ONNX, we avoid tensor library overhead entirely. All state is maintained as pre-allocated, SIMD-aligned `std::vector<float>` arrays inside the `MambaLayer` instances.
+This document is a checklist for a future streaming implementation. It does not describe the current `clap-plugin/` TorchScript callback or prove a complete `MambaDAW` plug-in. Before implementation, select and document:
 
-| Tensor / State | Shape | Data Type | Lifecycle & Persistence |
-| :--- | :--- | :--- | :--- |
-| **Input Audio** | `[1]` (Scalar) | `FP32` | Transient. Provided per sample by the host audio block. |
-| **Output Audio** | `[1]` (Scalar) | `FP32` | Transient. Returned per sample to the host audio block. |
-| **SSM Hidden State** (`state_h_`) | `[n_layers, d_inner * d_state]` | `FP32` | **Persistent.** Pre-allocated on plugin instantiation. Carried over across all audio blocks. Flushed to zero only on explicit host reset or playback stop. |
-| **Conv Ring Buffer** (`conv_buffer_`) | `[n_layers, d_inner * d_conv]` | `FP32` | **Persistent.** Pre-allocated on instantiation. Acts as causal history for the 1D convolution. Carried across blocks. |
-| **Conv Pointer** (`conv_pos_`) | `[n_layers]` | `int64` | **Persistent.** Tracks the circular write head for the convolution buffer. |
-| **Static Weights** (`dA, dB, C, D`, etc.) | Various | `FP32` | **Read-Only.** Loaded on the main thread via `MambaWeightLoader` during initialization. |
+- the exact model family/revision and checkpoint format;
+- waveform vs. feature input, sample rate, hop/frame rate, channel layout, tensor shapes, and normalization;
+- state shapes, ownership, persistence, and reset/seek/sample-rate-change semantics;
+- weight-loading and export path, including Python/C++ numerical parity;
+- the thread on which inference runs and the bounded behavior when results are late or queues fill.
 
----
+The existing custom C++ layer accepts scalar or feature-vector inputs, but its fixed, input-independent recurrence is not upstream selective Mamba. The current training and plug-in configurations are not yet aligned, so the table below is a schema template rather than a verified model contract.
 
-## 2. Streaming Inference Contract (Pseudocode)
+| Item to define | Required evidence |
+|---|---|
+| Input/output shapes and numerical range | Versioned config plus valid/invalid shape tests |
+| Recurrent/conv state | Deterministic state round-trip, reset, seek, and boundary tests |
+| Weights/checkpoint | Versioned export, malformed-file tests, known test fixture |
+| Streaming schedule | Block/frame/worker contract with queue capacity and stale-result policy |
+| Output continuity | Host-level tests for bypass, underrun, reset, and reactivation |
 
-The plugin operates on a strictly per-sample basis, making it entirely agnostic to the host's block size. It natively handles any block size from 1 to N without internal buffering or block-boundary state resets.
+## Proposed processing contract
 
-```cpp
-// 1. Initialization (Main Thread / NRT)
-void MambaPlugin::activate(double sample_rate) {
-    // If the model was trained at 44.1kHz and the host provides 96kHz,
-    // we must reject, disable processing, or enforce an offline resampler wrapper.
-    // (Mamba's learned 'dt' assumes a fixed temporal resolution).
-    assert(sample_rate == EXPECTED_TRAINING_SR);
+The chosen implementation must specify a causal/streaming API and ensure that state is neither accidentally reset at block boundaries nor reused across independent instances. A future worker architecture must define bounded queue operations, overflow/underrun behavior, shutdown, model reload, and how the host receives current results. The current repository has not demonstrated this full path.
 
-    // Allocate all layers. No allocations will happen after this point.
-    mamba_model_->initializeArchitecture();
-    mamba_model_->resetState(); // Zeroes out state_h_ and conv_buffer_
-}
+Do not put LibTorch/TorchScript/STFT model execution on a hard-real-time callback. The separate `clap-plugin/` path currently performs Torch/STFT/model operations in its callback and is not hard-real-time safe. A proposed worker design remains unimplemented/incomplete until input, inference, result handoff, and output processing are wired and tested end to end.
 
-// 2. Real-Time Audio Callback (Audio Thread)
-void MambaPlugin::processBlock(const float* input, float* output, int num_samples) noexcept {
-    // Variable host block sizes are natively supported by the sample-by-sample loop.
-    for (int t = 0; t < num_samples; ++t) {
+## Latency and real-time status
 
-        // 3. Step execution (Inlined, SIMD accelerated)
-        float current_sample = input[t];
+**No end-to-end latency, zero-sample algorithmic latency, deadline, allocation, dropout, or host-callback result is verified.** A causal recurrent layer might avoid look-ahead in isolation, but framing, feature extraction, worker scheduling, queues, reconstruction, and host buffering can add delay. Measure both reported plug-in latency and loopback behavior on named hosts/hardware with worst-case callback sizes.
 
-        for (auto& layer : mamba_model_->layers) {
-            // A. Update Convolution Ring Buffer (Causal)
-            layer.conv_buffer_[layer.conv_pos_] = current_sample;
-            float conv_out = calculate_depthwise_conv(layer.conv_buffer_, layer.conv_pos_);
-            layer.conv_pos_ = (layer.conv_pos_ + 1) % d_conv;
+Before any real-time claim, test worst-case callback duration, allocation/blocking behavior, thread safety, queue saturation, error/reset paths, sample rates, small/variable blocks, multiple instances, and shutdown under actual host load. Keep hard-RT assertions out of the audio callback; use instrumentation that does not itself violate callback constraints.
 
-            // B. Selective Scan (State Update) - Carries over from previous step
-            // h_t = dA * h_{t-1} + dB * conv_out
-            // y_t = C * h_t + D * conv_out
-            float ssm_out = 0.0f;
-            update_state_simd(layer.state_h_, layer.dA_, layer.dB_, conv_out);
-            ssm_out = compute_output_simd(layer.state_h_, layer.C_, layer.D_, conv_out);
+## Release gate
 
-            // C. Apply gating and feed to next layer
-            current_sample = apply_gating(ssm_out);
-        }
-
-        output[t] = current_sample; // Mix logic omitted for brevity
-    }
-}
-```
-
-## 3. Declared Plugin Latency
-
-**Reported Latency: `0` samples.**
-Because the architecture relies on a strictly causal 1D convolution (`causal-conv1d`) and a recurrent SSM state update (`selective_scan`), the prediction for sample `t` depends *only* on samples `0` to `t`. There is zero lookahead, zero overlap-add (STFT) buffering, and therefore zero algorithmic latency.
-
-## 4. Runtime Constraints & Assertions
-
-To guarantee real-time safety and mathematical correctness, the following invariants **must** hold and should be validated via assertions (`assert()`) in debug builds:
-
-1. **No NaN/Inf Propagation**:
-   - `assert(!std::isnan(output[t]) && !std::isinf(output[t]));`
-   - *Requirement*: The model must have anti-denormal protections (flush-to-zero at `1e-30`) in the recurrent loop to prevent CPU stalls, and output bounds checking to prevent blowing out the DAW master bus.
-2. **Buffer Alignments**:
-   - `assert(reinterpret_cast<uintptr_t>(state_h_.data()) % 32 == 0);`
-   - *Requirement*: Because the recurrent step uses `_mm256_load_ps` (AVX2), state vectors must be 32-byte aligned to prevent segmentation faults.
-3. **No Malloc in RT**:
-   - *Requirement*: Running the plugin under Valgrind Massif or overriding `operator new` globally in debug mode must yield exactly `0` allocations during `processBlock`.
-4. **Valid Sample Rate**:
-   - `assert(host_sample_rate == model_sample_rate);`
-   - *Requirement*: Mamba's discretized state transition matrices (`A_bar`, `B_bar`) are tied to the step size (`dt`). If the host sample rate changes, the model must either be swapped for one trained at the new rate, or bypass processing entirely.
+Do not describe this contract as implemented until the selected model and runtime build, Python/C++ outputs match on deterministic fixtures, DAW host tests pass, audio quality is evaluated, and allocation/deadline audits are published. The standalone `MambaLayer` test covers only the isolated custom layer.

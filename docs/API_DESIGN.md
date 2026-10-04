@@ -1,4 +1,6 @@
-# Data Model & API Design Strategy
+# Proposed data model & API design strategy
+
+> **Status (2026-10-04): API/schema proposal only.** Endpoints, tables, and integration details below are design notes, not a verified or deployed service contract. Check current routes, migrations, and tests before treating any item as implemented.
 
 ## 1. Data Model
 

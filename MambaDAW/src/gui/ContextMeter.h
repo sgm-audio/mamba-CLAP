@@ -1,6 +1,8 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 
+// Prototype UI component: displays a caller-supplied buffer-fill ratio and a
+// configured target. It does not prove effective model memory or audio quality.
 class ContextMeter : public juce::Component {
 public:
     ContextMeter();

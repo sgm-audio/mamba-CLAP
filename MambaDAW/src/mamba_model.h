@@ -7,18 +7,20 @@
 #include <cstdint>
 
 /**
- * @brief CPU-Optimized, State-Centric Mamba Model.
+ * @brief Custom stack of recurrent SSM prototype layers.
  *
- * Owns a stack of MambaLayers. Provides sample-by-sample processing
- * that is real-time safe (no heap allocation in hot paths).
+ * This is not the upstream selective Mamba/Mamba-3 implementation. The FP32
+ * hot path is designed to reuse preallocated buffers, but hard-real-time safety
+ * has not been demonstrated for a complete plug-in or target host.
  *
- * The hidden state across all layers IS the plugin's memory.
- * Never reset state from the RT thread.
+ * Layer state carries the recurrence between calls; effective audio memory has
+ * not been measured. Reset semantics and callback safety must be tested before
+ * this model is connected to a shipping audio thread.
  *
- * Thread-domain tags per ADR-002:
- *   [Audio] — hard RT, called from process()
- *   [Main]  — main thread, may allocate/do I/O
- *   [Any]   — safe from any thread
+ * Thread-domain tags are intended-call-site notes from ADR-002, not an RT audit:
+ *   [Audio] — proposed audio-thread path; hard-real-time safety is unverified
+ *   [Main]  — intended main-thread lifecycle/configuration path
+ *   [Any]   — intended cross-thread path; synchronization must be reviewed
  */
 class MambaModel {
 public:
@@ -27,7 +29,7 @@ public:
     ~MambaModel();                                              // [Main]
 
     // -------------------------------------------------------------------------
-    // RT-safe audio processing  [Audio]
+    // Proposed audio-thread processing path — not RT-audited  [Audio]
     // -------------------------------------------------------------------------
 
     /** Run one recurrent SSM step (d_model=1 scalar path). */   // [Audio]

@@ -41,7 +41,7 @@ static const clap_plugin_descriptor_t s_descriptor = {
     "Mamba Based",
     "https://github.com/state-spaces/mamba",
     "", "", "1.0.0",
-    "Real-time Mamba SSM audio processing (state-centric, CPU-only)",
+    "Experimental custom recurrent SSM prototype (not release-validated)",
     s_features
 };
 

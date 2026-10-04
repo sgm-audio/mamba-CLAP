@@ -1,23 +1,14 @@
 #pragma once
-// MambaSession — holds the Mamba-SSM recurrent state for one processing context.
+// MambaSession — experimental TorchScript recurrent-session interface.
 //
-// Contexts:
-//   • Real-time: one session per plugin instance, owned by MambaInferenceEngine.
-//   • Offline (ARA): one session per ARAPlaybackRenderer, created on demand.
+// STATUS: the worker/plug-in lifecycle is incomplete and this path is not
+// validated as real-time inference. Although state tensors and input scratch are
+// initialized at construction, step() builds a temporary IValue vector and calls
+// TorchScript; allocation behavior and latency are therefore unverified. Keep
+// this work off the audio callback and do not claim hard-real-time safety.
 //
-// The SSM state is a vector of per-layer tensors:
-//   state[l] ∈ ℝ^{batch × d_model × d_state}
-//
-// step() implements the Mamba recurrent update in scan form:
-//   h_t = A·h_{t-1} + B·x_t
-//   y_t = C·h_t + D·x_t
-// This is the O(1)-per-step inference mode (not parallel scan).
-//
-// Memory layout: state tensors are pre-allocated in the constructor and
-// reused across step() calls — no heap allocation at inference time.
-//
-// Thread safety: one session must be used from exactly one thread at a time.
-// The inference engine ensures this with its dedicated worker thread.
+// A session is intended for single-thread-at-a-time use. The current incomplete
+// inference-engine path does not establish end-to-end ownership/thread safety.
 
 #include <torch/script.h>
 #include <vector>

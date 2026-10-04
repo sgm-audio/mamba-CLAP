@@ -1,15 +1,17 @@
-# Self-Analysis: If I Were a Better Version, What Would I Have Done?
+# Self-analysis — prototype review and unverified hypotheses
+
+> **Status (2026-10-04):** This is a planning note, not an independent technical audit. The proposed speedups, expected latency/quality impacts, and example benchmark values below were not reproduced in the current checkout. Do not cite them as measured results. See [`../../docs/PROJECT_STATUS.md`](../../docs/PROJECT_STATUS.md).
 
 ## Executive Summary
 
-This document provides a ruthless post-mortem of the MambaCompressor implementation. While the architecture is sound and the codebase is professional-grade, there are critical gaps between what was delivered and what would constitute a truly production-ready, research-contributing system.
+The repository contains an experimental Python model and training code. Whether this architecture is suitable, whether it improves audio quality, and what performance it can achieve remain open questions. The gaps below are work items and hypotheses, not a claim that a production system exists.
 
 ---
 
 ## 1. What Was Done Well ✓
 
 ### Architectural Decisions
-- **Mamba over Transformers**: Correct choice for long-context audio. Linear-time complexity is non-negotiable for minute-long sequences.
+- **Model choice is open**: Compare Mamba/SSM, recurrent, convolutional, and attention baselines on the actual audio task. Linear sequence scaling alone does not establish best quality or real-time suitability.
 - **Differentiable DSP**: Separating semantic reasoning (Mamba) from signal processing (IIR ballistics) preserves phase coherence and interpretability.
 - **Blind Training Pipeline**: Synthetic corruption + reconstruction is a viable path when paired data is unavailable.
 
@@ -138,14 +140,12 @@ No empirical evidence that:
 - Blind pretraining helps vs. training from scratch on paired data
 
 **What a Better Version Would Do:**
-- Run controlled ablation experiments:
-  | Architecture | Context | Latency | Subjective Score |
-  |-------------|---------|---------|------------------|
-  | Mamba (6L)  | 60s     | 3.2ms   | 4.2/5            |
-  | GRU (6L)    | 60s     | 2.1ms   | 3.1/5            |
-  | Transformer | 2s      | 45ms    | 3.8/5            |
+- Run controlled ablation experiments and fill this table only with reproducible measurements:
+  | Architecture | Checkpoint/revision | Context protocol | p50/p99 latency | Peak memory | Listening/metric result |
+  |-------------|---------------------|------------------|-----------------|-------------|-------------------------|
+  | Not measured | — | — | — | — | — |
 
-- Publish results in reproducible format (Weights & Biases reports)
+- Publish the exact evaluation code, data split, hardware, and results.
 - Include failure case analysis (where does the model fail?)
 
 **Estimated Impact:** Transforms from "engineering project" to "research contribution."
@@ -260,19 +260,19 @@ Without this, claims of "musical intelligence" are unsubstantiated.
 ## 5. Honest Assessment
 
 **What This Is:**
-A well-architected, professionally documented proof-of-concept that demonstrates the viability of Mamba SSMs for context-aware audio compression.
+Experimental Python model/training code plus separate, incomplete C++ plug-in prototypes. A narrow custom C++ SSM layer has a passing standalone unit harness; that does not demonstrate a trained audio model or the viability of the overall approach.
 
 **What This Is Not:**
-- A production-ready tool
-- A research contribution with empirical validation
+- A production-ready tool or a verified real-time processor
+- A research contribution with empirical quality/performance results
 - A substitute for commercial compressors
 - A complete solution for working engineers
 
 **The Gap:**
-Between "works on my machine with clean test data" and "reliably processes arbitrary audio in real-time DAW sessions without artifacts."
+No end-to-end reproducible trained-checkpoint inference, audio-quality evaluation, full plug-in build/host validation, or callback deadline audit has been established.
 
 **How to Close It:**
-Relentless focus on the unglamorous work: optimization, testing, validation, user feedback loops. The architecture is sound. Now do the hard engineering.
+First make training, checkpoint loading, and deterministic inference reproducible; compare against conventional and learned baselines; run blind listening tests; then measure the integrated plug-in on named hosts and hardware. Architecture suitability remains an open research question.
 
 ---
 
@@ -285,6 +285,5 @@ In audio AI, perceptual quality trumps architectural elegance. No engineer cares
 
 ---
 
-*Document Version: 1.0*
-*Author: Lead Audio AI Architect (Self-Critical Mode)*
-*Date: 2024*
+*Historical document version: 1.0 (provenance not independently verified)*
+*Prior author/date metadata was not independently verified.*

@@ -1,8 +1,8 @@
 #pragma once
-// SmoothedValue<T> — lock-free, allocation-free parameter smoother.
-//
-// Used inside process() to ramp parameter changes sample-accurately so
-// automation does not cause audible zipper noise.
+// SmoothedValue<T> — parameter-smoother prototype for the proposed DSP path.
+// The fixed-size implementation avoids explicit dynamic allocation in its hot
+// methods; platform atomic behavior and full callback safety are not audited.
+// Intended for per-sample ramps; audio-quality benefits need host/listening tests.
 //
 // Algorithm: one-pole IIR low-pass (exponential smoothing).
 //   y[n] = α·target + (1-α)·y[n-1]
@@ -16,7 +16,7 @@
 //                  smoothed value; updates internal state.
 //   skip(n)      — advance n samples without computing output (silence gate).
 //
-// Real-time safety: no allocation, no branch on hot path (except is_at_target).
+// Local implementation intent only; no hard-real-time guarantee is implied.
 
 #include <atomic>
 #include <cmath>

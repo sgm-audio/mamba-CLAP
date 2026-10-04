@@ -1,4 +1,6 @@
-# PRD: PyTorch + Mamba CLAP Audio Effects Plugin
+# Aspirational PRD: PyTorch + Mamba CLAP audio-effects research
+
+> **Status (2026-10-04): proposed requirements, not delivered features.** The 60-second context, Mamba-3 integration, latency, host, quality, and adoption values in this PRD are goals/acceptance targets only. They have not been demonstrated by the current repository. See [`docs/PROJECT_STATUS.md`](./docs/PROJECT_STATUS.md) and [`docs/CLAIMS_VERIFICATION_2026-10.md`](./docs/CLAIMS_VERIFICATION_2026-10.md).
 
 ## Problem Statement
 Audio engineers and music producers currently rely on traditional DSP-based effects (reverb, compression, etc.) that operate on short-term signal analysis (typically 20-100ms windows). These effects lack the ability to understand long-term musical context (60+ seconds), resulting in processing that doesn't adapt to the evolving structure, style, or emotional content of a music piece. For example, a reverb effect might apply the same room characteristics throughout a song regardless of whether it's a verse, chorus, or bridge, missing opportunities to enhance the musical narrative through context-aware processing.
@@ -26,26 +28,25 @@ Audio engineers and music producers currently rely on traditional DSP-based effe
    - During dense sections: increases compression to maintain consistent energy
    - Effect adapts to genre-specific expectations (e.g., more compression for EDM, less for jazz)
 
-## Goals
-1. Enable audio effects that understand and adapt to long-term musical context (60+ seconds)
-2. Provide professional-quality audio processing that enhances musical expression
-3. Maintain compatibility with standard DAW workflows through CLAP format
-4. Deliver noticeable improvement over traditional fixed-parameter effects
-5. Support real-time processing in Reaper DAW with acceptable latency
+## Goals (proposed)
+1. Test whether audio effects can benefit from longer musical context; effective duration is not selected or measured.
+2. Evaluate audio quality against conventional and learned baselines using blind listening and objective measures.
+3. Assess compatibility with selected DAWs and formats only after a buildable plug-in path exists.
+4. Measure latency, stability, and resource use under a defined host/block/hardware protocol.
 
-## Non-Goals
-1. **Ultra-low latency processing** (<5ms) - Prioritizing quality and context awareness over minimal latency
-2. **Replacement for all traditional effects** - Intelligent complement to, not replacement of, established DSP techniques
-3. **Video/post-production applications** - Focused exclusively on music production use cases
-4. **Multi-instrument separation** - Processing mixed audio stems, not source separation
-5. **Physical modeling emulation** - Not attempting to replicate specific hardware units
+## Non-Goals (current proposal)
+1. No <5ms processing target has been validated. Select a latency target only after algorithmic, host-buffer, and worker behavior are defined and measured; previous <5ms, <50ms CPU, and <20ms GPU values conflict and are withdrawn as commitments.
+2. **Replacement for all traditional effects** — any learned control would complement, not replace, established DSP until evidence supports otherwise.
+3. **Video/post-production applications** — the research concept is focused on music production.
+4. **Multi-instrument separation** — source separation is out of scope for this proposal.
+5. **Physical modeling emulation** — no hardware-emulation claim is intended.
 
-## Success Metrics
-1. **User Engagement**: 70% of test users continue using plugin after initial trial period
-2. **Effect Quality**: 80% of blind A/B tests prefer Mamba CLAP effects over traditional equivalents for context-adaptive material
-3. **Technical Performance**: <50ms average latency in Reaper with CPU fallback, <20ms with GPU acceleration
-4. **Stability**: <1 crash per 10 hours of continuous operation in Reaper
-5. **Adoption**: 100+ downloads/month from audio plugin distribution channels after launch
+## Proposed validation metrics (targets only; not results)
+1. **User engagement**: define a study before recruiting users; the former 70% continuation figure is not validated.
+2. **Effect quality**: specify sample set, baseline, and blind protocol before setting any preference threshold; the former 80% figure is not a result.
+3. **Technical performance**: define a host, block size, sample rate, hardware, and latency metric, then publish worst-case and average measurements. No <5ms, <50ms CPU, or <20ms GPU result is established.
+4. **Stability**: measure crashes, dropouts, and error recovery in actual hosts; the former crash-rate figure is a proposed target only.
+5. **Adoption**: downloads or revenue are not validated success forecasts. Establish buyer interest and retention with observed data before setting numeric targets.
 
 ## Functional Requirements
 
@@ -150,16 +151,18 @@ Audio engineers and music producers currently rely on traditional DSP-based effe
 - A/B testing functionality
 - Performance optimization for various hardware
 
-## Acceptance Criteria (Given/When/Then Format)
+## Proposed acceptance criteria (not passed; study protocol pending)
 
-### Context-Aware Processing
-**AC1.1**: Given a song with distinct quiet verse and loud chorus sections, When audio is processed through the Mamba CLAP reverb plugin, Then the reverb decay time shall be measurably shorter during verses than during choruses (minimum 20% difference)
-**AC1.2**: Given a drum loop with consistent transient pattern, When processed through the Mamba CLAP compressor plugin, Then the compression ratio shall adapt to detected musical density, showing higher compression during busier sections
+The thresholds below are draft research targets, not measured outcomes or release commitments. Musical-effect targets (including the former 20% difference) require a defined dataset and listening protocol. DAW/host criteria require a buildable plug-in first.
 
-### Technical Performance
-**AC2.1**: Given a 44.1kHz stereo audio stream, When processed through the plugin on CPU (Intel i5-8400), Then the average latency shall be less than 50ms as measured by loopback test
-**AC2.2**: Given a 48kHz stereo audio stream, When processed through the plugin on GPU (NVIDIA GTX 1660), Then the average latency shall be less than 20ms as measured by loopback test
-**AC2.3**: Given 10 minutes of continuous audio processing, When monitored for stability, Then the plugin shall produce zero crashes, audio dropouts, or audible artifacts
+### Context-adaptive behavior (hypotheses)
+**AC1.1**: Test whether a chosen model produces a reproducible, musically useful change across clearly labeled sections; define effect direction/magnitude from a baseline study rather than presuming a 20% result.
+**AC1.2**: Test whether compressor parameters correlate with annotated musical density and are preferred to fixed-parameter baselines in blind evaluation.
+
+### Technical performance (protocol before thresholds)
+**AC2.1**: Record reported and loopback latency on a named CPU/host/sample-rate/block-size configuration. Set an acceptance threshold only after identifying algorithmic, host-buffer, and worker delays.
+**AC2.2**: Treat GPU acceleration as a separate experiment. Do not assume it improves end-to-end latency or is suitable for an audio callback; document device, transfer, and scheduling costs.
+**AC2.3**: After a reproducible build, test crashes, dropouts, and audible artifacts under sustained host load; publish duration, material, host, hardware, and observed result.
 
 ### CLAP Compliance
 **AC3.1**: Given a Reaper DAW v6.0+, When the plugin is scanned and loaded, Then it shall appear in the plugin browser with correct name, vendor, and category
@@ -168,7 +171,7 @@ Audio engineers and music producers currently rely on traditional DSP-based effe
 
 ### User Experience
 **AC4.1**: Given a first-time user, When they insert the plugin and load a preset, Then they shall be able to hear an audible effect difference between wet and dry signals within 30 seconds
-**AC4.2**: Given a user adjusting the context length parameter, When they increase the value from 20s to 60s, Then they shall perceive a change in how the effect adapts to longer musical sections
+**AC4.2**: After a validated model and host path exist, compare configured 20s and 60s context targets under a blind protocol; do not infer effective musical memory from the UI setting alone.
 **AC4.3**: Given a user switching between effect types, When they change from reverb to compression, Then the plugin shall transition smoothly without audible clicks or processing glitches
 
 ### Edge Case Handling

@@ -19,11 +19,13 @@
 #include "state_serialization.h"
 #include "cpu_budget_monitor.h"
 
-// Thread-domain tags per ADR-002:
-//   [Audio]  — hard RT audio thread only. No allocations, locks, I/O, or logging.
-//   [Main]   — main/host thread only. May allocate, do I/O, start/stop threads.
-//   [Any]    — safe from any thread (atomic read or const-only access).
-//   [Audio|Main] — callable from either audio or main thread (uses atomics for data exchange).
+// Intended thread-domain tags from ADR-002 (not proof of hard-real-time safety):
+//   [Audio]  — proposed callback path; audit allocations, blocking, and deadlines.
+//   [Main]   — intended main/host lifecycle path; may allocate/do I/O.
+//   [Any]    — intended cross-thread read; verify synchronization and ownership.
+//   [Audio|Main] — intended use from either domain; verify atomic/thread semantics.
+// STATUS: this processor currently includes absent inference_thread.h and is not
+// a complete build-verified plug-in implementation.
 
 static constexpr uint32_t kNumClapParams = 33;
 
@@ -69,7 +71,7 @@ public:
   void tickParamGuiSuppress(); // [Main] — called from GUI timer
 
     void processParamUpdates(const std::vector<ParamSnapshot>& updates); // [Main]
-    void processParamUpdates(const ParamSnapshot* updates, uint32_t count); // [Audio] — RT-safe overload
+    void processParamUpdates(const ParamSnapshot* updates, uint32_t count); // [Audio] — intended fixed-buffer overload; not audited
 
     void updateSessionFromTransport(double bpm, double tsig_num, // [Audio]
         double tsig_denom, double pos,

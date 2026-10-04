@@ -1,4 +1,6 @@
-# Data Model: AI-Powered Audio Mastering Service
+# Proposed data model: AI-Powered Audio Mastering Service
+
+> **Status (2026-10-04): schema proposal only.** This document is not evidence of applied migrations, an operational database, or deployed billing/subscription features. Verify the current application and migrations before relying on these entities.
 
 ## Entities
 

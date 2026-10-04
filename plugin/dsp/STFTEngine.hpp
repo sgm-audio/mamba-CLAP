@@ -1,10 +1,12 @@
 #pragma once
-// STFTEngine — real-time STFT analysis + ISTFT synthesis.
+// STFTEngine — proposed STFT/ISTFT analysis/synthesis component.
 //
-// All memory is pre-allocated during construction.
-// process() and synthesise() must not allocate or block.
+// STATUS: header/architecture prototype; the matching implementation source is
+// absent from the current build target. Allocation, callback cost, transform
+// correctness, latency, and reconstruction quality are not validated. The
+// constraints below are requirements for a future implementation, not guarantees.
 //
-// Signal flow (analysis):
+// Proposed signal flow (analysis):
 //   AudioRingBuffer → overlap-add input frames → FFT → magnitude → mel filter → log mel
 //
 // Signal flow (synthesis):
@@ -40,8 +42,8 @@ public:
     STFTEngine(int n_fft, int hop_length, int n_mels, double sample_rate);
     ~STFTEngine();
 
-    // Called from the real-time audio process() on the inference buffer
-    // after the inference worker has filled it.
+    // Proposed processing call in the audio/feature path; do not use in a callback
+    // until transform cost, allocation behavior, and buffer ownership are audited.
     // Returns the number of complete mel frames produced.
     int process(AudioRingBuffer& ring, OverlapAddSynthesizer& ola,
                 uint32_t frames_available) noexcept;

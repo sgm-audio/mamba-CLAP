@@ -1,7 +1,7 @@
 # ADR-006: ARA Musical Context Conditioning Bridge
 
 ## Status
-Accepted
+Accepted as a design proposal only; ARA integration and conditioning behavior are not verified in a built plug-in. See [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md).
 
 ## Context
 ARA 2.0 provides musical/document context that must influence the SSM in a thread-safe way and support offline rendering workflows.

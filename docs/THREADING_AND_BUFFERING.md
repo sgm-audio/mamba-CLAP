@@ -1,72 +1,44 @@
-# Threading and Buffering Strategy for Mamba-SSM
+# Threading and buffering — proposed design, not verified
 
-Based on the highly optimized C++ architecture utilizing AVX2 SIMD intrinsics, our Mamba-SSM inference requires ~133 nanoseconds per sample. This allows us to run inference **directly on the audio thread** without violating the 5.8ms budget (for 256 samples @ 44.1kHz).
+**Status (2026-10-04):** The threading model below is an engineering target. It is not a report of a working, measured implementation. `MambaDAW` references an inference thread whose header/implementation are absent. The separate `clap-plugin/` experiment performs Torch/STFT/model work inside its callback, and the separate `plugin/` worker architecture is incomplete. See [`PROJECT_STATUS.md`](./PROJECT_STATUS.md).
 
-## 1. Component & Threading Diagram
+Earlier versions of this document stated a 133 ns/sample result, zero-sample latency, AVX2 guarantees, and a completed real-time-safety checklist. No reproducible benchmark or complete callback audit supporting those statements is present in this checkout; those claims are withdrawn.
 
-Because inference executes on the audio thread, there is no need for complex audio lock-free ring buffers or priority inversion handling between the DSP and an inference thread. Threading is strictly segregated between UI/Host automation (Main Thread) and DSP (Real-Time Thread).
+## Proposed processing boundary
 
-```mermaid
-graph TD
-    subgraph Host Main Thread / UI
-        UI[Plugin GUI]
-        Autom[Host Automation]
-        Load[MambaWeightLoader]
-    end
+For a model that cannot be proven to meet the host callback deadline, the preferred experiment is:
 
-    subgraph Lock-Free Boundary
-        Params[std::atomic Param Queue]
-        Weights[(Static Read-Only Weights)]
-    end
-
-    subgraph Real-Time Audio Thread
-        Process[clap_process_t]
-
-        subgraph MambaModel
-            StateH[(state_h_ persistent)]
-            ConvH[(conv_buffer_ persistent)]
-            SIMD[AVX2 Vectorized Math]
-        end
-    end
-
-    UI --> Params
-    Autom --> Params
-    Load --> Weights
-
-    Params -.->|Read| Process
-    Weights -.->|Read| SIMD
-
-    Process --> SIMD
-    SIMD <--> StateH
-    SIMD <--> ConvH
-    SIMD --> Process
+```text
+Audio callback (bounded work)              Worker (not real-time)
+----------------------------               -----------------------
+copy/feature extraction into                pop complete frame(s)
+preallocated bounded SPSC queue  ------->   run model/inference
+read newest valid parameters     <-------   publish fixed-size result
+apply bounded DSP / dry fallback           handle model load, errors,
+                                            diagnostics, model swapping
 ```
 
-## 2. Exact Buffering Scheme & Latency
+This diagram is a target, not a claim that the queues, worker, or result path are currently wired end to end. A worker does not by itself make a plug-in real-time safe: queue-full behavior, stale results, reset/seek semantics, shutdown, and output continuity must all be specified and tested.
 
-Because inference is directly on the audio thread and processes strictly sample-by-sample:
+## Callback budget and measurement
 
-* **Inference Location:** Real-Time Audio Thread.
-* **Internal Chunk Size ($C$):** $C = 1$ sample. The `MambaLayer::processSample()` natively accepts 1 sample at a time.
-* **Ring Buffer Size:** `0` (No audio ring buffers required). The only internal ring buffer is the exact causal history needed for Mamba's `conv1d` layer (`[d_inner * d_conv]`), which is maintained per-layer.
-* **Variable Host Block Size:** Supported natively. A block size of 32, 128, or 512 simply loops the sample processor $N$ times. No fractional chunk tracking is needed.
-* **Worst-Case Algorithmic Latency:** **$0$ samples**.
+The available time for one host block is `frames / sample_rate`. For example, 64 frames at 48 kHz is about 1.33 ms for the **entire** processing chain. That is a deadline, not a target average. Measure worst-case time and underruns in the actual host on target CPUs and block sizes.
 
-### Transport & Bypass Behavior
+Required checks before making any RT-safety claim:
 
-* **Transport Seek / Playback Start:**
-    The plugin intercepts `clap_event_transport` events from `process->in_events`. If the transport jumps (e.g., `flags & CLAP_TRANSPORT_IS_PLAYING` transitions from false to true, or the playhead position discontinuously jumps), `MambaModel::resetState()` is called to flush `state_h_` and `conv_buffer_` to zero, preventing historical state from bleeding into a new timeline position.
-* **Bypass Behavior (Freeze vs. Track):**
-    If the plugin is hard-bypassed via the host, the audio callback routes dry signal directly to output. The internal Mamba state **freezes** (does not update) to save CPU cycles. When un-bypassed, a `resetState()` is automatically triggered so that the model re-initializes its context cleanly rather than continuing from a temporally disconnected state.
+- instrument allocations, deallocations, locks, logging, file I/O, exceptions, and system calls in the callback;
+- exercise minimum/maximum block sizes, sample rates, silence, seeks/resets, rapid automation, model-load failure, queue overflow, and multiple plug-in instances;
+- measure tail latency (not just average throughput), and validate with the host's plug-in validator and at least one DAW;
+- define a bounded fallback when inference is late or unavailable;
+- verify all state and feature queues are single-producer/single-consumer as designed, and confirm lifetime/shutdown ordering.
 
-## 3. Realtime Safety Checklist
+## Current code observations
 
-The plugin implements the following rigid checks aligned with the CLAP lifecycle:
+- `MambaDAW/src/plugin_processor.cpp` enqueues mel frames through an `InferenceThread`, but `MambaDAW/src/inference_thread.h` and the corresponding implementation are absent.
+- `clap-plugin/src/clap-plugin.cpp` calls Torch/STFT/model operations from `processAudioBlock()`, so its “preallocated buffers” comments do not establish callback safety.
+- `plugin/core/PluginCore.cpp` starts an engine but does not wire its ring/STFT pointers or consume inference results; the engine implementation and several DSP sources are missing.
+- `MambaDAW`'s optional INT8 code lazily allocates quantized vectors when first used. It must not be selected on an audio thread until preparation is explicit and tested off-thread.
 
-| Callback | Action / Validation Checklist |
-| :--- | :--- |
-| `init()` | ✅ Run `MambaWeightLoader` (File I/O). ✅ Initialize parameter metadata. |
-| `activate()` | ✅ Pre-allocate all `std::vector` state buffers for the given sample rate. ✅ Size validation (ensure exact capacity fits `d_inner * d_state`). ✅ Lock memory if supported by OS to prevent paging. |
-| `process()` | ✅ Assert no locks are held. ✅ Assert no `malloc`/`free`/`new`/`delete` calls. ✅ Drain `in_events` queue into atomics before audio loop. ✅ Interpolate parameters per-sample to avoid zipper noise. ✅ Enforce AVX flush-to-zero bounds for subnormal floats. |
-| `deactivate()` | ✅ Reset `state_h_` and `conv_buffer_` to zero. ✅ Free pre-allocated vectors (safe here, NRT thread). |
-| `flush()` | ✅ Drain parameter queue when audio engine is stopped. |
+## Status
+
+**No hard-real-time safety, zero-latency, 133 ns/sample, or dropout-free result is currently verified.** Record benchmark hardware, compiler flags, model dimensions, sample rate, host block size, binary revision, and worst-case measurement with any future performance claim.

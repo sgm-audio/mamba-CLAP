@@ -1,107 +1,39 @@
 # Mamba Based
 
-**Context-Aware Audio Processing & Selective State Space Model (SSM) Research**
+**Research and prototypes for state-space models and audio processing**
 
-[![GitHub license](https://img.shields.io/github/license/SGM-Studios/mamba-CLAP)](https://github.com/SGM-Studios/mamba-CLAP/blob/master/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/SGM-Studios/mamba-CLAP)](https://github.com/SGM-Studios/mamba-CLAP/stargazers)
-[![Mamba Generation](https://img.shields.io/badge/SSM-Mamba--3-brightgreen)](https://github.com/state-spaces/mamba)
+> **Status (2026-10-04): research/prototype only.** This repository is not a production-ready Mamba-3 audio plug-in. No checked-in plug-in has passed a reproducible full build, host validation, trained-model parity test, audio-quality evaluation, or real-time deadline/allocation audit. See the [project status](./docs/PROJECT_STATUS.md) and [claims audit](./docs/CLAIMS_VERIFICATION_2026-10.md).
 
-`Mamba Based` is a multi-layered ecosystem dedicated to researching and applying **Mamba State Space Models (SSMs)** to professional audio processing. It bridges the gap between state-of-the-art sequence modeling and high-performance audio engineering, enabling "musical intelligence" that can reason over long-term temporal contexts (60s+).
+This is a multi-project repository. Its model research, Python audio experiments, custom C++ SSM, and CLAP experiments are separate code paths; they are not currently one integrated train → export → load → real-time audio pipeline.
 
----
+## Component status
 
-## 🏗️ Ecosystem Architecture
+| Path | Status | What is present |
+|---|---|---|
+| [`mamba/`](./mamba) | **Research/reference** | Vendored upstream Mamba-family Python implementation, including Mamba-3 source. Not wired to the C++ plug-in paths. |
+| [`mamba-compressor/`](./mamba-compressor) | **Research prototype** | Python Mamba/differentiable-DSP experiments. No validated pretrained audio checkpoint or real-time plug-in is established. |
+| [`MambaDAW/`](./MambaDAW) | **C++ prototype / in progress** | Custom recurrent SSM and CLAP-related code. The custom layer is not upstream Mamba-3; the plug-in path is blocked by a missing inference-thread header/source. |
+| [`clap-plugin/`](./clap-plugin) | **Legacy research experiment** | TorchScript/LibTorch CLAP experiment. Torch operations run in its audio callback; do not treat it as real-time safe. |
+| [`plugin/`](./plugin) | **Architecture prototype / in progress** | A separate CLAP/worker design with missing CMake-listed sources and incomplete model/result wiring. |
+| [`docs/`](./docs) | **Status and design notes** | See the status page before relying on older architecture, implementation, or readiness documents. |
 
-The workspace is organized into several distinct but interconnected components:
+## What is and is not demonstrated
 
-### 🐍 [Core Mamba Research](./mamba)
-Foundational implementation of Mamba-1, Mamba-2 (SSD), and Mamba-3. Includes high-performance CUDA kernels and comprehensive benchmarks for long-context modeling.
+- The original Mamba research supports linear sequence-length scaling for the relevant SSM algorithms. That asymptotic property alone does **not** prove a real-time callback deadline, useful 60-second musical memory, or audio quality.
+- `MambaDAW/src/mamba_layer.*` is a custom fixed-coefficient recurrent SSM prototype, not the upstream selective Mamba or Mamba-3 implementation.
+- One standalone C++ layer test is available. It does not validate a plug-in build, a DAW host, Mamba-3, LoRA, trained model behavior, or hard-real-time performance.
+- LoRA fine-tuning/export, RunPod deployment, and a commercial adapter product are **not implemented** in this repository.
 
-### 🎚️ [Mamba Compressor](./mamba-compressor)
-A specialized application focusing on **Context-Aware Dynamic Audio Processing**. It replaces heuristic compression rules with learned musical intelligence that "hears" long-term context.
+## Start here
 
-### 🎹 [CLAP & JUCE Plugin](./clap-plugin)
-C++/JUCE implementation of the **CLAP (Clever Audio Plugin)** standard. Features a "Neural HUD" UI built with OpenGL acceleration for real-time inference within DAWs.
+1. Read [`docs/PROJECT_STATUS.md`](./docs/PROJECT_STATUS.md) for component status and release gates.
+2. Read [`docs/CLAIMS_VERIFICATION_2026-10.md`](./docs/CLAIMS_VERIFICATION_2026-10.md) for claim-by-claim findings and sources.
+3. For the narrow standalone layer test, see [`docs/BUILD_AND_TEST_GUIDE.md`](./docs/BUILD_AND_TEST_GUIDE.md). A full plug-in build is currently blocked and has not been verified.
 
-### 🏛️ [MambaDAW](./MambaDAW)
-A standalone C++ project implementing a high-performance CLAP host and plugin architecture using **LibTorch** for low-latency inference.
+## Research goals
 
-### 🧠 [Emotion-Aware DSP](./dsp_system)
-A Ray-based system for emotion-aware audio processing. Includes LLM mediation for architectural friction resolution and Neo4j-based agent coordination mapping.
+Explore whether state-space models can help predict audio-effect parameters from musical context, and determine whether a small, properly trained model can run within a measured host callback budget. These are research questions, not current product claims.
 
-### 📂 [Documentation](./docs)
-Unified repository documentation, including API references, component guides, and release processes.
+## License
 
----
-
-## 🚀 Getting Started
-
-### 1. Quick Setup (Recommended)
-Use the provided automation scripts to set up your development environment:
-
-```bash
-# Clone and enter repo
-git clone https://github.com/SGM-Studios/mamba-CLAP.git
-cd mamba-CLAP
-
-# Run setup script (installs dependencies and configures environment)
-./scripts/setup-dev.sh
-```
-
-### 2. Manual Installation
-If you prefer manual setup:
-
-```bash
-pip install -r requirements.txt
-
-# Install Mamba-SSM (requires CUDA for GPU acceleration)
-MAMBA_FORCE_BUILD=TRUE pip install --no-cache-dir mamba-ssm --no-build-isolation
-```
-
----
-
-## ✨ Key Features
-
-- **Linear-Time Temporal Reasoning**: Unlike Transformers ($O(N^2)$), Mamba's $O(N)$ complexity enables real-time processing of long audio sequences.
-- **Neural HUD Aesthetic**: A "Silicon Serpent" visual theme prioritizing high-contrast data visualization and GPU-accelerated spectrograms.
-- **Differentiable Audio Engine**: End-to-end optimizable DSP layers that preserve phase coherence and transient integrity.
-- **Emotionally Intelligent DSP**: Components designed for introspectability and emotional coherence, moving beyond "black box" processing.
-- **Security & Performance**: Hardened audio threads and optimized IIR ballistics with `torch.compile` and future Triton support.
-
----
-
-## 🏛️ State-Centric Architecture
-
-The CLAP plugin implements a **state-centric design** where Mamba's hidden state (`h_t`) lives entirely on the real-time audio thread:
-
-| Rule | Why | How |
-|------|-----|-----|
-| **No heap allocation in RT** | Prevents non-deterministic glitches | Buffers pre-allocated in `activate()` |
-| **No background threads** | Synchronization overhead > inference time | `processBlock()` calls `processSample()` directly |
-| **State persists** across callbacks | `h_t` is the memory; reset only between songs | `resetState()` called in `activate()`/`deactivate()` |
-| **Quantization mandatory** | FP32 CPU > 200 µs/frame (fails real-time) | INT8/INT4 quantized models via `-DENABLE_QUANTIZATION=ON` |
-
-**Why this matters**: In a traditional plugin, processing each block independently loses context. Mamba's state carries 60+ seconds of musical memory across callbacks, enabling compression decisions that "hear" what came before.
-
----
-
-## 🛠️ Development & Automation
-
-The project includes a suite of scripts in the [`scripts/`](./scripts) directory for common workflows:
-
-- **Build All**: `./scripts/build-all.sh`
-- **Run Tests**: `./scripts/run-tests.sh [all|basic|mamba|dsp]`
-- **Linting**: Pre-commit hooks are configured via `.pre-commit-config.yaml`.
-
-For detailed agent instructions and engineering standards, see [`GEMINI.md`](./GEMINI.md).
-For setup and build specifics, see [`AGENTS.md`](./AGENTS.md).
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the individual `LICENSE` files in the subdirectories for details.
-
----
-
-*"Hear the last 60 seconds of musical context and decide right now whether to clamp, breathe, or get out of the way."*
+This project is licensed under the MIT License; check individual subdirectories for their own license files and third-party notices.

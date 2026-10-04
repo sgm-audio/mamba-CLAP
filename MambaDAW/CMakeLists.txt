@@ -1,18 +1,18 @@
 cmake_minimum_required(VERSION 3.14)
 project(MambaDAW LANGUAGES C CXX)
 
-# NOT IMPLEMENTED (post-MVP): GPU/CUDA inference path (FR4.4/NFR2/NFR7)
-# NOT IMPLEMENTED (post-MVP): Windows/macOS builds (NFR8) — Linux-only for MVP
-# IMPLEMENTED (Phase 2): Headless VST3 wrapper — no GUI, links mamba_core
-# NOT IMPLEMENTED (post-MVP): AU wrapper (NFR10) — CLAP+VST3+LV2 shipped
+# STATUS (2026-10-04): prototype / in progress; no plug-in format is release-verified.
+# The CLAP processor currently has an unresolved inference_thread.h dependency.
+# VST3/LV2 are optional build experiments, not validated shipped formats.
+# AU, GPU/CUDA inference, and cross-platform release builds are not implemented.
 
 # ---------------------------------------------------------------------------
 # Build options — each generates a separate plugin MODULE
 # ---------------------------------------------------------------------------
 option(MAMBA_ENABLE_CLAP "Build CLAP plugin"      ON)
-option(MAMBA_ENABLE_VST3 "Build VST3 plugin"      OFF)  # Phase 2 (done)
-option(MAMBA_ENABLE_LV2  "Build LV2 plugin"       OFF)  # Phase 3 (done)
-option(MAMBA_ENABLE_GUI  "Build with JUCE GUI"    ON)
+option(MAMBA_ENABLE_VST3 "Build VST3 prototype"  OFF)  # Not release-validated
+option(MAMBA_ENABLE_LV2  "Build LV2 prototype"   OFF)  # Not release-validated
+option(MAMBA_ENABLE_GUI  "Build with JUCE GUI"    ON)  # Requires JUCE modules checkout
 
 # ---------------------------------------------------------------------------
 # ADR-004: Model configuration via generated config.h

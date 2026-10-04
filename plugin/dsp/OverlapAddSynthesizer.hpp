@@ -2,11 +2,11 @@
 // OverlapAddSynthesizer — accumulates ISTFT output frames with a Hann window
 // and delivers the final time-domain output to the host audio buffer.
 //
-// All memory is pre-allocated in the constructor.
-// synthesise() is real-time safe (no alloc, no lock).
+// The implementation currently sizes its vectors in the constructor and is
+// intended not to grow them during synthesise(). Verify bounds and allocations
+// before callback use; no full real-time audit or audio-quality validation exists.
 //
-// Dry/wet mixing is applied here rather than in the audio callback loop
-// to avoid an extra pass over the output buffer.
+// Dry/wet placement here is an architectural choice to benchmark and audition.
 
 #include <vector>
 #include <cstdint>

@@ -1,16 +1,18 @@
 # Mamba Based — Agent Instructions
 
-## Critical RT Constraints (never violate in `process()`/`processBlock()`)
-- NO heap allocations: no `new`, `malloc`, `std::vector::push_back`, `std::string`
-- NO mutexes, locks, heavy atomics — use lock-free queues for UI↔DSP
-- NO exceptions, file I/O, or logging
-- ALL ML inference buffers pre-allocated in `prepare()`/`init()`
-- Mamba hidden state `h_t` persists across calls — reset only via `activate()/deactivate()`. Zeroing between blocks causes audio clicks
-- Weight loading: main thread only, via `MambaWeightLoader` (mmap, `PROT_READ`)
+> **Repository status (2026-10-04): research/prototype; no production-ready plug-in is verified.** Some architecture, build, test, and performance notes below describe intended or historical work rather than existing files. Check [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) first. In particular, `MambaDAW/src/inference_thread.h` is absent, the separate `plugin/` target lists missing sources, and no `.github/workflows/ci.yml` is present in this checkout. Do not claim builds/tests/RT guarantees that were not run.
 
-## Mamba-SSM Statefulness
-- `conv_state` and `ssm_state` MUST pass as inputs/outputs between inference runs
-- ONNXRuntime C++ API only — no PyTorch/LibTorch in MambaDAW RT path
+## RT design constraints for future/verified callback code
+
+These are safety targets for new code, not a statement that the current tree complies. The complete plug-in path has not been built or audited. Check the called functions and dependencies before assigning audio-thread work.
+- Avoid heap allocation, blocking locks, exceptions, file I/O, and logging in a real-time callback.
+- Allocate fixed buffers before processing; verify that wrappers and libraries do not allocate internally.
+- Preserve recurrent state only where the model contract requires it; reset behavior must be specified and tested.
+- Load weights away from the audio callback. `MambaWeightLoader` exists, but no complete training/export/plugin load path is verified.
+
+## Proposed sequence-model state contract (not integrated)
+- A streaming model must explicitly pass its convolution/SSM state between inference steps and define reset/seek behavior.
+- The prior ONNX Runtime-only plug-in path was a design proposal; no ONNX audio model/runtime integration is established in `MambaDAW`.
 
 ## Task Ownership
 
@@ -24,23 +26,22 @@
 
 Tasks A, B, D are parallel. C needs `effect_params.h` + headers from A/B.
 
-## Architecture (MambaDAW CLAP plugin)
+## Intended architecture (MambaDAW; incomplete and not verified)
 ```
-Audio Thread (RT-safe):  stereo in → FeatureExtractor (STFT→mel, hop=512, N_MEL=80)
-                         → pushFrame() → [SPSC feat_queue]
-                         ← getLatestParams() ← [seqlock param_double_buffer]
-                         → DspChain: EQ → Compressor → Saturator → Reverb → dry/wet → out
+Proposed audio callback (RT safety unverified): stereo input → feature extraction
+                                      → bounded queue / parameter handoff (not implemented end to end)
+                                      → conventional DSP → output
 
-Background Thread (non-RT): popFrame() → context ring buffer (60s = 5168 frames @ 44.1k/512)
-                            → MambaModel(d_model=80, n_layers=4, d_state=16, d_conv=4) every 128 frames
-                            → EffectDecoder → EffectParamBlock (19 AI-predicted floats, sigmoid-clamped)
-                            → write [seqlock param_double_buffer]
+Proposed background inference: features → context buffer (60s is a target, not a measured/useful-memory result)
+                                → sequence model → parameter decoder → handoff
 ```
-The `EffectParamBlock` struct (`MambaDAW/src/dsp/effect_params.h`) has **21 fields** — AI predicts 19 (`N_EFFECT_PARAMS`); `eq_mid_hz` and `eq_mid_q` are manual-path only. Do NOT duplicate the struct. Default dimensions: `N_MEL=80`, `HOP_SAMPLES=512`, `N_FFT=2048`, `N_EFFECT_PARAMS=19`. Override via cmake `-DMAMBA_N_MEL=...` etc. (see `mamba_config.h.in`).
+This diagram is intended architecture only. The full feature → queue → inference → parameter path is not currently verified; `inference_thread.h` is absent. `EffectParamBlock` currently has **21 fields** (`MambaDAW/src/dsp/effect_params.h`); do not assume the `N_EFFECT_PARAMS=19`/manual-path split is trained or validated. Check `mamba_config.h.in` and the current implementation before changing dimensions.
 
 ## Build Commands
 
-### MambaDAW (multi-format CMake project `MambaDAW`)
+### MambaDAW (intended CMake build; currently blocked)
+
+The following commands are historical/intended, not verified. The CLAP target currently has a missing `inference_thread.h` dependency, and the default GUI setting expects a JUCE checkout at `../JUCE/modules`. Do not promise that these commands produce a plug-in until those blockers are fixed and a clean build succeeds.
 ```bash
 cd MambaDAW && cmake -B build -G Ninja . && cmake --build build -j$(nproc)
 # Outputs:
@@ -86,7 +87,9 @@ Auto-detects `layers.N.dA` keys from `SimpleMambaModel`. Decoder heads NOT expor
 
 ## Test Commands
 
-### C++ (MambaDAW) — build then run from `MambaDAW/build`
+### C++ (MambaDAW) — target list, not a verified full suite
+
+Only the standalone `test_mamba_layer.cpp` was compiled and run directly in the current audit. Full CMake targets below are conditional on sources/dependencies and have not been verified; check that each executable exists before running it.
 ```bash
 cd MambaDAW/build && cmake --build .
 ./test_dsp                  # DSP chain unit tests
@@ -102,34 +105,15 @@ MAMBA_SOAK_SECONDS=10 ./test_soak  # soak test (env var controls duration)
 ./test_alloc_audit          # RT heap-allocation audit
 ./test_tsan                 # thread sanitizer concurrency
 ```
-CMake conditionally adds each target when source + dependencies exist. All 12 binaries run in CI.
+CMake conditionally adds some targets when source files and dependencies exist. The current checkout has no `.github/workflows/ci.yml`, and there is no evidence that 12 binaries are built or run in CI.
 
-### Python
-```bash
-python test_mamba.py                        # quick smoke test
-./scripts/run-tests.sh all                  # same as above
-./scripts/run-tests.sh mamba                # cd mamba && pytest tests/ -v
-./scripts/run-tests.sh dsp                  # cd emotion-aware-dsp && pytest -v
-pytest mastering_service/tests/
-pytest backend/tests/
-```
+### Python tests and quality tools — not verified
 
-### Lint / format / typecheck
-```bash
-pre-commit run --all-files   # black, isort, ruff (--fix --exit-non-zero-on-fix), mypy, gitleaks, trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files, check-merge-conflict, check-vcs-permalinks, etc.
-```
+Do not treat the legacy Python dispatcher as a verified passing suite. `scripts/run-tests.sh all` invokes the present root `test_mamba.py`, but this audit environment lacks PyTorch so execution fails before tests can be established. The `dsp` target is unavailable because no DSP test component exists in this checkout; it now exits non-zero rather than reporting success. The `mamba` target delegates to vendored upstream tests but has not been run in this audit environment. Service/backend test paths and pre-commit/lint commands must be checked against existing files before use. See [`docs/BUILD_AND_TEST_GUIDE.md`](docs/BUILD_AND_TEST_GUIDE.md) for the one verified test.
 
-## CI (`.github/workflows/ci.yml`)
+## CI status — not configured in this checkout
 
-Three parallel jobs:
-
-| Job | Steps |
-|-----|-------|
-| **build-cpp** | cmake + build + all 12 C++ test binaries (incl. `test_alloc_audit` + `test_tsan`) |
-| **python-lint** | `black --check`, `isort --check`, `ruff check` on `mamba/`, `mamba-compressor/`, `MambaDAW/python_training/`, `mastering_service/`, `backend/` |
-| **pre-commit** | `pre-commit run --all-files` |
-
-CI does NOT run Python unit tests (no torch/mamba in CI runner).
+No `.github/workflows/ci.yml` is present in the current tree. The previous description of build, lint, pre-commit jobs and 12 C++ test binaries is unverified and is withdrawn. Add CI only after a clean build path and its actual test targets are established; report exactly what it runs.
 
 ## Python Code Quality
 - Formatter: `black --line-length 100`
@@ -152,9 +136,9 @@ CI does NOT run Python unit tests (no torch/mamba in CI runner).
 - **EffectDecoder mapping**: sigmoid → scale to range via `kRanges` in `effect_decoder.cpp` (NOT in `effect_params.h`)
 - **FFTW scaling** (legacy plugin only): forward ÷ √n_fft; iSTFT OLA ÷ `sum_squared_window ≈ 2/n_fft` (Hann)
 
-## Known Gotchas
-- **CLAUDE.md** and **README.md** reference stale `dsp_system/` dir (actually `emotion-aware-dsp/`). `setup-dev.sh` also checks for `dsp_system/`.
+## Known documentation/build pitfalls
+- Older documents refer to absent `dsp_system/` or `emotion-aware-dsp/` directories. `scripts/setup-dev.sh` checks for `dsp_system/`, and `scripts/run-tests.sh dsp` checks for `emotion-aware-dsp/`; neither path exists in this checkout.
 - **`-DENABLE_QUANTIZATION=ON`** does not exist in any CMakeLists. Don't use it.
-- Directory `specs/` has ADRs preceding the authoritative `docs/adr/` — prefer `docs/adr/` (ADR-001 through ADR-007). Read these before changing threading/memory.
-- After writing audio-thread code, add `// RT-Safety: <justification>` comment at top of function.
+- `specs/` contains historical ADR drafts; `docs/adr/` is the current design reference, but its entries are proposals and do not prove implementation. Verify all source paths and tests against the current tree.
+- When writing code intended for an audio callback, document the constraints and called dependencies, but do not label it RT-safe until allocation/blocking/deadline audits and host tests support that claim.
 - Always provide both `.h` and `.cpp` for new C++ files; update CMakeLists.txt SOURCES.

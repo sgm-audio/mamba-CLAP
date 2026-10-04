@@ -1,41 +1,37 @@
-#!/bin/bash
-# Test runner script for Mamba repository
+#!/usr/bin/env bash
+# Legacy test dispatcher. Only run targets that exist; never report a missing
+# component as a successful test run.
+set -euo pipefail
 
-set -e  # Exit on any error
-
-# Default to running all tests if no arguments provided
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
 TEST_TARGET="${1:-all}"
 
-echo "Running tests for: $TEST_TARGET"
+echo "Running test target: $TEST_TARGET"
 
 case "$TEST_TARGET" in
-    all|basic)
-        echo "Running basic validation tests..."
-        python test_mamba.py
-        ;;
-    mamba)
-        echo "Running Mamba core tests..."
-        if [ -d "mamba/tests" ]; then
-            cd mamba && python -m pytest tests/ -v
-            cd ..
-        else
-            echo "No tests found in mamba/tests"
-        fi
-        ;;
-  dsp)
-    echo "Running DSP system tests..."
-    if [ -d "emotion-aware-dsp" ]; then
-      cd emotion-aware-dsp && python -m pytest -v
-      cd ..
-    else
-      echo "emotion-aware-dsp directory not found"
+  all|basic)
+    if [[ ! -f test_mamba.py ]]; then
+      echo "ERROR: test_mamba.py is absent; the 'all/basic' target is unavailable." >&2
+      exit 2
     fi
+    python test_mamba.py
     ;;
-    *)
-        echo "Unknown test target: $TEST_TARGET"
-        echo "Available targets: all, basic, mamba, dsp"
-        exit 1
-        ;;
+  mamba)
+    if [[ ! -d mamba/tests ]]; then
+      echo "ERROR: mamba/tests is absent; the upstream test target is unavailable." >&2
+      exit 2
+    fi
+    python -m pytest mamba/tests/ -v
+    ;;
+  dsp)
+    echo "ERROR: no DSP test component is present in this checkout; target unavailable." >&2
+    exit 2
+    ;;
+  *)
+    echo "ERROR: unknown target '$TEST_TARGET'. Available targets: all, basic, mamba." >&2
+    exit 2
+    ;;
 esac
 
-echo "Tests completed successfully!"
+echo "Test target '$TEST_TARGET' completed successfully."

@@ -1,11 +1,12 @@
-# MambaFX — Production-Ready C++20 Plugin Architecture
+# MambaFX — proposed C++20 plug-in architecture
 
-**Plugin name**: MambaFX  
-**Format**: CLAP ≥ 1.2 with optional ARA 2 (≥ 2.2) via clap-ara bridge  
-**AI model**: Mamba-3 SSM — Tiny (20 MB), Base (80 MB), Large (150 MB) TorchScript  
-**Audio task**: Context-aware adaptive audio mastering (reverb, compression, saturation, EQ)  
-**Target DAWs**: Reaper, Bitwig Studio, Tracktion Waveform (all CLAP-native)  
-**Language**: C++20, LibTorch (libtorch), clap-sdk ≥ 1.2, ARA2 SDK ≥ 2.2  
+> **Status (2026-10-04): design proposal / incomplete implementation.** This document is not a release specification or evidence that the listed modules, Mamba-3 model, CLAP/ARA support, or DAW compatibility exist. The separate `plugin/` tree has missing build sources and has not passed a complete build, host, audio-quality, or real-time audit. See [`../docs/PROJECT_STATUS.md`](../docs/PROJECT_STATUS.md).
+
+**Proposed format**: CLAP, with optional ARA 2 exploration (neither release-validated)
+**Candidate model**: sequence model not yet selected or integrated; Mamba-3 is research input only (no validated plug-in checkpoint or TorchScript path)
+**Proposed audio task**: context-informed control of conventional DSP effects; musical benefit and quality not evaluated
+**Target DAWs**: targets for future compatibility testing, not verified hosts
+**Proposed language/runtime**: C++20; required SDK/dependency versions need validation
 
 ---
 
@@ -39,7 +40,7 @@ plugin/
 │   ├── ModelLoader.hpp/cpp            ← Async load + WeightStore (process-global cache)
 │   └── InferenceQueue.hpp/cpp         ← Thread pool for ARA offline analysis jobs
 │
-├── dsp/                         ← Real-time-safe DSP; zero alloc after activate()
+├── dsp/                         ← Proposed callback DSP components; safety not audited
 │   ├── AudioRingBuffer.hpp/cpp        ← Lock-free SPSC multi-channel ring buffer
 │   ├── STFTEngine.hpp/cpp             ← STFT analysis + phase-vocoder ISTFT (kissFFT)
 │   ├── OverlapAddSynthesizer.hpp/cpp  ← OLA synthesis → host output buffer
@@ -127,7 +128,7 @@ Lifetime invariants:
 Main/UI thread                    Audio RT thread
 ──────────────────────────────    ─────────────────────────────────────────────
 ParameterBank::set()              ParameterBank::get()          ← std::atomic<float>
-                                                                  (relaxed ordering; 
+                                                                  (relaxed ordering;
                                                                    exact-sample accuracy
                                                                    via input event queue)
 
@@ -151,18 +152,18 @@ InferenceQueue mutex                                             ← Only held b
   (ARA jobs only)                                                  audio thread never touches it
 ```
 
-### 3.3 Real-Time Safety Guarantees (Audio Thread)
+### 3.3 Real-time safety design goals (not audited)
 
-The audio thread (`PluginCore::process()`) is certified **real-time safe**:
+The following are proposed constraints, not guarantees or verified implementation facts. The architecture is incomplete; no complete allocation, blocking, exception, worst-case timing, or host-callback audit has been run.
 
-| Prohibited operation          | Enforcement mechanism                                    |
-|-------------------------------|----------------------------------------------------------|
-| `malloc` / `new`              | All buffers pre-allocated in `activate()`; ASAN in tests |
-| `std::mutex::lock()`          | No mutex in audio path; only SPSC queues and atomics     |
-| LibTorch forward pass         | Inference runs exclusively on the worker thread          |
-| File I/O                      | No disk access in `process()`                            |
-| `std::this_thread::sleep_for` | Never called in process path                             |
-| Syscall `mmap` / `mprotect`   | All memory mapped at activation time                     |
+| Prohibited operation          | Proposed approach                                      | Evidence status |
+|-------------------------------|--------------------------------------------------------|-----------------|
+| `malloc` / `new`              | Pre-allocate callback buffers during activation       | Not verified end to end |
+| `std::mutex::lock()`          | Keep blocking synchronization off the audio path      | Not verified end to end |
+| LibTorch forward pass         | Run inference off the audio callback                  | Not wired/verified end to end |
+| File I/O                      | Keep disk access outside `process()`                  | Not verified end to end |
+| `std::this_thread::sleep_for` | Avoid waits in callback code                           | Not audited |
+| Syscall `mmap` / `mprotect`   | Load/map model data before processing                 | Not verified |
 
 ---
 
@@ -211,9 +212,11 @@ The audio thread (`PluginCore::process()`) is certified **real-time safe**:
 
 ---
 
-## 5. Memory Management — 150 MB Mamba Model
+## 5. Proposed model memory and loading strategy
 
-### 5.1 Loading Strategy
+No checkpoint or model size is selected; memory estimates are undetermined. The flow below is a design sketch, not verified implementation. The worker source is incomplete, `MambaSession::step()` builds temporary TorchScript argument vectors, and mmap/CoW savings, loading time, allocation behavior, and callback handoff have not been measured.
+
+### 5.1 Proposed loading sequence
 
 ```
 Startup
@@ -332,7 +335,7 @@ Host calls didEndEditing()
 ## 7. Build Configuration Summary
 
 ```cmake
-# Minimum production build:
+# Proposed dependency/configuration example (not verified to build):
 cmake -B build -DCMAKE_BUILD_TYPE=Release \
       -DCLAP_PATH=/opt/clap-sdk \
       -DTORCH_INSTALL_PATH=/opt/libtorch \
@@ -349,14 +352,15 @@ cmake -B build-debug -DCMAKE_BUILD_TYPE=Debug \
 
 ---
 
-## 8. Key Design Decisions & Trade-offs
+## 8. Proposed Design Decisions & Trade-offs
 
-| Decision                                  | Why                                               | Trade-off                                      |
-|-------------------------------------------|---------------------------------------------------|------------------------------------------------|
-| SPSC queues instead of mutexes on RT path | Wait-free; no priority inversion                  | Fixed capacity; overflow silently drops events |
-| Mel-spectrogram → Mamba (not raw waveform)| Reduces sequence length 256×; proven audio ML rep  | Phase discarded; STFT/ISTFT overhead ≈2 ms    |
-| WeightStore process-global singleton      | Multiple DAW instances share memory-mapped weights | Requires version/path consistency across slots |
-| MambaSession::step() catches all exceptions | Torch may throw on NaN state; RT thread must never crash | Errors silently reset state; no RT-safe logging |
-| ARA analysis on InferenceQueue pool       | Offline; no real-time budget; can use full Torch  | Pool workers and RT worker share CPU core count |
-| Phase vocoder (not Griffin-Lim)           | Single-pass; Griffin-Lim needs 30+ iterations     | Phase distortion on transients; acceptable for mastering |
-| StateSerializer version migration table  | Future-proof against parameter schema changes     | Old presets need manual testing on each version |
+These are hypotheses for a future implementation, not verified product results.
+
+| Candidate decision | Rationale to test | Open risk / evidence needed |
+|---|---|---|
+| SPSC queues instead of locks on the audio path | May avoid blocking when correctly implemented | Audit memory ordering, overflow behavior, ownership, and worst-case callback time |
+| Mel-spectrogram input to a candidate sequence model | May shorten the model sequence compared with raw waveform input | Measure task quality, phase/reconstruction artifacts, and transform overhead |
+| Shared model-weight storage across instances | May reduce duplicate memory use | Validate lifetime, synchronization, path/version consistency, and actual memory savings |
+| Inference off the audio callback | Intended to isolate unbounded model work | End-to-end worker/result handoff is incomplete; measure freshness, underruns, and CPU contention |
+| Candidate phase-vocoder/OLA reconstruction | May provide a practical reconstruction path | Compare alternatives and use listening tests for transient/artifact acceptability |
+| Versioned state migration | Intended to support preset compatibility | Requires a real serializer, fixtures, and upgrade tests |

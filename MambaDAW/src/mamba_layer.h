@@ -6,24 +6,24 @@
 #include <cmath>
 
 /**
- * @brief CPU-Optimized, Real-Time Safe Mamba Layer.
+ * @brief Custom recurrent SSM prototype; not upstream Mamba or Mamba-3.
  *
- * Thread-domain per ADR-002:
- *   processSample(), processBlock() — [Audio] (RT-safe, no allocation)
- *   loadLayerWeights(), resetState(), getState(), setState() — [Main]
- *   Architecture accessors — [Any]
+ * Status: prototype / in progress. The FP32 processing path reuses buffers
+ * allocated during construction, but no full plug-in allocation or deadline
+ * audit has been performed. Do not describe this class as hard-real-time safe.
  *
- * Implements the Selective State Space (SSM) recurrent step using only
- * pre-allocated std::vector buffers. No heap allocation occurs inside
- * processSample() or processBlock().
+ * The recurrence uses learned, input-independent dA, dB, and C arrays. It is
+ * not the input-dependent selective recurrence of upstream Mamba/Mamba-3.
  *
- * Weight loading (loadLayerWeights) must only be called on a non-RT thread.
+ * Weight loading (loadLayerWeights) must only be called on a non-audio thread.
+ * The experimental INT8 path lazily allocates quantized buffers on first use
+ * and must not be entered from an audio callback as currently implemented.
  */
 
 enum class QuantMode {
     FP32, ///< Full-precision float (default)
-    INT8, ///< 8-bit quantized weights (per-channel scale)
-    INT4  ///< 4-bit quantized weights (future)
+    INT8, ///< Experimental; first use lazily allocates and is not RT-safe.
+    INT4  ///< Not implemented.
 };
 
 class MambaLayer {
@@ -32,7 +32,7 @@ public:
                int64_t d_conv = 4, int64_t expand = 2);
 
     // -------------------------------------------------------------------------
-    // RT-safe audio processing
+    // Processing methods: buffer reuse is intended, but hard-RT safety is unverified.
     // -------------------------------------------------------------------------
 
     /** Process a single sample through the SSM step (d_model=1 path). */
@@ -122,7 +122,7 @@ private:
 
     // --- INT8 quantized weights (optional, populated on demand) ---
     QuantMode quant_mode_ = QuantMode::FP32;
-    mutable bool int8_weights_ready_ = false; // lazy quantize
+    mutable bool int8_weights_ready_ = false; // lazy path allocates on first use
     mutable std::vector<int8_t>  weight_in_proj_q8_;
     mutable std::vector<int8_t>  weight_out_proj_q8_;
     mutable std::vector<int8_t>  weight_conv1d_q8_;

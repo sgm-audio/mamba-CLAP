@@ -1,9 +1,14 @@
 #!/bin/bash
-# Development environment setup script for Mamba repository
+# Legacy dependency bootstrap for the Mamba repository.
+# Not validated against the current checkout; it installs large CUDA/Mamba
+# dependencies and does not configure or verify a complete plug-in build.
+# See docs/BUILD_AND_TEST_GUIDE.md before use.
 
-set -e  # Exit on any error
+set -euo pipefail
 
-echo "Setting up Mamba repository development environment..."
+echo "WARNING: legacy, unverified setup script; dependency installation is not build/test validation."
+echo "The full plug-in build is currently blocked. See docs/PROJECT_STATUS.md."
+echo "Proceeding with the historical dependency install commands..."
 
 # Check if we're in the right directory
 if [ ! -f "README.md" ] || [ ! -d "mamba" ]; then
@@ -37,13 +42,6 @@ fi
 echo "Installing causal-conv1d..."
 pip install causal-conv1d>=1.4.0 --no-build-isolation
 
-echo "Development environment setup complete!"
-echo ""
-echo "To verify the installation, run:"
-echo "  python test_mamba.py"
-echo ""
-echo "To run tests:"
-echo "  ./scripts/run-tests.sh"
-echo ""
-echo "To build all components:"
-echo "  ./scripts/build-all.sh"
+echo "Historical dependency commands finished; the environment and plug-in build are NOT verified."
+echo "See docs/BUILD_AND_TEST_GUIDE.md for the currently verified narrow test and known blockers."
+echo "Do not treat this script's successful exit as proof that the full repository builds or tests pass."

@@ -1,14 +1,11 @@
 #pragma once
-// AudioRingBuffer — multi-channel, lock-free, real-time-safe ring buffer.
+// AudioRingBuffer — fixed-capacity queue prototype for audio/inference handoff.
 //
-// Writer: audio thread (push per channel per process block).
-// Reader: inference worker thread (pop into mel-spectrogram pipeline).
-//
-// Implementation uses two per-channel SPSC atomic pointers (read/write heads).
-// The buffer is pre-allocated in activate(); no alloc occurs at runtime.
-//
-// Capacity must cover the worst-case latency between inference and audio:
-//   ≥ max_block_size × 8  (enough for 8 blocks of inference lag).
+// Proposed writer: audio callback; proposed reader: inference worker. The source
+// uses pre-sized storage and atomics, but lock-free behavior, memory ordering,
+// overflow policy, callback cost, and end-to-end underrun behavior are unverified.
+// No hard-real-time guarantee is implied. Capacity must be selected from measured
+// worker latency rather than assuming a fixed number of blocks is sufficient.
 
 #include <atomic>
 #include <vector>

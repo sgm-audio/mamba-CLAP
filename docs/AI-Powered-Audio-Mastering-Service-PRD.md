@@ -1,5 +1,7 @@
 # PRD: AI-Powered Audio Mastering Service
 
+> **Status (2026-10-04): proposed product concept, not a delivered service.** The user journeys, quality outcomes, integrations, and commercial expectations below are requirements/hypotheses, not demonstrated behavior or customer validation. This checkout does not establish a deployed mastering service or production-quality model. See [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+
 ## Problem Statement
 Professional audio mastering creates a significant barrier for independent musicians and small studios due to the high cost of specialized engineers, expensive equipment, and time-intensive workflows. Many creators release audio with inconsistent loudness, tonal balance, and dynamic range that fails to meet professional standards for streaming platforms, radio, or physical media. An accessible AI-powered mastering service would democratize professional-quality results while integrating seamlessly with existing production workflows.
 

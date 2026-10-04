@@ -1,27 +1,14 @@
 #pragma once
-// MambaInferenceEngine — manages the real-time inference worker thread
-// and the model lifecycle.
+// MambaInferenceEngine — proposed worker-thread/model-lifecycle interface.
 //
-// Architecture:
-//   One engine per plugin instance.
-//   Engine owns:
-//     • ModelLoader (async load, hot-swap)
-//     • MambaSession (active real-time session — swapped atomically on reload)
-//     • std::thread  (inference worker — reads AudioRingBuffer, runs session)
-//     • InferenceResultQueue (writes results back to audio thread)
+// STATUS: incomplete architecture experiment. The header describes intended
+// separation of inference from the callback; no end-to-end worker/result path,
+// bounded queue behavior, or host callback safety has been verified. Do not
+// treat the following outline as an implemented real-time guarantee.
 //
-// Worker thread behaviour:
-//   while running:
-//     wait (with timeout) for audio data in ring buffer
-//     run MambaSession::step() for each buffered mel frame
-//     push InferenceResult to result_queue_
-//     if seek_generation changed: session->reset()
-//
-// Real-time guarantee:
-//   The audio thread NEVER calls libtorch.  It only:
-//     • pushes raw samples to AudioRingBuffer (lock-free)
-//     • reads InferenceResult from result_queue_ (lock-free)
-//   Both are wait-free for the producer/consumer respectively.
+// Proposed responsibilities: async model loading, per-instance session state,
+// worker inference from a bounded audio/features queue, and result handoff. The
+// actual lifecycle, timing, ownership, and underrun behavior still need tests.
 
 #include <memory>
 #include <thread>

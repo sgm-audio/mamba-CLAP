@@ -1,14 +1,14 @@
 # ADR-002: Memory Architecture and Weight Storage
 
 ## Status
-Accepted
+Historical design draft; the proposed file format and memory/real-time properties are not the verified model/runtime contract. Consult [`docs/PROJECT_STATUS.md`](../docs/PROJECT_STATUS.md) and the current loader implementation.
 
 ## Context
 The audio thread must not perform any heap allocations or deallocations during real-time processing.
 All working memory for the SSM inference must be pre-allocated. The weights for the Mamba-SSM model
 must be stored in a way that is efficient for real-time reading and does not incur runtime overhead.
 
-## Decision
+## Proposed Decision (not implemented/verified)
 ### Memory Pre-allocation
 - All inference working memory (state vectors, temporary buffers, etc.) is pre-allocated during the
   `activate()` call. The maximum block size is known from the host (or we use a fixed maximum block
@@ -33,12 +33,10 @@ must be stored in a way that is efficient for real-time reading and does not inc
   regenerate `config.h` with the new dimensions and recompile. The weight file must also be
   regenerated to match the new dimensions.
 
-## Consequences
-- The audio thread has deterministic memory access and no allocations.
-- Weight loading is done once (during initialization) via memory mapping, so there is no cost during
-  real-time processing.
-- The system is flexible to different model sizes by changing the compile-time configuration and
-  the weight file.
+## Intended Consequences (not demonstrated)
+- Preallocation could make memory use more predictable, but callback allocations and timing have not been audited.
+- A memory-mapped loader would keep file I/O off the callback only if the actual load/page-fault behavior and lifecycle are verified.
+- Model-size changes would require matching exported weights/configuration; no complete training/export/runtime contract is established.
 
 ## Implementation Notes
 - We use `mmap` (or equivalent on Windows) to map the weight file into memory. The memory mapping

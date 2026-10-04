@@ -1,21 +1,14 @@
 #pragma once
-// ModelLoader — asynchronous, memory-mapped weight loader.
+// ModelLoader — proposed asynchronous model-loading interface.
 //
-// Strategy for a 150 MB Mamba model:
-//   1. mmap the .pt file read-only; OS page-faults pages in on demand.
-//      Multiple plugin instances in the same process share the same physical
-//      pages via the shared WeightStore singleton.
-//   2. A background std::thread calls torch::jit::load() passing a custom
-//      InputArchive backed by the mmap region — avoids a full heap copy.
-//   3. On success, WeightStore stores a shared_ptr<torch::jit::Module>.
-//      Each MambaSession receives a non-owning reference; the Module lives
-//      as long as any Session or the WeightStore is alive.
-//   4. ModelLoader notifies the PluginCore via PluginCore::notify_model_ready()
-//      which posts to AudioCommandQueue (lock-free, real-time safe).
+// STATUS: model sizes, mmap behavior, shared-page savings, and callback handoff
+// below are design hypotheses; no packaged checkpoints or end-to-end loader/runtime
+// path is validated. Audit ownership, lifetimes, errors, and callback behavior
+// before relying on this design. In particular, model variants are not shipped.
 //
-// Variant dispatch:
-//   ParamId::ModelVariant  → kTiny(20MB) | kBase(80MB) | kLarge(150MB)
-//   Each variant is a separate TorchScript file on disk.
+// Proposed approach: load weights on a background thread, optionally share an
+// immutable module, then notify the processor without doing loading work on the
+// audio callback. Actual memory/timing savings and thread safety remain unmeasured.
 
 #include <memory>
 #include <string>

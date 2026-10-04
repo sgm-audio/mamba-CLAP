@@ -1,38 +1,30 @@
-# System Architecture: PyTorch + Mamba CLAP Audio Effects Plugin
+# Proposed architecture: PyTorch + Mamba CLAP audio-effects prototype
+
+> **Status (2026-10-04): design/research only; not an implementation verification.** The sections below describe an intended architecture. The checked-in code has separate, incomplete plug-in paths: `clap-plugin/` calls Torch operations in its audio callback; `MambaDAW/` uses a different custom recurrent SSM and is blocked by a missing inference-thread header; `plugin/` references missing CMake sources and has incomplete model/result wiring. Mamba-3, 60-second effective context, real-time performance, CPU/GPU parity, and effect quality are not verified. See [`PROJECT_STATUS.md`](./PROJECT_STATUS.md) and [`CLAIMS_VERIFICATION_2026-10.md`](./CLAIMS_VERIFICATION_2026-10.md).
+
+**Interpretation:** unless a section is explicitly marked implemented and tested, treat statements below as goals, design proposals, or assumptions to validate—not as shipped behavior.
+
+---
 
 ## High-Level Architecture
 
 ### Components and Responsibilities
 
 #### 1. CLAP Plugin Interface (`MambaClapPlugin`)
-- **Responsibility**: Implements the CLAP 1.0 plugin interface for host communication
-- **Handles**: Host initialization, audio processing callbacks, parameter automation, lifecycle management
-- **Interfaces**: CLAP host, audio processing threads, UI thread (via host)
+- **Proposed responsibility**: host communication, parameter automation, and lifecycle handling.
+- **Status**: the repository has separate/incomplete CLAP experiments; this architecture is not a verified built target. See [`PROJECT_STATUS.md`](./PROJECT_STATUS.md).
 
-#### 2. Audio Processing Pipeline
-- **STFTProcessor**: Converts time-domain audio to/from mel-spectrogram domain
-  - Forward: Waveform → STFT → Magnitude → Mel-filterbank → Log-Mel spectrogram
-  - Inverse: Mel-spectrogram → Inverse Mel-filterbank → Magnitude → ISTFT → Waveform
-- **MambaWrapper**: Encapsulates Mamba-3 model inference
-  - Loads Mamba-3 checkpoint from mamba_ssm library
-  - Processes mel-spectrogram sequences with state maintenance
-  - Handles device placement (CPU/GPU)
-- **EffectDecoders**: Converts Mamba output to effect-specific parameters
-  - ReverbDecoder: Maps to reverb parameters (decay, pre-diffusion, etc.)
-  - CompressionDecoder: Maps to compression parameters (ratio, attack, release)
-  - SaturationDecoder: Maps to distortion/harmonics parameters
-  - EQDecoder: Maps to frequency band gains
+#### 2. Candidate audio-processing pipeline
+- **STFT/mel processing**: a proposed waveform → time-frequency representation path. Transform correctness, reconstruction, and latency need testing.
+- **Sequence model**: candidate model not selected or integrated. The custom `MambaDAW` recurrent SSM is not upstream Mamba/Mamba-3; the LibTorch CLAP experiment is separate.
+- **Effect parameter mapping**: proposed control outputs for conventional DSP effects. No trained decoders or perceptual benefit are validated.
 
-#### 3. Parameter and State Management
-- **PluginParameters**: Manages host-exposed parameters (effect type, mix, context length, etc.)
-- **ProcessingState**: Maintains Mamba hidden state across audio blocks for temporal context
-- **EffectContext**: Tracks musical context (estimated section type, energy, etc.) for adaptation
+#### 3. Proposed parameter and state management
+- Host parameters and recurrent state would need explicit lifecycle, reset/seek, ownership, and synchronization contracts.
+- Musical section/energy estimates are research targets, not verified outputs.
 
-#### 4. Model Management
-- **ModelLoader**: Handles loading and initialization of Mamba-3 weights
-  - Supports TorchScript and native PyTorch formats
-  - Manages device transfer and memory allocation
-  - Provides fallback to identity processing on failure
+#### 4. Proposed model management
+- A loader/export path, checkpoint format, device placement, memory use, and fallback behavior remain to be implemented and tested. No pretrained Mamba-3 audio checkpoint is established.
 
 ### Data Flow
 
@@ -95,53 +87,35 @@
 - **Resource isolation**: Each plugin instance manages its own memory and compute resources
 - **Host-mediated concurrency**: DAW handles multiple plugin instances; no inter-plugin communication
 
-### Resource Requirements per Instance
-- **CPU**: 1-2 cores (depending on block size and model complexity)
-- **Memory**: 200-500MB (model weights + activations + audio buffers)
-- **GPU**: Optional; 100-200MB VRAM if CUDA enabled
-- **Disk**: 50-200MB for model files (depending on Mamba-3 variant)
+### Resource requirements
 
-## Key Design Choices and Tradeoffs
+**Undetermined.** No model/checkpoint/runtime combination has been selected and no CPU, RAM, VRAM, disk, or concurrent-instance measurements are available. Measure these on named hardware after the train/export/load path is reproducible.
 
-### 1. CLAP Format Selection
-- **Choice**: Use CLAP 1.0 as primary plugin format
-- **Why**: Modern, open standard; good DAW support (Reaper, Bitwig, Tracktion); avoids vendor lock-in
-- **Tradeoff**: Less mature ecosystem than VST3/AU; requires CLAP wrapper for some hosts
-- **Mitigation**: Provide CLAP wrapper for VST3/AU if needed in future
+## Candidate design choices and trade-offs (not selected or benchmarked)
 
-### 2. Mamba-3 Selection
-- **Choice**: Use Mamba-3 SSM architecture for temporal modeling
-- **Why**: O(N) complexity for long sequences; proven audio modeling capability; efficient inference
-- **Tradeoff**: Newer architecture with fewer audio-specific pretrained models; requires adaptation
-- **Mitigation**: Start with audio-effect-specific fine-tuning of base Mamba-3 models
+### Plug-in format
+CLAP is one proposed target. The repository's CLAP paths are separate and incomplete; host compatibility and format/build choices need validation before selecting a release path.
 
-### 3. Mel-Spectrogram Intermediate Representation
-- **Choice**: Convert audio to mel-spectrogram for Mamba processing
-- **Why**: Compact representation; aligns with human auditory perception; reduces sequence length
-- **Tradeoff**: Phase information loss; STFT/ISTFT overhead
-- **Mitigation**: Use sufficient overlap (50%) and window size to minimize artifacts; consider complex spectrograms if needed
+### Sequence model
+Compare SSM/Mamba-family models with simpler recurrent, convolutional, and attention baselines on a defined audio task. Linear sequence scaling does not establish effective memory, quality, or callback suitability. No Mamba-3 plug-in integration or LoRA workflow is verified.
 
-### 4. Block-Based Processing Approach
-- **Choice**: Process audio in overlapping blocks (2048 samples, 50% hop)
-- **Why**: Enables real-time operation with bounded latency; matches STFT natural block size
-- **Tradeoff**: Block boundary artifacts; state continuity challenges
-- **Mitigation**: Overlap-add synthesis; maintain Mamba state across blocks; use appropriate windowing
+### Audio representation
+Compare mel, complex/STFT, waveform, and other task-appropriate representations. Measure task quality, information loss, transform cost, reconstruction artifacts, and listening preference.
 
-### 5. CPU-First with GPU Acceleration
-- **Choice**: Prioritize CPU implementation with optional GPU acceleration
-- **Why**: Broader compatibility; simpler debugging; GPU not always available in audio PCs
-- **Tradeoff**: Higher latency on CPU; more complex dual-path implementation
-- **Mitigation**: Transparent fallback; asynchronous model loading to avoid audio glitches
+### Processing mode
+Specify causal state, worker/result handoff, reset/seek behavior, queue overflow, and stale-result policy. Example block/hop values elsewhere in this file are placeholders, not measured latency or quality results.
 
-### 6. Effect-Specific Decoding Heads
-- **Choice**: Separate decoders for each effect type sharing Mamba backbone
-- **Why**: Efficient multi-task learning; shared contextual understanding; easy to add new effects
-- **Tradeoff**: Increased model size; potential interference between tasks
-- **Mitigation**: Task-specific adapters; regularization during training; modular decoder design
+### CPU/GPU strategy
+CPU-first, GPU, and hybrid designs are alternatives to benchmark on named hardware. Do not assume that device availability implies lower end-to-end latency or reliable callback behavior.
 
-## Reliability Plan
+### Effect-specific parameter heads
+Shared or separate heads are model-design alternatives. Compare training stability, task interference, memory, interpretability, and audio quality before choosing.
 
-### Error Handling and Timeouts
+## Proposed reliability requirements (not implemented)
+
+Timeouts and limits below are historical draft values, not measured service-level targets or implemented behavior; revisit after selecting a runtime and measuring it.
+
+### Error handling and timeouts
 - **Model Loading**:
   - Timeout: 5 seconds for model loading
   - Retry: None (fast failure preferred)
@@ -168,10 +142,10 @@
 - **Audio Buffer**:
   - Host guarantees buffer size compliance
   - Plugin processes exactly what host provides
-- **Model Inference**:
-  - Synchronous processing within audio callback
-  - No queuing; if inference takes too long, audio glitches occur
-  - Mitigation: Profiling to ensure real-time capability; reduce model complexity if needed
+- **Model inference**:
+  - Do not adopt synchronous model inference in the audio callback as a safety design.
+  - The legacy `clap-plugin/` experiment currently performs Torch/STFT/model work in its callback and is not hard-real-time safe.
+  - A worker/queue architecture is a proposal only; queue-full/stale-result/underrun behavior is not yet wired and tested end to end.
 
 ### Resource Management
 - **Memory**:
@@ -186,18 +160,9 @@
 ## Storage Choices and Consistency Model
 
 ### Storage Requirements
-- **Model Files**:
-  - Location: User-configurable path (environment variable or plugin parameter)
-  - Format: TorchScript (.pt) or native PyTorch checkpoint
-  - Size: 100MB-1GB depending on Mamba-3 variant
-- **Plugin State**:
-  - Location: Host-managed via CLAP state mechanism
-  - Content: Last-used parameters (effect type, mix values, etc.)
-  - Size: <1KB
-- **Cache/Temporary**:
-  - Location: In-memory only
-  - Content: Audio processing buffers, intermediate tensors
-  - Size: <50MB per instance
+- **Model files**: storage location, format, license, checkpoint size, and loading semantics are undetermined until a model/export contract exists.
+- **Plug-in state**: host-managed parameter/state serialization is a design goal; format size, migration, and round-trip behavior need implementation tests.
+- **Working memory**: buffer/tensor memory and per-instance scaling are undetermined; measure on the selected implementation.
 
 ### Consistency Model
 - **Single-Writer Principle**:
@@ -276,13 +241,13 @@
 ## Architecture Decision Records (ADRs)
 
 ### ADR-001: Use CLAP 1.0 as Primary Plugin Format
-- **Status**: Accepted
+- **Status**: Proposed design only; implementation and evidence are unverified
 - **Context**: Need to support multiple DAWs with a single codebase
 - **Decision**: Implement as CLAP 1.0 plugin with potential wrappers for VST3/AU
 - **Consequences**:
-  - ✅ Modern, open standard
-  - ✅ Good Reaper support (primary target)
-  - ✅ Avoids vendor-specific complexities
+  - Potential benefit (not demonstrated): Modern, open standard
+  - Potential benefit (not demonstrated): Good Reaper support (primary target)
+  - Potential benefit (not demonstrated): Avoids vendor-specific complexities
   - ❌ Requires explanation to users unfamiliar with CLAP
   - ❌ May need wrapper for broader DAW compatibility
 - **Implementation**:
@@ -290,47 +255,29 @@
   - Evaluate JUCE CLAP wrapper or standalone implementation
   - Provide build options for wrappers if needed
 
-### ADR-002: Adopt Mamba-3 for Temporal Modeling
-- **Status**: Accepted
-- **Context**: Requirement for long-term context (60+ seconds) in audio effects
-- **Decision**: Use Mamba-3 SSM architecture from mamba_ssm library
-- **Consequences**:
-  - ✅ O(N) complexity enables long context
-  - ✅ State-of-the-art sequence modeling
-  - ✅ Efficient inference suitable for real-time
-  - ✅ Access to pretrained models via Hugging Face
-  - ❌ Newer architecture with limited audio-specific pretraining
-  - ❌ Requires adaptation from language modeling to audio domain
-- **Implementation**:
-  - Integrate mamba_ssm as submodule or dependency
-  - Load Mamba-3 checkpoints via torch::jit::load or native loading
-  - Create audio-specific processing wrapper around Mamba-3 block
+### ADR-002: Evaluate sequence models for temporal audio tasks
+- **Status**: Research question; no model or Mamba-3 plug-in integration is validated.
+- **Context**: Longer audio context is a proposed product goal, not an established user need or capability.
+- **Candidate**: Compare SSM/Mamba-family models with simpler recurrent, convolutional, and attention baselines on a defined audio task.
+- **Motivation to test**: favorable sequence-length scaling may help at long lengths, but does not establish useful musical memory, quality, or callback suitability.
+- **Open questions**: task performance, checkpoint availability/licensing, fine-tuning/export path, runtime compatibility, memory, and worst-case latency.
+- **Evidence gate**: publish an exact checkpoint/configuration, baseline, data split, quality/listening results, and target-hardware measurements before selecting a model.
 
-### ADR-003: Mel-Spectrogram as Intermediate Representation
-- **Status**: Accepted
-- **Context**: Need to represent audio for sequential processing by Mamba
-- **Decision**: Convert audio to log-mel spectrogram via STFT
-- **Consequences**:
-  - �| Compact representation reduces sequence length
-  - ✓ Perceptually relevant frequency scale
-  - ✓ Enables use of established audio ML techniques
-  - ✗ Phase information discarded
-  - ✗ STFT/ISTFT computational overhead
-  - ✗ Windowing artifacts possible
-- **Implementation**:
-  - STFT with Hann window, 50% overlap
-  - 80 mel bins covering 20Hz-20kHz range
-  - Log compression with epsilon for numerical stability
-  - Optional: Experiment with complex spectrograms or alternative representations
+### ADR-003: Evaluate audio representations
+- **Status**: Proposed experiment; no representation is validated for this task.
+- **Candidate**: Compare waveform, complex/STFT, mel, and other suitable inputs under a reproducible audio-quality protocol.
+- **Potential benefit**: a compact representation may reduce sequence length.
+- **Open risks**: information loss, reconstruction artifacts, transform cost, and task-specific quality.
+- **Evidence gate**: measure representation quality, latency, and reconstruction artifacts against baselines before choosing one.
 
 ### ADR-004: Block-Based Processing with State Maintenance
-- **Status**: Accepted
+- **Status**: Proposed design only; implementation and evidence are unverified
 - **Context**: Real-time audio processing requires bounded latency
 - **Decision**: Process in fixed-size blocks with recurrent state maintenance
 - **Consequences**:
-  - ✅ Predictable latency (block duration + processing time)
-  - ✅ Matches STFT natural processing grain
-  - ✅ Enables true temporal context across blocks
+  - Potential benefit (not demonstrated): Predictable latency (block duration + processing time)
+  - Potential benefit (not demonstrated): Matches STFT natural processing grain
+  - Potential benefit (not demonstrated): Enables true temporal context across blocks
   - ❌ Potential block boundary artifacts
   - ❌ State management complexity
   - ❌ Delay equals at least one block size
@@ -342,14 +289,14 @@
   - Apply windowing to minimize discontinuities
 
 ### ADR-005: CPU-First Implementation with Optional GPU Acceleration
-- **Status**: Accepted
+- **Status**: Proposed design only; implementation and evidence are unverified
 - **Context**: Variable hardware availability in audio production environments
 - **Decision**: Prioritize robust CPU implementation with CUDA acceleration option
 - **Consequences**:
-  - ✅ Broad compatibility (works on any modern PC)
-  - ✅ Simpler debugging and profiling
-  - ✅ Avoids GPU dependency issues
-  - ✅ Power efficiency for laptop users
+  - Potential benefit (not demonstrated): Broad compatibility (works on any modern PC)
+  - Potential benefit (not demonstrated): Simpler debugging and profiling
+  - Potential benefit (not demonstrated): Avoids GPU dependency issues
+  - Potential benefit (not demonstrated): Power efficiency for laptop users
   - ❌ Higher latency than pure GPU solution
   - ❌ Increased code complexity (dual-code paths)
   - ❌ Suboptimal performance on high-end GPU systems
@@ -359,27 +306,29 @@
   - Runtime device selection based on availability and benchmarking
   - Transparent fallback with performance indicators in UI
 
-### ADR-006: Shared Backbone with Effect-Specific Decoders
-- **Status**: Accepted
+### ADR-006: Evaluate shared versus effect-specific model heads
+- **Status**: Proposed design only; implementation and evidence are unverified
 - **Context**: Multiple effect types sharing contextual understanding
-- **Decision**: Single Mamba-3 backbone with multiple lightweight decoder heads
+- **Candidate**: shared or separate sequence-model backbones with task-specific heads
 - **Consequences**:
-  - ✅ Efficient parameter sharing
-  - ✅ Consistent contextual understanding across effects
-  - ✅ Easy to add new effect types
-  - ✅ Reduced memory footprint vs. separate models
+  - Potential benefit (not demonstrated): Efficient parameter sharing
+  - Potential benefit (not demonstrated): Consistent contextual understanding across effects
+  - Potential benefit (not demonstrated): Easy to add new effect types
+  - Potential benefit (not demonstrated): Reduced memory footprint vs. separate models
   - ❌ Potential task interference during training
   - ❌ Requires careful decoder design to avoid bottlenecks
   - ❌ Training complexity for multi-task learning
 - **Implementation**:
-  - Frozen or fine-tuned Mamba-3 backbone
+  - Select and train a compatible backbone only after a reproducible task baseline exists
   - Lightweight MLPs or transformers as effect heads
   - Shared preprocessing (normalization) and postprocessing (denormalization)
   - Independent activation per effect type via plugin parameter
 
 ## Risks and Prototyping Requirements
 
-### High-Priority Risks Requiring Prototyping
+### High-priority questions requiring prototyping
+
+The numerical thresholds below are historical proposed pass criteria only; no corresponding benchmark or user study has been run. Revisit them for relevance before treating them as release gates.
 
 1. **Real-Time Performance on Target Hardware**
    - **Risk**: Mamba-3 inference too slow for real-time audio processing
@@ -418,4 +367,4 @@
   - Version pinning in dependencies
   - Isolation of Mamba-specific code to minimal files
 
-This architecture provides a solid foundation for implementing the PyTorch + Mamba CLAP audio effects plugin while addressing the key requirements from the PRD. The design balances innovation with practicality, prioritizing reliability and usability in real-world audio production environments.
+This document is a research/design proposal only. It is not an as-built description and does not establish that the architecture is feasible, reliable, usable, or production-ready. Validate the model, audio task, export/runtime path, host integration, and real-time behavior before adopting it.

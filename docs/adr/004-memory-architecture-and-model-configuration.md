@@ -1,7 +1,7 @@
 # ADR-004: Memory Architecture and Model Configuration Contract
 
 ## Status
-Accepted
+Accepted as a historical design proposal only; the proposed memory/model contract is not integrated or validated. See [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md).
 
 ## Context
 Neural inference runs in `process()`, so all runtime memory and model dimensions must be prepared before RT entry. Model swaps from 1M to 50M parameters must not require code rewrites.

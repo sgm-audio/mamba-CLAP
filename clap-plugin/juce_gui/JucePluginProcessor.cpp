@@ -28,7 +28,7 @@ MambaAudioProcessor::MambaAudioProcessor()
         .support_url = "",
         .version = "1.0.0",
         .min_api_version = "1.0",
-        .description = "Audio effect using Mamba SSM for spectrogram enhancement with HiFi-GAN vocoder",
+        .description = "Experimental spectrogram-processing prototype; model and audio quality not validated",
         .features = (const char*[]){
             CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
             CLAP_PLUGIN_FEATURE_UTILITY,
