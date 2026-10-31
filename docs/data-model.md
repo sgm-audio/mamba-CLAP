@@ -228,7 +228,7 @@ VALUES
 ### Auth Response
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "accessToken": "<jwt>",
   "tokenType": "Bearer",
   "expiresIn": 3600,
   "user": {
