@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local checks for the parts of this repository that build today.
-# Usage: scripts/ci.sh   (CXX defaults to c++; set CXX=clang++ etc.)
+# Usage: bash scripts/ci.sh   (CXX defaults to c++; set CXX=clang++ etc.)
 # Not covered: MambaDAW plug-in build, plugin/, clap-plugin/ (see docs/PROJECT_STATUS.md).
 set -euo pipefail
 cd "$(dirname "$0")/.."

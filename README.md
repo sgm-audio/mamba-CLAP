@@ -32,7 +32,7 @@ This is a multi-project repository. Its model research, Python audio experiments
 
 ## What builds and passes (2026-10-31)
 
-Shared 8-vCPU Xeon VM, Linux, zig clang 22.1.8, rustc 1.99.1. Run `scripts/ci.sh` (set `CXX` to pick the compiler).
+Shared 8-vCPU Xeon VM, Linux, zig clang 22.1.8, rustc 1.99.1. Run `bash scripts/ci.sh` (set `CXX` to pick the compiler).
 
 | Check | Before cleanup (`f5a0158`) | After |
 |---|---|---|
