@@ -10,19 +10,25 @@ use std::time::Duration;
 #[derive(Debug)]
 pub struct RingBuffer<T: Clone> {
     buffer: Vec<Option<T>>,
+    /// Number of items the buffer holds when full (as passed to `new`).
     capacity: usize,
+    /// Physical slot count: `capacity + 1`. One slot stays empty so that
+    /// `head == tail` means empty and `next(head) == tail` means full.
+    slots: usize,
     head: AtomicUsize, // Index where producer writes
     tail: AtomicUsize, // Index where consumer reads
     closed: AtomicBool,
 }
 
 impl<T: Clone> RingBuffer<T> {
-    /// Create a new ring buffer with the given capacity
+    /// Create a ring buffer that holds up to `capacity` items.
     pub fn new(capacity: usize) -> Self {
         assert!(capacity > 0, "Capacity must be greater than 0");
+        let slots = capacity + 1;
         Self {
-            buffer: vec![None; capacity],
+            buffer: vec![None; slots],
             capacity,
+            slots,
             head: AtomicUsize::new(0),
             tail: AtomicUsize::new(0),
             closed: AtomicBool::new(false),
@@ -38,7 +44,7 @@ impl<T: Clone> RingBuffer<T> {
 
         let mut head = self.head.load(Ordering::Relaxed);
         loop {
-            let next_head = (head + 1) % self.capacity;
+            let next_head = (head + 1) % self.slots;
 
             // Check if buffer is full
             if next_head == self.tail.load(Ordering::Acquire) {
@@ -80,7 +86,7 @@ impl<T: Clone> RingBuffer<T> {
                 return None;
             }
 
-            let next_tail = (tail + 1) % self.capacity;
+            let next_tail = (tail + 1) % self.slots;
 
             // Try to claim the slot
             if self.tail
@@ -104,7 +110,7 @@ impl<T: Clone> RingBuffer<T> {
         }
 
         let tail = self.tail.load(Ordering::Relaxed);
-        let next_tail = (tail + 1) % self.capacity;
+        let next_tail = (tail + 1) % self.slots;
 
         // Check if another thread is trying to pop the same item
         if self.tail
@@ -136,7 +142,7 @@ impl<T: Clone> RingBuffer<T> {
         if head >= tail {
             head - tail
         } else {
-            self.capacity - tail + head
+            self.slots - tail + head
         }
     }
 
@@ -149,7 +155,7 @@ impl<T: Clone> RingBuffer<T> {
     pub fn is_full(&self) -> bool {
         let head = self.head.load(Ordering::Acquire);
         let tail = self.tail.load(Ordering::Acquire);
-        let next_head = (head + 1) % self.capacity;
+        let next_head = (head + 1) % self.slots;
         next_head == tail
     }
 }
@@ -201,6 +207,24 @@ mod tests {
         // After popping, should be able to push again
         assert_eq!(rb.pop(), Some(1));
         assert_eq!(rb.push(3), Ok(()));
+    }
+
+    /// `new(n)` holds exactly n items, including after the indices wrap.
+    #[test]
+    fn test_ring_buffer_capacity_after_wrap() {
+        let mut rb = RingBuffer::<i32>::new(3);
+        for round in 0..5 {
+            for i in 0..3 {
+                assert_eq!(rb.push(round * 10 + i), Ok(()));
+            }
+            assert_eq!(rb.len(), 3);
+            assert!(rb.is_full());
+            assert_eq!(rb.push(-1), Err(-1));
+            for i in 0..3 {
+                assert_eq!(rb.pop(), Some(round * 10 + i));
+            }
+            assert!(rb.is_empty());
+        }
     }
 
     #[test]
