@@ -1,3 +1,3 @@
-[submodule "emotion-aware-dsp"]
-	path = emotion-aware-dsp
-	url = https://github.com/SGM-Studios/emotion-aware-dsp.git
+[submodule "clap-plugin/clap-sdk"]
+	path = clap-plugin/clap-sdk
+	url = https://github.com/free-audio/clap.git
