@@ -44,15 +44,15 @@ We will modify the OpenAPI spec as follows:
 However, since this is still in development and we have not yet released the API to external clients, we can make this change without affecting existing users.
 
 ## Implementation Plan
-1. Update the OpenAPI specification (`api-spec.yaml`) to add the `contentType` field to `JobCreateRequest` and the `jobId` field to `UploadUrlRequest`.
+1. Update the OpenAPI specification (`docs/api/api-spec.yaml`) to add the `contentType` field to `JobCreateRequest` and the `jobId` field to `UploadUrlRequest`.
 2. Update the `Job` model in `backend/models.py` to ensure `contentType` is non-nullable (as we will now set it during job creation).
 3. Update the job creation endpoint to use the provided `contentType` to validate the file type and generate the S3 object key for `inputFileUri`.
 4. Update the upload URL endpoint to use the provided `jobId` to generate the S3 object key and verify that the job exists and belongs to the user.
 5. Update any relevant documentation.
 
 ## Related Documents
-- PRD.md
-- SYSTEM_DESIGN.md
+- docs/design/PRD.md
+- docs/design/SYSTEM_DESIGN.md
 - API_DESIGN.md
 - data-model.md
 
