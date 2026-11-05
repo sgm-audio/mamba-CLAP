@@ -32,6 +32,6 @@ output = model(x)
 ```
 
 For detailed API references, see the source code documentation in the respective modules:
-- [`mamba_ssm/modules/mamba_simple.py`](mamba_ssm/modules/mamba_simple.py)
-- [`mamba_ssm/modules/mamba2.py`](mamba_ssm/modules/mamba2.py)
-- [`mamba_ssm/modules/mamba3.py`](mamba_ssm/modules/mamba3.py)
+- [`mamba_ssm/modules/mamba_simple.py`](../../mamba/mamba_ssm/modules/mamba_simple.py)
+- [`mamba_ssm/modules/mamba2.py`](../../mamba/mamba_ssm/modules/mamba2.py)
+- [`mamba_ssm/modules/mamba3.py`](../../mamba/mamba_ssm/modules/mamba3.py)

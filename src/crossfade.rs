@@ -65,9 +65,10 @@ impl CrossfadeBuffer {
         }
     }
 
-    /// Reset the crossfade buffer
+    /// Reset the crossfade buffer to the state `new(length)` returns
     pub fn reset(&mut self) {
         self.buffer.clear();
+        self.buffer.resize(self.length, 0.0);
         self.position = 0;
         self.active = false;
     }
@@ -97,6 +98,16 @@ mod tests {
         assert_eq!(cf.buffer, vec![1.0, 2.0, 3.0, 4.0]);
     }
 
+    fn assert_close(actual: &[f32], expected: &[f32]) {
+        assert_eq!(actual.len(), expected.len());
+        for (a, e) in actual.iter().zip(expected) {
+            assert!((a - e).abs() < 1e-6, "got {:?}, expected {:?}", actual, expected);
+        }
+    }
+
+    /// Linear fade over `length` calls: on the call made at position p the
+    /// wet gain is p / length and the dry gain is 1 - p / length (they sum to
+    /// 1). After `length` calls the fade is inactive and output is pure wet.
     #[test]
     fn test_crossfade_apply() {
         let mut cf = CrossfadeBuffer::new(4);
@@ -106,26 +117,44 @@ mod tests {
         let dry_signal = [0.0, 0.0, 0.0, 0.0];
         let mut output = [0.0; 4];
 
-        // First sample (0% crossfade)
+        // Position 0: wet gain 0.0 (all dry)
         cf.apply(&dry_signal, &wet_signal, &mut output);
-        assert_eq!(output, [0.0, 0.0, 0.0, 0.0]); // Should be all dry (0.0)
+        assert_close(&output, &[0.0, 0.0, 0.0, 0.0]);
         assert_eq!(cf.position, 1);
 
-        // Second sample (33% crossfade)
+        // Position 1: wet gain 0.25
         cf.apply(&dry_signal, &wet_signal, &mut output);
-        assert_eq!(output, [0.33, 0.67, 1.0, 1.33]); // Approximate values
+        assert_close(&output, &[0.25, 0.5, 0.75, 1.0]);
         assert_eq!(cf.position, 2);
 
-        // Third sample (67% crossfade)
+        // Position 2: wet gain 0.5
         cf.apply(&dry_signal, &wet_signal, &mut output);
-        assert_eq!(output, [0.67, 1.33, 2.0, 2.67]); // Approximate values
+        assert_close(&output, &[0.5, 1.0, 1.5, 2.0]);
         assert_eq!(cf.position, 3);
 
-        // Fourth sample (100% crossfade)
+        // Position 3: wet gain 0.75, then the fade ends
         cf.apply(&dry_signal, &wet_signal, &mut output);
-        assert_eq!(output, [1.0, 2.0, 3.0, 4.0]); // Should be all wet
+        assert_close(&output, &[0.75, 1.5, 2.25, 3.0]);
         assert_eq!(cf.position, 4);
-        assert!(!cf.active); // Crossfade should be complete
+        assert!(!cf.active);
+
+        // After the fade: pure wet
+        cf.apply(&dry_signal, &wet_signal, &mut output);
+        assert_close(&output, &wet_signal);
+    }
+
+    /// Dry and wet gains sum to 1 at every step (constant level for
+    /// identical dry and wet input).
+    #[test]
+    fn test_crossfade_gains_sum_to_one() {
+        let mut cf = CrossfadeBuffer::new(8);
+        let x = [0.5_f32, -1.0, 2.0];
+        cf.start(&x);
+        let mut output = [0.0; 3];
+        for _ in 0..10 {
+            cf.apply(&x, &x, &mut output);
+            assert_close(&output, &x);
+        }
     }
 
     #[test]

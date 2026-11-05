@@ -16,7 +16,7 @@ MambaLayer::MambaLayer(int64_t d_model, int64_t d_state, int64_t d_conv, int64_t
     // Initialize weights with small random values to avoid dead-zero state.
     // In production, these will be overwritten by loadLayerWeights().
     auto rand_float = []() -> float {
-        return (static_cast<float>(std::rand()) / RAND_MAX - 0.5f) * 0.02f; // [-0.01, 0.01]
+        return (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 0.02f; // [-0.01, 0.01]
     };
 
     weight_in_proj_.resize(d_model_ * 2 * d_inner_);
